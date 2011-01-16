@@ -190,7 +190,7 @@ CServer::CServer() : m_DemoRecorder(&m_SnapshotDelta)
 	
 	m_MapReload = 0;
 
-	memset(m_aPrevStates, CClient::STATE_EMPTY, MAX_CLIENTS);
+	memset(m_aPrevStates, CClient::STATE_EMPTY, MAX_CLIENTS * sizeof(int));
 
 	m_RconClientId = -1;
 
