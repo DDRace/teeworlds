@@ -330,7 +330,7 @@ void CGameContext::ModifyWeapons(int ClientId, int Victim, int Weapon, bool Remo
 	{
 		if(Remove)
 		{
-			Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "you can't remove ninja");
+			Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "you can\'t remove ninja");
 			return;
 		}
 		
@@ -373,7 +373,7 @@ void CGameContext::ConTimerStop(IConsole::IResult *pResult, void *pUserData, int
 	if(pSelf->m_apPlayers[Victim])
 	{
 		pChr->m_DDRaceState=DDRACE_CHEAT;
-		str_format(aBuf, sizeof(aBuf), "'%s' ClientId=%d Hasn't time now (Timer Stopped)", pServ->ClientName(ClientId), Victim);
+		str_format(aBuf, sizeof(aBuf), "'%s' ClientId=%d Hasn\'t time now (Timer Stopped)", pServ->ClientName(ClientId), Victim);
 		pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", aBuf);
 	}
 }
@@ -600,7 +600,7 @@ void CGameContext::ConSettings(IConsole::IResult *pResult, void *pUserData, int 
 		if(str_comp(pArg, "cheats") == 0)
 		{
 			str_format(aBuf, sizeof(aBuf), "%s%s",
-					g_Config.m_SvCheats?"People can cheat":"People can't cheat",
+					g_Config.m_SvCheats?"People can cheat":"People can\'t cheat",
 					(g_Config.m_SvCheats)?(g_Config.m_SvCheatTime)?" with time":" without time":"");
 			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", aBuf);
 			if(g_Config.m_SvCheats)
@@ -618,11 +618,11 @@ void CGameContext::ConSettings(IConsole::IResult *pResult, void *pUserData, int 
 		}
 		else if(str_comp(pArg, "collision") == 0)
 		{
-			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", ColTemp?"Players can collide on this server":"Players Can't collide on this server");
+			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", ColTemp?"Players can collide on this server":"Players Can\'t collide on this server");
 		}
 		else if(str_comp(pArg, "hooking") == 0)
 		{
-			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", HookTemp?"Players can hook each other on this server":"Players Can't hook each other on this server");
+			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", HookTemp?"Players can hook each other on this server":"Players Can\'t hook each other on this server");
 		}
 		else if(str_comp(pArg, "endlesshooking") == 0)
 		{
@@ -634,11 +634,11 @@ void CGameContext::ConSettings(IConsole::IResult *pResult, void *pUserData, int 
 		}
 		else if(str_comp(pArg, "oldlaser") == 0)
 		{
-			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", g_Config.m_SvOldLaser?"Lasers can hit you if you shot them and that they pull you towards the bounce origin (Like DDRace Beta)":"Lasers can't hit you if you shot them, and they pull others towards the shooter");
+			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", g_Config.m_SvOldLaser?"Lasers can hit you if you shot them and that they pull you towards the bounce origin (Like DDRace Beta)":"Lasers can\'t hit you if you shot them, and they pull others towards the shooter");
 		}
 		else if(str_comp(pArg, "me") == 0)
 		{
-			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", g_Config.m_SvSlashMe?"Players can use /me commands the famous IRC Command":"Players Can't use the /me command");
+			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", g_Config.m_SvSlashMe?"Players can use /me commands the famous IRC Command":"Players Can\'t use the /me command");
 		}
 		else if(str_comp(pArg, "timeout") == 0)
 		{
@@ -647,14 +647,14 @@ void CGameContext::ConSettings(IConsole::IResult *pResult, void *pUserData, int 
 		}
 		else if(str_comp(pArg, "votes") == 0)
 		{
-			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", g_Config.m_SvVoteKick?"Players can use Callvote menu tab to kick offenders":"Players Can't use the Callvote menu tab to kick offenders");
+			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", g_Config.m_SvVoteKick?"Players can use Callvote menu tab to kick offenders":"Players Can\'t use the Callvote menu tab to kick offenders");
 			if(g_Config.m_SvVoteKick)
 				str_format(aBuf, sizeof(aBuf), "Players are banned for %d second(s) if they get voted off", g_Config.m_SvVoteKickBantime);
 			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", g_Config.m_SvVoteKickBantime?aBuf:"Players are just kicked and not banned if they get voted off");
 		}
 		else if(str_comp(pArg, "pause") == 0)
 		{
-			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", g_Config.m_SvPauseable?g_Config.m_SvPauseTime?"/pause is available on this server and it pauses your time too":"/pause is available on this server but it doesn't pause your time":"/pause is NOT available on this server");
+			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", g_Config.m_SvPauseable?g_Config.m_SvPauseTime?"/pause is available on this server and it pauses your time too":"/pause is available on this server but it doesn\'t pause your time":"/pause is NOT available on this server");
 		}
 		else if(str_comp(pArg, "scores") == 0)
 		{
@@ -771,12 +771,12 @@ void CGameContext::ConTogglePause(IConsole::IResult *pResult, void *pUserData, i
 			//pPlayer->LoadCharacter();//TODO:Check if this system Works
 		}
 		else if(pChr)
-			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", (pChr->Team())?"You can't pause while you are in a team":(pChr->m_aWeapons[WEAPON_NINJA].m_Got)?"You can't use /pause while you are a ninja":(!pChr->IsGrounded())?"You can't use /pause while you are a in air":"You can't use /pause while you are moving");
+			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", (pChr->Team())?"You can\'t pause while you are in a team":(pChr->m_aWeapons[WEAPON_NINJA].m_Got)?"You can\'t use /pause while you are a ninja":(!pChr->IsGrounded())?"You can\'t use /pause while you are a in air":"You can\'t use /pause while you are moving");
 		else
 			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "No pause data saved.");
 	}
 	else
-		pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "Pause isn't allowed on this server.");
+		pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "Pause isn\'t allowed on this server.");
 }
 
 void CGameContext::ConTop5(IConsole::IResult *pResult, void *pUserData, int ClientId)
@@ -833,7 +833,7 @@ void CGameContext::ConJoinTeam(IConsole::IResult *pResult, void *pUserData, int 
 	{
 		if(pPlayer->GetCharacter() == 0)
 		{
-			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You can't change teams while you are dead/a spectator.");
+			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You can\'t change teams while you are dead/a spectator.");
 		}
 		else
 		{
@@ -853,7 +853,7 @@ void CGameContext::ConJoinTeam(IConsole::IResult *pResult, void *pUserData, int 
 			}
 			else
 			{
-				pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You cannot join this team at this time");
+				pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You cannot join this team");
 			}
 		}
 	}
@@ -862,7 +862,7 @@ void CGameContext::ConJoinTeam(IConsole::IResult *pResult, void *pUserData, int 
 		char aBuf[512];
 		if(pPlayer->GetCharacter() == 0)
 		{
-			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You can't check your team while you are dead/a spectator.");
+			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You can\'t check your team while you are dead/a spectator.");
 		}
 		else
 		{
@@ -906,7 +906,7 @@ void CGameContext::ConToggleEyeEmote(IConsole::IResult *pResult, void *pUserData
 	if(pChr)
 	{
 		pChr->m_EyeEmote = !pChr->m_EyeEmote;
-		pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", (pChr->m_EyeEmote) ? "You can now use the preset eye emotes." : "You don't have any eye emotes, remember to bind some. (until you die)");
+		pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", (pChr->m_EyeEmote) ? "You can now use the preset eye emotes." : "You don\'t have any eye emotes, remember to bind some. (until you die)");
 	}
 }
 
