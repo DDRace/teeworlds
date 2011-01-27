@@ -1,3 +1,5 @@
+/* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
+/* If you are missing that file, acquire a complete release at teeworlds.com.                */
 /* copyright (c) 2008 rajh and gregwar. Score stuff */
 
 #include <base/tl/sorted_array.h>

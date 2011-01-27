@@ -1,3 +1,5 @@
+/* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
+/* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #ifndef GAME_SERVER_DDRACECOMMANDS_H
 #define GAME_SERVER_DDRACECOMMANDS_H
 #undef GAME_SERVER_DDRACECOMMANDS_H // this file can be included several times
