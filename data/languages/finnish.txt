@@ -205,8 +205,8 @@ Language
 Lht.
 == Valoisuus
 
-Loading DDRace Client
-== Ladataan DDRace
+Loading
+== Ladataan
 
 MOTD
 == Palvelimen viesti
@@ -489,12 +489,6 @@ Add Image
 Add Quad
 == 
 
-Add Quads Layer
-== 
-
-Add Tile Layer
-== 
-
 Add group
 == 
 
@@ -538,9 +532,6 @@ Blue value of the envelope
 == 
 
 Border
-== 
-
-Browser
 == 
 
 CCW
@@ -661,9 +652,6 @@ File: %s
 == 
 
 Filename:
-== 
-
-Filter gametype strict
 == 
 
 Folder
@@ -986,6 +974,8 @@ no limit
 
 ##### old translations #####
 
-Loading
-== Ladataan
+##### DDRace #####
+
+Loading DDRace Client
+== Ladataan DDRace
 

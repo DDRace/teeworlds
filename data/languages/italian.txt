@@ -442,8 +442,8 @@ Load a new image to use in the map
 Load map
 == Carica mappa
 
-Loading DDRace Client
-== Caricamento DDRace
+Loading
+== Caricamento
 
 MOTD
 == MDG
@@ -942,22 +942,10 @@ no limit
 
 ##### needs translation #####
 
-Add Quads Layer
-== 
-
-Add Tile Layer
-== 
-
-Browser
-== 
-
 File
 == 
 
 File: %s
-== 
-
-Filter gametype strict
 == 
 
 HD
@@ -986,6 +974,8 @@ Warmup
 
 ##### old translations #####
 
-Loading
-== Caricamento
+##### DDRace #####
+
+Loading DDRace Client
+== Caricamento DDRace
 

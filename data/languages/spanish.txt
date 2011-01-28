@@ -451,6 +451,9 @@ Load a new image to use in the map
 Load map
 == Cargar mapa
 
+Loading
+== Cargando
+
 MOTD
 == MOTD
 
@@ -969,23 +972,5 @@ no limit
 
 ##### needs translation #####
 
-Add Quads Layer
-== 
-
-Add Tile Layer
-== 
-
-Browser
-== 
-
-Filter gametype strict
-== 
-
-Loading DDRace Client
-== 
-
 ##### old translations #####
-
-Loading
-== Cargando
 

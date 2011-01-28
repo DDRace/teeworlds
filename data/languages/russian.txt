@@ -370,8 +370,8 @@ Load
 Load a new image to use in the map
 == Загрузить новое изображение для использования его в карте
 
-Loading DDRace Client
-== Загрузка DDRace Client
+Loading
+== Загрузка
 
 MOTD
 == MOTD
@@ -807,12 +807,6 @@ ZO
 %i seconds left
 == 
 
-Add Quads Layer
-== 
-
-Add Tile Layer
-== 
-
 Alpha value of the envelope
 == 
 
@@ -829,9 +823,6 @@ Automatically take game over screenshot
 == 
 
 Blue value of the envelope
-== 
-
-Browser
 == 
 
 Clip H
@@ -865,9 +856,6 @@ Enable/disable layer for saving
 == 
 
 File: %s
-== 
-
-Filter gametype strict
 == 
 
 Folder
@@ -986,6 +974,7 @@ no limit
 
 ##### old translations #####
 
-Loading
-== Загрузка
+##### DDRace #####
+Loading DDRace Client
+== Загрузка DDRace Client
 

@@ -238,8 +238,8 @@ Language
 Lht.
 == Svjetl.
 
-Loading DDRace Client
-== Učitavam DDRace
+Loading
+== Učitavam
 
 MOTD
 == Vijest dana
@@ -525,12 +525,6 @@ Add Image
 Add Quad
 == 
 
-Add Quads Layer
-== 
-
-Add Tile Layer
-== 
-
 Add group
 == 
 
@@ -565,9 +559,6 @@ Blue value of the envelope
 == 
 
 Border
-== 
-
-Browser
 == 
 
 CCW
@@ -685,9 +676,6 @@ File: %s
 == 
 
 Filename:
-== 
-
-Filter gametype strict
 == 
 
 Green value of the envelope
@@ -986,6 +974,8 @@ no limit
 
 ##### old translations #####
 
-Loading
-== Učitavam
+##### DDRace #####
+
+Loading DDRace Client
+== Učitavam DDRace
 

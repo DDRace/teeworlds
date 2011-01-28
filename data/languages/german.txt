@@ -451,8 +451,8 @@ Load a new image to use in the map
 Load map
 == Karte laden
 
-Loading DDRace Client
-== Lade DDRace
+Loading
+== Laden
 
 MOTD
 == Nachricht des Tages
@@ -972,20 +972,10 @@ no limit
 
 ##### needs translation #####
 
-Add Quads Layer
-== 
-
-Add Tile Layer
-== 
-
-Browser
-== 
-
-Filter gametype strict
-== 
-
 ##### old translations #####
 
-Loading
-== Laden
+##### DDRace #####
+
+Loading DDRace Client
+== Lade DDRace
 

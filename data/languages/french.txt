@@ -367,8 +367,8 @@ Load a new image to use in the map
 Load map
 == Charger une map
 
-Loading DDRace Client
-== Chargement DDRace
+Loading
+== Chargement
 
 MOTD
 == MOTD
@@ -765,12 +765,6 @@ no limit
 Add Quad
 == 
 
-Add Quads Layer
-== 
-
-Add Tile Layer
-== 
-
 Add quads layer
 == 
 
@@ -787,9 +781,6 @@ Aspect ratio
 == 
 
 Blue value of the envelope
-== 
-
-Browser
 == 
 
 Clip H
@@ -835,9 +826,6 @@ Enable/disable layer for saving
 == 
 
 Envelopes
-== 
-
-Filter gametype strict
 == 
 
 Green value of the envelope
@@ -986,6 +974,9 @@ Y-axis of the envelope
 
 ##### old translations #####
 
-Loading
-== Chargement
+
+##### DDRace #####
+
+Loading DDRace Client
+== Chargement DDRace
 
