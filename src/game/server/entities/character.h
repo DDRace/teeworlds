@@ -77,6 +77,8 @@ public:
 	bool Freeze(int Time);
 	bool Freeze();
 	bool UnFreeze();
+	bool m_DJ;
+	bool m_NDJ;
 	
 	void GiveAllWeapons();  
 	

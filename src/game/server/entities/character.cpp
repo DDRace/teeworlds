@@ -77,6 +77,7 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	m_BroadCast = true;
 	m_EyeEmote = true;
 	m_Fly = true;
+	m_DJ = true;
 	m_LastBroadcast = 0;
 	m_TeamBeforeSuper = 0;
 	CGameControllerDDRace* Controller = (CGameControllerDDRace*)GameServer()->m_pController;
@@ -790,7 +791,8 @@ void CCharacter::Tick()
 		Freeze();
 	if (m_Super && m_Core.m_Jumped > 1)
 		m_Core.m_Jumped = 1;
-
+	if (!m_DJ)
+		m_Core.m_Jumped = 2;
 	char aBroadcast[128];
 	m_Time = (float)(Server()->Tick() - m_StartTime) / ((float)Server()->TickSpeed());
 	CPlayerData *pData = GameServer()->Score()->PlayerData(m_pPlayer->GetCID());
@@ -1073,6 +1075,16 @@ void CCharacter::HandleTiles(int Index)
 	if(((m_TileIndex == TILE_FREEZE) || (m_TileFIndex == TILE_FREEZE)) && !m_Super && !m_DeepFreeze)
 	{
 		Freeze();
+	}
+	else if(((m_TileIndex == TILE_DOUBLEJUMP) || (m_TileFIndex == TILE_DOUBLEJUMP)) && !m_DJ)
+	{
+		m_DJ = true;
+	GameServer()->SendChatTarget(GetPlayer()->GetCID(),"You can now double jump again.");
+	}
+	else if(((m_TileIndex == TILE_UNDOUBLEJUMP) || (m_TileFIndex == TILE_UNDOUBLEJUMP)) && m_DJ)
+	{
+		m_DJ = false;
+	GameServer()->SendChatTarget(GetPlayer()->GetCID(),"You cannot double jump.");
 	}
 	else if(((m_TileIndex == TILE_UNFREEZE) || (m_TileFIndex == TILE_UNFREEZE)) && !m_DeepFreeze)
 	{
