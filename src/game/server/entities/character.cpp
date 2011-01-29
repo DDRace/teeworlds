@@ -8,7 +8,6 @@
 #include <game/server/gamecontext.h>
 #include <game/mapitems.h>
 #include <game/server/gamemodes/DDRace.h>
-
 #include <game/server/score.h>
 
 #include "character.h"
@@ -1092,12 +1091,16 @@ void CCharacter::HandleTiles(int Index)
 	}
 	else if(((m_TileIndex == TILE_DFREEZE) || (m_TileFIndex == TILE_DFREEZE)) && !m_Super && !m_DeepFreeze)
 	{
+		if(!m_pPlayer->m_DeepFreezeMsg)
 		GameServer()->SendChatTarget(GetPlayer()->GetCID(),"You have been deeply frozen");
 		m_DeepFreeze = true;
+		m_pPlayer->m_DeepFreezeMsg = true;
 	}
 	else if(((m_TileIndex == TILE_DUNFREEZE) || (m_TileFIndex == TILE_DUNFREEZE)) && !m_Super && m_DeepFreeze)
 	{
+		if(!m_pPlayer->m_UnDeepFreezeMsg)
 		GameServer()->SendChatTarget(GetPlayer()->GetCID(),"You have been thawed from deepfreeze");
+		m_pPlayer->m_UnDeepFreezeMsg = true;
 
 		if((m_TileIndex != TILE_FREEZE) && (m_TileFIndex != TILE_FREEZE)) {
 			UnFreeze();

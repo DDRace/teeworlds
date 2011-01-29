@@ -27,6 +27,8 @@ public:
 	
 	void Tick();
 	void Snap(int SnappingClient);
+	bool m_UnDeepFreezeMsg;
+	bool m_DeepFreezeMsg;
 
 	void OnDirectInput(CNetObj_PlayerInput *NewInput);
 	void OnPredictedInput(CNetObj_PlayerInput *NewInput);
