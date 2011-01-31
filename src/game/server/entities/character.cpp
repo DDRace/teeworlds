@@ -80,6 +80,10 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	m_LastBroadcast = 0;
 	m_TeamBeforeSuper = 0;
 	m_pPlayer->m_JOSH = 0 + Server()->Tick();
+	if(g_Config.m_SvMapTimer)
+	{
+	GameServer()->SendChatTarget(GetPlayer()->GetCID(),"You have a limited time to finish this map!");
+	}
 	CGameControllerDDRace* Controller = (CGameControllerDDRace*)GameServer()->m_pController;
 	m_Core.Init(&GameServer()->m_World.m_Core, GameServer()->Collision(), &Controller->m_Teams.m_Core);
 	m_Core.m_Pos = m_Pos;
@@ -1072,7 +1076,7 @@ void CCharacter::HandleTiles(int Index)
 	{
 		Controller->m_Teams.OnCharacterFinish(m_pPlayer->GetCID());
 	}
-	if(m_DDRaceState == DDRACE_STARTED)
+	if(m_DDRaceState == DDRACE_STARTED && g_Config.m_SvMapTimer)
 	{
 	if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime <= Server()->Tick())
 	{
