@@ -1070,6 +1070,12 @@ void CCharacter::HandleTiles(int Index)
 	{
 		Controller->m_Teams.OnCharacterFinish(m_pPlayer->GetCID());
 	}
+	if(m_DDRaceState == DDRACE_STARTED)
+	{
+	if(Server()->TickSpeed() * g_Config.m_SvMapTime <= Server()->Tick())
+	GameServer()->SendChatTarget(GetPlayer()->GetCID(),"TIMES UP! BETTER LUCK NEXT TIME :-)");
+	Die(m_pPlayer->GetCID(), WEAPON_WORLD);
+	}
 	if(((m_TileIndex == TILE_FREEZE) || (m_TileFIndex == TILE_FREEZE)) && !m_Super && !m_DeepFreeze)
 	{
 		Freeze();
