@@ -79,6 +79,7 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	m_Fly = true;
 	m_LastBroadcast = 0;
 	m_TeamBeforeSuper = 0;
+	m_pPlayer->m_JOSH = 0 + Server()->Tick();
 	CGameControllerDDRace* Controller = (CGameControllerDDRace*)GameServer()->m_pController;
 	m_Core.Init(&GameServer()->m_World.m_Core, GameServer()->Collision(), &Controller->m_Teams.m_Core);
 	m_Core.m_Pos = m_Pos;
@@ -1053,6 +1054,7 @@ void CCharacter::HandleTiles(int Index)
 	}
 	if(((m_TileIndex == TILE_BEGIN) || (m_TileFIndex == TILE_BEGIN) || FTile1 == TILE_BEGIN || FTile2 == TILE_BEGIN || FTile3 == TILE_BEGIN || FTile4 == TILE_BEGIN || Tile1 == TILE_BEGIN || Tile2 == TILE_BEGIN || Tile3 == TILE_BEGIN || Tile4 == TILE_BEGIN) && (m_DDRaceState == DDRACE_NONE || m_DDRaceState == DDRACE_FINISHED || (m_DDRaceState == DDRACE_STARTED && !Team())))
 	{
+		m_pPlayer->m_JOSH = 0 + Server()->Tick();
 		bool CanBegin = true;
 		if(g_Config.m_SvTeam == 1 && (Team() == TEAM_FLOCK || Teams()->Count(Team()) <= 1)) {
 			GameServer()->SendChatTarget(GetPlayer()->GetCID(),"I already told you too join a team");
@@ -1072,9 +1074,12 @@ void CCharacter::HandleTiles(int Index)
 	}
 	if(m_DDRaceState == DDRACE_STARTED)
 	{
-	if(Server()->TickSpeed() * g_Config.m_SvMapTime <= Server()->Tick())
+	if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime <= Server()->Tick())
+	{
 	GameServer()->SendChatTarget(GetPlayer()->GetCID(),"TIMES UP! BETTER LUCK NEXT TIME :-)");
 	Die(m_pPlayer->GetCID(), WEAPON_WORLD);
+	m_pPlayer->m_JOSH = Server()->Tick();
+	}
 	}
 	if(((m_TileIndex == TILE_FREEZE) || (m_TileFIndex == TILE_FREEZE)) && !m_Super && !m_DeepFreeze)
 	{
