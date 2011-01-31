@@ -24,7 +24,7 @@ struct CInputCount
 };
 
 CInputCount CountInput(int Prev, int Cur)
-{
+{g_Config.m_SvMapTimer
 	CInputCount c = {0, 0};
 	Prev &= INPUT_STATE_MASK;
 	Cur &= INPUT_STATE_MASK;
@@ -34,12 +34,12 @@ CInputCount CountInput(int Prev, int Cur)
 	{
 		i = (i+1)&INPUT_STATE_MASK;
 		if(i&1)
-			c.m_Presses++;
+			m_Presses++;
 		else
-			c.m_Releases++;
+			m_Releases++;
 	}
 
-	return c;
+	return;
 }
 
 
@@ -80,6 +80,10 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	m_LastBroadcast = 0;
 	m_TeamBeforeSuper = 0;
 	m_pPlayer->m_JOSH = 0 + Server()->Tick();
+	if(g_Config.m_SvMapTimer)
+	{
+	GameServer()->SendChatTarget(GetPlayer()->GetCID(),"You have %s second to finish this map", g_Config.m_SvMapTile);
+	}
 	CGameControllerDDRace* Controller = (CGameControllerDDRace*)GameServer()->m_pController;
 	m_Core.Init(&GameServer()->m_World.m_Core, GameServer()->Collision(), &Controller->m_Teams.m_Core);
 	m_Core.m_Pos = m_Pos;
@@ -102,7 +106,7 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	}
 	if(g_Config.m_SvTeam == 1)
 	{
-		GameServer()->SendChatTarget(GetPlayer()->GetCID(),"Please join a team before you start");
+		GameServer()->SendChatTarget(GetPlayer()->GetCID(),"Please join a team before you start");GameServer()->SendChatTarget(GetPlayer()->GetCID(),"Please join a team before you start");
 	}
 	m_DefEmote = EMOTE_NORMAL;
 	m_DefEmoteReset = -1;
@@ -1072,7 +1076,7 @@ void CCharacter::HandleTiles(int Index)
 	{
 		Controller->m_Teams.OnCharacterFinish(m_pPlayer->GetCID());
 	}
-	if(m_DDRaceState == DDRACE_STARTED)
+	if(m_DDRaceState == DDRACE_STARTED && g_Config.m_SvMapTimer)
 	{
 	if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime <= Server()->Tick())
 	{
