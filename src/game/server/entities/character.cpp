@@ -88,7 +88,7 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	m_Core.Init(&GameServer()->m_World.m_Core, GameServer()->Collision(), &Controller->m_Teams.m_Core);
 	m_Core.m_Pos = m_Pos;
 	m_Core.m_Id = GetPlayer()->GetCID();
-	//GameServer()->m_World.m_Core.m_apCharacters[m_pPlayer->GetCID()] = &m_Core;
+	GameServer()->m_World.m_Core.m_apCharacters[m_pPlayer->GetCID()] = &m_Core;
 	//dbg_msg("CCHaracter::Spawn", "ID %d Player %d m_Core %d", GetPlayer()->GetCID() ,GetPlayer() ,&m_Core);
 			
 	m_ReckoningTick = 0;
@@ -1440,7 +1440,7 @@ void CCharacter::Die(int Killer, int Weapon)
 	GameServer()->CreateSound(m_Pos, SOUND_PLAYER_DIE, Teams()->TeamMask(Team()));
 
 	// this is for auto respawn after 3 secs
-	m_pPlayer->m_DieTick = 0;
+	m_pPlayer->m_DieTick = Server()->Tick();
 
 	m_Alive = false;
 	MarkDestroy();
