@@ -1076,7 +1076,7 @@ void CCharacter::HandleTiles(int Index)
 	{
 		Controller->m_Teams.OnCharacterFinish(m_pPlayer->GetCID());
 	}
-	if(m_DDRaceState == DDRACE_STARTED && g_Config.m_SvMapTimer)
+	if(m_DDRaceState == DDRACE_STARTED && g_Config.m_SvMapTimer && !m_Super)
 	{
 	if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime <= Server()->Tick())
 	{
