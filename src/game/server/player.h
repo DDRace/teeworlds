@@ -85,7 +85,7 @@ public:
 	int64 m_Last_Kill;
 	int64 m_Last_Pause;
 	int64 m_Last_Team;
-	int64 m_JOSH;
+	int64 m_TimerMap;
 
 	bool m_Invisible;
 	

@@ -79,7 +79,7 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	m_Fly = true;
 	m_LastBroadcast = 0;
 	m_TeamBeforeSuper = 0;
-	m_pPlayer->m_JOSH = 0 + Server()->Tick();
+	m_pPlayer->m_TimerMap = 0 + Server()->Tick();
 	if(g_Config.m_SvMapTimer)
 	{
 	char aBroadcast[128];
@@ -1060,7 +1060,7 @@ void CCharacter::HandleTiles(int Index)
 	}
 	if(((m_TileIndex == TILE_BEGIN) || (m_TileFIndex == TILE_BEGIN) || FTile1 == TILE_BEGIN || FTile2 == TILE_BEGIN || FTile3 == TILE_BEGIN || FTile4 == TILE_BEGIN || Tile1 == TILE_BEGIN || Tile2 == TILE_BEGIN || Tile3 == TILE_BEGIN || Tile4 == TILE_BEGIN) && (m_DDRaceState == DDRACE_NONE || m_DDRaceState == DDRACE_FINISHED || (m_DDRaceState == DDRACE_STARTED && !Team())))
 	{
-		m_pPlayer->m_JOSH = 0 + Server()->Tick();
+		m_pPlayer->m_TimerMap = 0 + Server()->Tick();
 		bool CanBegin = true;
 		if(g_Config.m_SvTeam == 1 && (Team() == TEAM_FLOCK || Teams()->Count(Team()) <= 1)) {
 			GameServer()->SendChatTarget(GetPlayer()->GetCID(),"I already told you too join a team");
@@ -1082,72 +1082,72 @@ void CCharacter::HandleTiles(int Index)
 	}
 	if(m_DDRaceState == DDRACE_STARTED && g_Config.m_SvMapTimer && !m_Super)
 	{
-		if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime <= Server()->Tick())
+		if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime <= Server()->Tick())
 		{
 		GameServer()->SendChatTarget(GetPlayer()->GetCID(),"Times up! Better luck next time.");
 		Die(m_pPlayer->GetCID(), WEAPON_SELF);
-		m_pPlayer->m_JOSH = Server()->Tick();
+		m_pPlayer->m_TimerMap = Server()->Tick();
 		}
 	}
 	if(m_DDRaceState == DDRACE_STARTED && g_Config.m_SvMapTimer)
 	{
-	if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 5 == Server()->Tick())
+	if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 5 == Server()->Tick())
 	{
 
 	char aBroadcast[128];
 	str_format(aBroadcast, sizeof(aBroadcast), "5 seconds left");
 					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
 	}
-	if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 15 == Server()->Tick())
+	if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 15 == Server()->Tick())
 	{
 
 	char aBroadcast[128];
 	str_format(aBroadcast, sizeof(aBroadcast), "15 seconds left");
 					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
 	}
-if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 30 == Server()->Tick())
+if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 30 == Server()->Tick())
 	{
 
 	char aBroadcast[128];
 	str_format(aBroadcast, sizeof(aBroadcast), "30 seconds left");
 					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
 	}
-if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 45 == Server()->Tick())
+if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 45 == Server()->Tick())
 	{
 
 	char aBroadcast[128];
 	str_format(aBroadcast, sizeof(aBroadcast), "45 seconds left");
 					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
 	}
-if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 4 == Server()->Tick())
+if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 4 == Server()->Tick())
 	{
 
 	char aBroadcast[128];
 	str_format(aBroadcast, sizeof(aBroadcast), "4 seconds left");
 					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
 	}
-if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 3 == Server()->Tick())
+if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 3 == Server()->Tick())
 	{
 
 	char aBroadcast[128];
 	str_format(aBroadcast, sizeof(aBroadcast), "3 seconds left");
 					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
 	}
-if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 2 == Server()->Tick())
+if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 2 == Server()->Tick())
 	{
 
 	char aBroadcast[128];
 	str_format(aBroadcast, sizeof(aBroadcast), "2 seconds left");
 					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
 	}
-if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 1 == Server()->Tick())
+if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 1 == Server()->Tick())
 	{
 
 	char aBroadcast[128];
 	str_format(aBroadcast, sizeof(aBroadcast), "1 seconds left");
 					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
 	}
-if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * g_Config.m_SvMapTime == Server()->Tick())
+if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * g_Config.m_SvMapTime == Server()->Tick())
 	{
 
 	char aBroadcast[128];
