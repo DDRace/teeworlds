@@ -1062,6 +1062,8 @@ void CCharacter::HandleTiles(int Index)
 		bool CanBegin = true;
 		if(g_Config.m_SvTeam == 1 && (Team() == TEAM_FLOCK || Teams()->Count(Team()) <= 1)) {
 			GameServer()->SendChatTarget(GetPlayer()->GetCID(),"I already told you too join a team");
+			Die(m_pPlayer->GetCID(), WEAPON_SELF);
+			
 			CanBegin = false;
 		}
 		if(CanBegin) {
@@ -1080,11 +1082,19 @@ void CCharacter::HandleTiles(int Index)
 	{
 		if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime <= Server()->Tick())
 		{
-		GameServer()->SendChatTarget(GetPlayer()->GetCID(),"TIMES UP! BETTER LUCK NEXT TIME :-)");
-		Die(m_pPlayer->GetCID(), WEAPON_WORLD);
+		GameServer()->SendChatTarget(GetPlayer()->GetCID(),"Times up! Better luck next time.");
+		Die(m_pPlayer->GetCID(), WEAPON_SELF);
 		m_pPlayer->m_JOSH = Server()->Tick();
 		}
 	}
+	if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 5 == Server()->Tick())
+	{
+
+	char aBroadcast[128];
+	str_format(aBroadcast, sizeof(aBroadcast), "5 seconds left");
+					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
+	}
+
 	if(((m_TileIndex == TILE_FREEZE) || (m_TileFIndex == TILE_FREEZE)) && !m_Super && !m_DeepFreeze)
 	{
 		Freeze();
