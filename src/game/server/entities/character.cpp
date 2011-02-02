@@ -74,7 +74,7 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	m_DDRaceState = DDRACE_NONE;
 	m_PrevPos = Pos;
 	m_Core.Reset();
-	m_BroadCast = true;
+	m_BroadCast = false;
 	m_EyeEmote = true;
 	m_Fly = true;
 	m_LastBroadcast = 0;
@@ -1094,7 +1094,62 @@ void CCharacter::HandleTiles(int Index)
 	str_format(aBroadcast, sizeof(aBroadcast), "5 seconds left");
 					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
 	}
+	if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 15 == Server()->Tick())
+	{
 
+	char aBroadcast[128];
+	str_format(aBroadcast, sizeof(aBroadcast), "15 seconds left");
+					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
+	}
+if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 30 == Server()->Tick())
+	{
+
+	char aBroadcast[128];
+	str_format(aBroadcast, sizeof(aBroadcast), "30 seconds left");
+					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
+	}
+if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 45 == Server()->Tick())
+	{
+
+	char aBroadcast[128];
+	str_format(aBroadcast, sizeof(aBroadcast), "45 seconds left");
+					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
+	}
+if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 4 == Server()->Tick())
+	{
+
+	char aBroadcast[128];
+	str_format(aBroadcast, sizeof(aBroadcast), "4 seconds left");
+					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
+	}
+if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 3 == Server()->Tick())
+	{
+
+	char aBroadcast[128];
+	str_format(aBroadcast, sizeof(aBroadcast), "3 seconds left");
+					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
+	}
+if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 2 == Server()->Tick())
+	{
+
+	char aBroadcast[128];
+	str_format(aBroadcast, sizeof(aBroadcast), "2 seconds left");
+					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
+	}
+if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 1 == Server()->Tick())
+	{
+
+	char aBroadcast[128];
+	str_format(aBroadcast, sizeof(aBroadcast), "1 seconds left");
+					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
+	}
+if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * g_Config.m_SvMapTime == Server()->Tick())
+	{
+
+	char aBroadcast[128];
+	str_format(aBroadcast, sizeof(aBroadcast), "%d seconds!", g_Config.m_SvMapTime);
+					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
+	}
 	if(((m_TileIndex == TILE_FREEZE) || (m_TileFIndex == TILE_FREEZE)) && !m_Super && !m_DeepFreeze)
 	{
 		Freeze();
