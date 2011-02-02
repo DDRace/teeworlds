@@ -80,12 +80,6 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	m_LastBroadcast = 0;
 	m_TeamBeforeSuper = 0;
 	m_pPlayer->m_TimerMap = 0 + Server()->Tick();
-	if(g_Config.m_SvMapTimer)
-	{
-	char aBroadcast[128];
-	str_format(aBroadcast, sizeof(aBroadcast), "You have %d seconds to complete this map!", g_Config.m_SvMapTime);
-					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
-	}
 	CGameControllerDDRace* Controller = (CGameControllerDDRace*)GameServer()->m_pController;
 	m_Core.Init(&GameServer()->m_World.m_Core, GameServer()->Collision(), &Controller->m_Teams.m_Core);
 	m_Core.m_Pos = m_Pos;
@@ -1457,7 +1451,7 @@ void CCharacter::Die(int Killer, int Weapon)
 	GameServer()->CreateSound(m_Pos, SOUND_PLAYER_DIE, Teams()->TeamMask(Team()));
 
 	// this is for auto respawn after 3 secs
-	m_pPlayer->m_DieTick = Server()->Tick();
+	//m_pPlayer->m_DieTick = Server()->Tick();
 
 	m_Alive = false;
 	MarkDestroy();
@@ -1466,7 +1460,7 @@ void CCharacter::Die(int Killer, int Weapon)
 	GameServer()->CreateDeath(m_Pos, m_pPlayer->GetCID(), Teams()->TeamMask(Team()));
 
 	// we got to wait 0.5 secs before respawning
-	m_pPlayer->m_RespawnTick = Server()->Tick()+Server()->TickSpeed()/2;
+	//m_pPlayer->m_RespawnTick = Server()->Tick()+Server()->TickSpeed()/2;
 }
 
 bool CCharacter::TakeDamage(vec2 Force, int Dmg, int From, int Weapon)
