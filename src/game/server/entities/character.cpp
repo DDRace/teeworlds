@@ -1089,72 +1089,19 @@ void CCharacter::HandleTiles(int Index)
 		m_pPlayer->m_TimerMap = Server()->Tick();
 		}
 	}
+	for(int i = 1; i < g_Config.m_SvMapTime; i++)
+	{
 	if(m_DDRaceState == DDRACE_STARTED && g_Config.m_SvMapTimer)
 	{
-	if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 5 == Server()->Tick())
+	if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * i <= Server()->Tick())
 	{
+		char aBroadcast[128];
+	str_format(aBroadcast, sizeof(aBroadcast), "Only %d seconds left!", g_Config.m_SvMapTime - i);
 
-	char aBroadcast[128];
-	str_format(aBroadcast, sizeof(aBroadcast), "5 seconds left");
 					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
 	}
-	if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 15 == Server()->Tick())
-	{
-
-	char aBroadcast[128];
-	str_format(aBroadcast, sizeof(aBroadcast), "15 seconds left");
-					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
 	}
-if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 30 == Server()->Tick())
-	{
-
-	char aBroadcast[128];
-	str_format(aBroadcast, sizeof(aBroadcast), "30 seconds left");
-					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
 	}
-if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 45 == Server()->Tick())
-	{
-
-	char aBroadcast[128];
-	str_format(aBroadcast, sizeof(aBroadcast), "45 seconds left");
-					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
-	}
-if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 4 == Server()->Tick())
-	{
-
-	char aBroadcast[128];
-	str_format(aBroadcast, sizeof(aBroadcast), "4 seconds left");
-					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
-	}
-if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 3 == Server()->Tick())
-	{
-
-	char aBroadcast[128];
-	str_format(aBroadcast, sizeof(aBroadcast), "3 seconds left");
-					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
-	}
-if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 2 == Server()->Tick())
-	{
-
-	char aBroadcast[128];
-	str_format(aBroadcast, sizeof(aBroadcast), "2 seconds left");
-					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
-	}
-if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 1 == Server()->Tick())
-	{
-
-	char aBroadcast[128];
-	str_format(aBroadcast, sizeof(aBroadcast), "1 seconds left");
-					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
-	}
-if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * g_Config.m_SvMapTime == Server()->Tick())
-	{
-
-	char aBroadcast[128];
-	str_format(aBroadcast, sizeof(aBroadcast), "%d seconds to complete this map!", g_Config.m_SvMapTime);
-					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
-	}
-}
 	if(((m_TileIndex == TILE_FREEZE) || (m_TileFIndex == TILE_FREEZE)) && !m_Super && !m_DeepFreeze)
 	{
 		Freeze();
