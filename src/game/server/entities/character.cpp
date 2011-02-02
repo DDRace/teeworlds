@@ -82,7 +82,9 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	m_pPlayer->m_JOSH = 0 + Server()->Tick();
 	if(g_Config.m_SvMapTimer)
 	{
-	GameServer()->SendChatTarget(GetPlayer()->GetCID(),"You have a limited time to finish this map!");
+	char aBroadcast[128];
+	str_format(aBroadcast, sizeof(aBroadcast), "You have %d seconds to complete this map!", g_Config.m_SvMapTime);
+					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
 	}
 	CGameControllerDDRace* Controller = (CGameControllerDDRace*)GameServer()->m_pController;
 	m_Core.Init(&GameServer()->m_World.m_Core, GameServer()->Collision(), &Controller->m_Teams.m_Core);
@@ -1087,6 +1089,8 @@ void CCharacter::HandleTiles(int Index)
 		m_pPlayer->m_JOSH = Server()->Tick();
 		}
 	}
+	if(m_DDRaceState == DDRACE_STARTED && g_Config.m_SvMapTimer)
+	{
 	if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->TickSpeed() * 5 == Server()->Tick())
 	{
 
@@ -1147,9 +1151,10 @@ if(m_pPlayer->m_JOSH + Server()->TickSpeed() * g_Config.m_SvMapTime - Server()->
 	{
 
 	char aBroadcast[128];
-	str_format(aBroadcast, sizeof(aBroadcast), "%d seconds!", g_Config.m_SvMapTime);
+	str_format(aBroadcast, sizeof(aBroadcast), "%d seconds to complete this map!", g_Config.m_SvMapTime);
 					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
 	}
+}
 	if(((m_TileIndex == TILE_FREEZE) || (m_TileFIndex == TILE_FREEZE)) && !m_Super && !m_DeepFreeze)
 	{
 		Freeze();
