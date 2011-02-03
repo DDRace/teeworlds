@@ -1085,16 +1085,16 @@ void CCharacter::HandleTiles(int Index)
 	}
 	for(int i = 0; i < g_Config.m_SvMapTime; i++)
 	{
-				if(m_DDRaceState == DDRACE_STARTED && g_Config.m_SvMapTimer)
-				{
-					if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * i == Server()->Tick())
-					{
-		char aBroadcast[512];
-	str_format(aBroadcast, sizeof(aBroadcast), "Only %d seconds left!", g_Config.m_SvMapTime - i);
+		if(m_DDRaceState == DDRACE_STARTED && g_Config.m_SvMapTimer)
+		{
+			if(m_pPlayer->m_TimerMap + Server()->TickSpeed() * i == Server()->Tick())
+			{
+			char aBroadcast[128];
+			str_format(aBroadcast, sizeof(aBroadcast), "Only %d seconds left!", g_Config.m_SvMapTime - i);
 
-					GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
-					}
-				}
+			GameServer()->SendBroadcast(aBroadcast, m_pPlayer->GetCID());
+			}
+		}
 	}
 	if(((m_TileIndex == TILE_FREEZE) || (m_TileFIndex == TILE_FREEZE)) && !m_Super && !m_DeepFreeze)
 	{
