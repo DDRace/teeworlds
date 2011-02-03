@@ -24,7 +24,8 @@ CPlayer::CPlayer(CGameContext *pGameServer, int CID, int Team)
 	this->m_ClientID = CID;
 	m_Team = GameServer()->m_pController->ClampTeam(Team);
 	m_LastActionTick = Server()->Tick();
-
+	m_DeepMessage = false;
+	m_UnDeepMessage = false;
 	m_Muted = 0;
 	m_PauseInfo.m_Respawn = false;
 	
