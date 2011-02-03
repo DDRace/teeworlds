@@ -1057,6 +1057,7 @@ void CGameContext::OnMessage(int MsgId, CUnpacker *pUnpacker, int ClientId)
 				case EMOTICON_4:
 				case EMOTICON_7:
 				case EMOTICON_13:
+				case EMOTICON_5:
 					pChr->SetEmoteType(EMOTE_BLINK);
 					break;
 				case EMOTICON_3:
