@@ -129,6 +129,8 @@ public:
 	bool m_IsUsingDDRaceClient;
 	bool m_ShowOthers;
 	bool m_RconFreeze;
+	bool m_DeepMessage;
+	bool m_UnDeepMessage;
 };
 
 #endif
