@@ -889,7 +889,7 @@ void CCharacter::Snap(int SnappingClient)
 		m_SendCore.Write(pCharacter);
 	}
 	
-	// set emote
+	// set emote.
 	if (m_EmoteStop < Server()->Tick())
 	{
 		m_EmoteType = m_DefEmote;
