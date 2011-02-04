@@ -190,4 +190,14 @@ MACRO_CONFIG_INT(BrFilterPlayerHitting, br_filter_player_hitting, 0, 0, 2, CFGFL
 MACRO_CONFIG_INT(BrFilterEndlessHooking, br_filter_endless_hooking, 0, 0, 2, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Server browser filtering player endless hooking (default: 0 don't care, 1 must be Off, 2 must be On)", -1)
 MACRO_CONFIG_INT(BrFilterTestMap, br_filter_test_map, 0, 0, 2, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Server browser filtering Test Maps (default: 0 don't care, 1 must be Off, 2 must be On)", -1)
 MACRO_CONFIG_INT(BrFilterTestServer, br_filter_test_server, 0, 0, 2, CFGFLAG_SAVE|CFGFLAG_CLIENT, "Server browser filtering Test Servers (default: 0 don't care, 1 must be Off, 2 must be On)", -1)
+
+MACRO_CONFIG_INT(SvTeamAskTime, sv_team_ask_time, 10, 0, 9999, CFGFLAG_SERVER, "How much time the player has to accept or refuse", 3)
+MACRO_CONFIG_INT(SvAllowTeamLeader, sv_allow_team_leader, 1, 0, 1, CFGFLAG_SERVER, "Whether the admin allows teams to have leaders or not", 4)
+
+MACRO_CONFIG_INT(ClAutoRaceRecord, cl_auto_race_record, 1, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Save the best demo of each race", -1)
+MACRO_CONFIG_INT(ClDemoName, cl_demo_name, 1, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Save the playername within the demo", -1)
+MACRO_CONFIG_INT(ClRaceGhost, cl_race_ghost, 1, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Enable ghost",-1)
+MACRO_CONFIG_INT(ClRaceShowGhost, cl_race_show_ghost, 1, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Show ghost",-1)
+MACRO_CONFIG_INT(ClRaceSaveGhost, cl_race_save_ghost, 1, 0, 1, CFGFLAG_CLIENT|CFGFLAG_SAVE, "Save ghost",-1)
+
 #endif
