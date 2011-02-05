@@ -676,7 +676,7 @@ void CCharacter::TickDefered()
 	int Events = m_Core.m_TriggeredEvents;
 	//int Mask = CmaskAllExceptOne(m_pPlayer->GetCID());
 	
-	if(Events&COREEVENT_GROUND_JUMP) GameServer()->CreateSound(m_Pos, SOUND_PLAYER_JUMP, Teams()->TeamMask(Team()));
+	if(Events&COREEVENT_GROUND_JUMP) GameServer()->CreateSound(m_Pos, SOUND_PLAYER_JUMP, Teams()->TeamMask(Team(), m_pPlayer->GetCID()));
 	
 	if(Events&COREEVENT_HOOK_ATTACH_PLAYER) GameServer()->CreateSound(m_Pos, SOUND_HOOK_ATTACH_PLAYER, Teams()->TeamMask(Team()));
 	if(Events&COREEVENT_HOOK_ATTACH_GROUND) GameServer()->CreateSound(m_Pos, SOUND_HOOK_ATTACH_GROUND, Teams()->TeamMask(Team(), m_pPlayer->GetCID()));
@@ -901,16 +901,16 @@ void CCharacter::Snap(int SnappingClient)
 	pCharacter->m_AmmoCount = 0;
 	pCharacter->m_Health = 0;
 	pCharacter->m_Armor = 0;
-	
-	if ((m_FreezeTime > 0 || m_FreezeTime == -1) && !m_DeepFreeze)
+
+	if (m_DeepFreeze)
 	{
-		pCharacter->m_Emote = EMOTE_BLINK;
+		pCharacter->m_Emote = EMOTE_PAIN;
 		pCharacter->m_Weapon = WEAPON_NINJA;
 		pCharacter->m_AmmoCount = 0;
 	}
-	else if (m_DeepFreeze)
+	else if (m_FreezeTime > 0 || m_FreezeTime == -1)
 	{
-		pCharacter->m_Emote = EMOTE_ANGRY;
+		pCharacter->m_Emote = EMOTE_BLINK;
 		pCharacter->m_Weapon = WEAPON_NINJA;
 		pCharacter->m_AmmoCount = 0;
 	}
@@ -1354,37 +1354,17 @@ void CCharacter::HandleTiles(int Index)
 		
 	}
 	if(((m_TileIndex == TILE_END) || (m_TileFIndex == TILE_END) || FTile1 == TILE_END || FTile2 == TILE_END || FTile3 == TILE_END || FTile4 == TILE_END || Tile1 == TILE_END || Tile2 == TILE_END || Tile3 == TILE_END || Tile4 == TILE_END) && m_DDRaceState == DDRACE_STARTED)
-	{
 		Controller->m_Teams.OnCharacterFinish(m_pPlayer->GetCID());
-	}
 	if(((m_TileIndex == TILE_FREEZE) || (m_TileFIndex == TILE_FREEZE)) && !m_Super && !m_DeepFreeze)
-	{
 		Freeze();
-	}
 	else if(((m_TileIndex == TILE_UNFREEZE) || (m_TileFIndex == TILE_UNFREEZE)) && !m_DeepFreeze)
-	{
 		UnFreeze();
-	}
 	else if(((m_TileIndex == TILE_DFREEZE) || (m_TileFIndex == TILE_DFREEZE)) && !m_Super && !m_DeepFreeze)
-	{
-	if(!m_pPlayer->m_DeepMessage)
-	{
-		GameServer()->SendChatTarget(GetPlayer()->GetCID(),"You have been deeply frozen");
-		m_pPlayer->m_DeepMessage = true;
-	}
 		m_DeepFreeze = true;
-	}
 	else if(((m_TileIndex == TILE_DUNFREEZE) || (m_TileFIndex == TILE_DUNFREEZE)) && !m_Super && m_DeepFreeze)
 	{
-	if(!m_pPlayer->m_UnDeepMessage)
-	{
-		GameServer()->SendChatTarget(GetPlayer()->GetCID(),"You have been thawed from deepfreeze");
-		m_pPlayer->m_UnDeepMessage = true;
-	}
-		if((m_TileIndex != TILE_FREEZE) && (m_TileFIndex != TILE_FREEZE)) {
+		if((m_TileIndex != TILE_FREEZE) && (m_TileFIndex != TILE_FREEZE))
 			UnFreeze();
-		}
-
 		m_DeepFreeze = false;
 	}
 	if(((m_TileIndex == TILE_EHOOK_START) || (m_TileFIndex == TILE_EHOOK_START)) && !m_EndlessHook)
