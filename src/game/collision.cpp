@@ -62,7 +62,7 @@ void CCollision::Init(class CLayers *pLayers)
 	{
 		m_pSwitch = static_cast<CSwitchTile *>(m_pLayers->Map()->GetData(m_pLayers->SwitchLayer()->m_Switch));
 		m_pDoor = new CDoorTile[m_Width*m_Height];
-		mem_zero(m_pDoor, m_Width*m_Height*sizeof(m_pDoor));
+		mem_zero(m_pDoor, m_Width * m_Height * sizeof(CDoorTile));
 	}
 	else
 	{
@@ -196,11 +196,11 @@ int CCollision::IntersectLine(vec2 Pos0, vec2 Pos1, vec2 *pOutCollision, vec2 *p
 	float d = distance(Pos0, Pos1);
 	int End(d+1);
 	vec2 Last = Pos0;
-	int ix, iy; // Temporary position for checking collision
-	int dx, dy; // Offset for checking the "through" tile
+	int ix = 0, iy = 0; // Temporary position for checking collision
+	int dx = 0, dy = 0; // Offset for checking the "through" tile
 	if (AllowThrough)
 		{
-		ThroughOffset(Pos0, Pos1, &dx, &dy);
+			ThroughOffset(Pos0, Pos1, &dx, &dy);
 		}
 	for(int i = 0; i < End; i++)
 	{
@@ -369,16 +369,13 @@ int CCollision::IsFNoLaser(int x, int y)
 
 int CCollision::IsTeleport(int Index)
 {
-	if(Index < 0)
-		return 0;
-	if(!m_pTele)
+	if(Index < 0 || !m_pTele)
 		return 0;
 
-	int Tele = 0;
 	if(m_pTele[Index].m_Type == TILE_TELEIN)
-		Tele = m_pTele[Index].m_Number;
+		return m_pTele[Index].m_Number;
 
-	return Tele;
+	return 0;
 }
 
 int CCollision::IsEvilTeleport(int Index)
@@ -388,20 +385,16 @@ int CCollision::IsEvilTeleport(int Index)
 	if(!m_pTele)
 		return 0;
 
-	int Tele = 0;
 	if(m_pTele[Index].m_Type == TILE_TELEINEVIL)
-	{
-		Tele = m_pTele[Index].m_Number;
-	}
-	return Tele;
+		return m_pTele[Index].m_Number;
+
+	return 0;
 }
 
 int CCollision::IsSpeedup(int Index)
 {
-	if(Index < 0)
+	if(Index < 0 || !m_pSpeedup)
 		return 0;
-	if(!m_pSpeedup)
-		return false;
 
 	if(m_pSpeedup[Index].m_Force > 0)
 		return Index;
@@ -424,10 +417,8 @@ void CCollision::GetSpeedup(int Index, vec2 *Dir, int *Force, int *MaxSpeed)
 int CCollision::IsSwitch(int Index)
 {
 	//dbg_msg("IsSwitch","Index %d, pSwitch %d, m_Type %d, m_Number %d", Index, m_pSwitch, (m_pSwitch)?m_pSwitch[Index].m_Type:0, (m_pSwitch)?m_pSwitch[Index].m_Number:0);
-	if(Index < 0)
+	if(Index < 0 || !m_pSwitch)
 		return 0;
-	if(!m_pSwitch)
-		return false;
 
 	if(m_pSwitch[Index].m_Type > 0)
 		return m_pSwitch[Index].m_Type;
@@ -438,10 +429,8 @@ int CCollision::IsSwitch(int Index)
 int CCollision::GetSwitchNumber(int Index)
 {
 	//dbg_msg("GetSwitchNumber","Index %d, pSwitch %d, m_Type %d, m_Number %d", Index, m_pSwitch, (m_pSwitch)?m_pSwitch[Index].m_Type:0, (m_pSwitch)?m_pSwitch[Index].m_Number:0);
-	if(Index < 0)
+	if(Index < 0 || !m_pSwitch)
 		return 0;
-	if(!m_pSwitch)
-		return false;
 
 	if(m_pSwitch[Index].m_Type > 0 && m_pSwitch[Index].m_Number > 0)
 		return m_pSwitch[Index].m_Number;
@@ -452,10 +441,8 @@ int CCollision::GetSwitchNumber(int Index)
 int CCollision::GetSwitchDelay(int Index)
 {
 	//dbg_msg("GetSwitchNumber","Index %d, pSwitch %d, m_Type %d, m_Number %d", Index, m_pSwitch, (m_pSwitch)?m_pSwitch[Index].m_Type:0, (m_pSwitch)?m_pSwitch[Index].m_Number:0);
-	if(Index < 0)
+	if(Index < 0 || !m_pSwitch)
 		return 0;
-	if(!m_pSwitch)
-		return false;
 
 	if(m_pSwitch[Index].m_Type > 0)
 		return m_pSwitch[Index].m_Delay;
@@ -539,77 +526,102 @@ int CCollision::GetPureMapIndex(vec2 Pos)
 	return ny*m_Width+nx;
 }
 
+int CCollision::TileExists(int Index)
+{
+	if(
+		(m_pTiles[Index].m_Index >= TILE_FREEZE && m_pTiles[Index].m_Index <= TILE_NPH) ||
+		(m_pTiles[Index + 1].m_Index == TILE_STOPA || m_pTiles[Index - 1].m_Index == TILE_STOPA || ((m_pTiles[Index + 1].m_Index == TILE_STOPS || m_pTiles[Index - 1].m_Index == TILE_STOPS) && m_pTiles[Index + 1].m_Flags|ROTATION_270|ROTATION_90)) ||
+		(m_pTiles[Index + m_Width].m_Index == TILE_STOPA || m_pTiles[Index - m_Width].m_Index == TILE_STOPA || ((m_pTiles[Index + m_Width].m_Index == TILE_STOPS || m_pTiles[Index - m_Width].m_Index == TILE_STOPS) && m_pTiles[Index + m_Width].m_Flags|ROTATION_180|ROTATION_0)) ||
+		(m_pFront && (m_pFront[Index].m_Index >= TILE_FREEZE && m_pFront[Index].m_Index  <= TILE_NPH)) ||
+		(m_pFront && (m_pFront[Index + 1].m_Index == TILE_STOPA || m_pFront[Index - 1].m_Index == TILE_STOPA || ((m_pFront[Index + 1].m_Index == TILE_STOPS || m_pFront[Index - 1].m_Index == TILE_STOPS) && m_pFront[Index + 1].m_Flags|ROTATION_270|ROTATION_90))) ||
+		(m_pFront && (m_pFront[Index + m_Width].m_Index == TILE_STOPA || m_pFront[Index - m_Width].m_Index == TILE_STOPA || ((m_pFront[Index + m_Width].m_Index == TILE_STOPS || m_pFront[Index - m_Width].m_Index == TILE_STOPS) && m_pFront[Index + m_Width].m_Flags|ROTATION_180|ROTATION_0))) ||
+		(m_pTele && (m_pTele[Index].m_Type == TILE_TELEIN || m_pTele[Index].m_Type == TILE_TELEINEVIL)) ||
+		(m_pSpeedup && m_pSpeedup[Index].m_Force > 0) ||
+		(m_pDoor && m_pDoor[Index].m_Index) ||
+		(m_pDoor && (m_pDoor[Index + 1].m_Index == TILE_STOPA || m_pDoor[Index - 1].m_Index == TILE_STOPA || ((m_pDoor[Index + 1].m_Index == TILE_STOPS || m_pDoor[Index - 1].m_Index == TILE_STOPS) && m_pDoor[Index + 1].m_Flags|ROTATION_270|ROTATION_90))) ||
+		(m_pDoor && (m_pDoor[Index + m_Width].m_Index == TILE_STOPA || m_pDoor[Index - m_Width].m_Index == TILE_STOPA || ((m_pDoor[Index + m_Width].m_Index == TILE_STOPS || m_pDoor[Index - m_Width].m_Index == TILE_STOPS) && m_pDoor[Index + m_Width].m_Flags|ROTATION_180|ROTATION_0))) ||
+		(m_pSwitch && m_pSwitch[Index].m_Type)
+	)
+		return true;
+	else
+		return false;
+}
+
+int CCollision::GetMapIndex(vec2 Pos)
+{
+	int nx = clamp((int)Pos.x / 32, 0, m_Width - 1);
+	int ny = clamp((int)Pos.y / 32, 0, m_Height - 1);
+	int Index = ny*m_Width+nx;
+	/*if (m_pTele && (m_pTele[Index].m_Type == TILE_TELEIN)) dbg_msg("m_pTele && TELEIN","Index %d",Index);
+	else if (m_pTele && m_pTele[Index].m_Type==TILE_TELEOUT) dbg_msg("TELEOUT","Index %d",Index);
+	else dbg_msg("GetMapIndex(","Index %d",Index);//REMOVE */
+
+	if(TileExists(Index))
+		return Index;
+	else
+		return -1;
+}
+
 std::list<int> CCollision::GetMapIndices(vec2 PrevPos, vec2 Pos, unsigned MaxIndices)
 {
 	std::list< int > Indices;
 	float d = distance(PrevPos, Pos);
-	int End(d+1);
+	int End(d + 1);
 	if(!d)
 	{
-		int nx = clamp((int)Pos.x/32, 0, m_Width-1);
-		int ny = clamp((int)Pos.y/32, 0, m_Height-1);
-		/*if (m_pTele && (m_pTele[ny*m_Width+nx].m_Type == TILE_TELEIN)) dbg_msg("m_pTele && TELEIN","ny*m_Width+nx %d",ny*m_Width+nx);
-		else if (m_pTele && m_pTele[ny*m_Width+nx].m_Type==TILE_TELEOUT) dbg_msg("TELEOUT","ny*m_Width+nx %d",ny*m_Width+nx);
-		else dbg_msg("GetMapIndex(","ny*m_Width+nx %d",ny*m_Width+nx);//REMOVE */
+		int nx = clamp((int)Pos.x / 32, 0, m_Width - 1);
+		int ny = clamp((int)Pos.y / 32, 0, m_Height - 1);
+		int Index = ny * m_Width + nx;
+		/*if (m_pTele && (m_pTele[Index].m_Type == TILE_TELEIN)) dbg_msg("m_pTele && TELEIN","Index %d",Index);
+		else if (m_pTele && m_pTele[Index].m_Type==TILE_TELEOUT) dbg_msg("TELEOUT","Index %d",Index);
+		else dbg_msg("GetMapIndex(","Index %d",Index);//REMOVE */
 
-		if(
-			(m_pTiles[ny*m_Width+nx].m_Index >= TILE_FREEZE && m_pTiles[ny*m_Width+nx].m_Index <= TILE_NPH) ||
-			(m_pFront && (m_pFront[ny*m_Width+nx].m_Index >= TILE_FREEZE && m_pFront[ny*m_Width+nx].m_Index  <= TILE_NPH)) ||
-			(m_pTele && (m_pTele[ny*m_Width+nx].m_Type == TILE_TELEIN || m_pTele[ny*m_Width+nx].m_Type == TILE_TELEINEVIL || m_pTele[ny*m_Width+nx].m_Type == TILE_TELEOUT)) ||
-			(m_pSpeedup && m_pSpeedup[ny*m_Width+nx].m_Force > 0) ||
-			(m_pDoor && m_pDoor[ny*m_Width+nx].m_Index) ||
-			(m_pSwitch && m_pSwitch[ny*m_Width+nx].m_Type)
-		)
+		if(TileExists(Index))
 		{
-			Indices.push_back(ny*m_Width+nx);
+			Indices.push_back(Index);
 			return Indices;
 		}
+		else
+			return Indices;
 	}
-
-	float a = 0.0f;
-	vec2 Tmp = vec2(0, 0);
-	int nx = 0;
-	int ny = 0;
-	int Index,LastIndex = 0;
-	for(int i = 0; i < End; i++)
+	else
 	{
-		a = i/d;
-		Tmp = mix(PrevPos, Pos, a);
-		nx = clamp((int)Tmp.x/32, 0, m_Width-1);
-		ny = clamp((int)Tmp.y/32, 0, m_Height-1);
-		Index = ny*m_Width+nx;
-		//dbg_msg("lastindex","%d",LastIndex);
-		//dbg_msg("index","%d",Index);
-		if(
-			(
-					(m_pTiles[ny*m_Width+nx].m_Index >= TILE_FREEZE && m_pTiles[ny*m_Width+nx].m_Index <= TILE_NPH) ||
-					(m_pFront && (m_pFront[ny*m_Width+nx].m_Index >= TILE_FREEZE && m_pFront[ny*m_Width+nx].m_Index  <= TILE_NPH)) ||
-					(m_pTele && (m_pTele[ny*m_Width+nx].m_Type == TILE_TELEIN || m_pTele[ny*m_Width+nx].m_Type == TILE_TELEINEVIL || m_pTele[ny*m_Width+nx].m_Type == TILE_TELEOUT)) ||
-					(m_pSpeedup && m_pSpeedup[ny*m_Width+nx].m_Force > 0) ||
-					(m_pDoor && m_pDoor[ny*m_Width+nx].m_Index) ||
-					(m_pSwitch && m_pSwitch[ny*m_Width+nx].m_Type)
-			) &&
-			LastIndex != Index
-		)
+		float a = 0.0f;
+		vec2 Tmp = vec2(0, 0);
+		int nx = 0;
+		int ny = 0;
+		int Index,LastIndex = 0;
+		for(int i = 0; i < End; i++)
 		{
-			if(MaxIndices && Indices.size() > MaxIndices) return Indices;
-			Indices.push_back(Index);
-			LastIndex = Index;
-			//dbg_msg("pushed","%d",Index);
+			a = i/d;
+			Tmp = mix(PrevPos, Pos, a);
+			nx = clamp((int)Tmp.x / 32, 0, m_Width - 1);
+			ny = clamp((int)Tmp.y / 32, 0, m_Height - 1);
+			Index = ny * m_Width + nx;
+			//dbg_msg("lastindex","%d",LastIndex);
+			//dbg_msg("index","%d",Index);
+			if(TileExists(Index) && LastIndex != Index)
+			{
+				if(MaxIndices && Indices.size() > MaxIndices)
+					return Indices;
+				Indices.push_back(Index);
+				LastIndex = Index;
+				//dbg_msg("pushed","%d",Index);
+			}
 		}
-	}
 
-	return Indices;
+		return Indices;
+	}
 }
 
 vec2 CCollision::GetPos(int Index)
 {
 	if(Index < 0)
 		return vec2(0,0);
+
 	int x = Index%m_Width;
 	int y = Index/m_Width;
-
-	return vec2(16+x*32, 16+y*32);
+	return vec2(x*32+16, y*32+16);
 }
 
 int CCollision::GetTileIndex(int Index)
@@ -646,11 +658,13 @@ int CCollision::GetFTileFlags(int Index)
 	return m_pFront[Index].m_Flags;
 }
 
-int CCollision::GetIndex(int nx, int ny) {
+int CCollision::GetIndex(int nx, int ny)
+{
 	return m_pTiles[ny*m_Width+nx].m_Index;
 }
 
-int CCollision::GetFIndex(int nx, int ny) {
+int CCollision::GetFIndex(int nx, int ny)
+{
 	if(!m_pFront) return 0;
 	return m_pFront[ny*m_Width+nx].m_Index;
 }

@@ -977,8 +977,10 @@ void CServer::SendServerInfo(NETADDR *pAddr, int Token)
 	i |= SERVER_FLAG_VERSION;
 	if(g_Config.m_Password[0])   // password set
 		i |= SERVER_FLAG_PASSWORD;
-	if(g_Config.m_SvTeam)
-		i |= SERVER_FLAG_TEAMS;
+	if(g_Config.m_SvTeam == 0)
+		i |= SERVER_FLAG_TEAMS1;
+	else if(g_Config.m_SvTeam == 1)
+		i |= SERVER_FLAG_TEAMS2;
 	if(g_Config.m_SvTeamStrict)
 		i |= SERVER_FLAG_STRICTTEAMS;
 	if(g_Config.m_SvCheats)
@@ -989,9 +991,9 @@ void CServer::SendServerInfo(NETADDR *pAddr, int Token)
 		i |= SERVER_FLAG_ENDLESSSUPERHOOKING;
 	if(g_Config.m_SvTimer)
 		i |= SERVER_FLAG_TIMERCOMMANDS;
-	if(g_Config.m_SvCheatTime)
-		i |= SERVER_FLAG_TIMECHEAT;
-	if(g_Config.m_SvPauseTime)
+	if(g_Config.m_SvCheatTime && g_Config.m_SvCheats)
+		i |= SERVER_FLAG_CHEATTIME;
+	if(g_Config.m_SvPauseTime && g_Config.m_SvPauseable)
 		i |= SERVER_FLAG_PAUSETIME;
 	if(GameServer()->PlayerCollision())
 		i |= SERVER_FLAG_PLAYERCOLLISION;
@@ -1005,7 +1007,7 @@ void CServer::SendServerInfo(NETADDR *pAddr, int Token)
 		i |= SERVER_FLAG_MAPTEST;
 	if(g_Config.m_SvServerTest)
 		i |= SERVER_FLAG_SERVERTEST;
-	
+
 	str_format(aBuf, sizeof(aBuf), "%d", i);
 	p.AddString(aBuf, 11);
 

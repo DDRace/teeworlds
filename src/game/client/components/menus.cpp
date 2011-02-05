@@ -552,6 +552,15 @@ int CMenus::RenderMenubar(CUIRect r)
 		static int s_ServerInfoButton=0;
 		if(DoButton_MenuTab(&s_ServerInfoButton, Localize("Server info"), m_ActivePage==PAGE_SERVER_INFO, &Button, CUI::CORNER_T))
 			NewPage = PAGE_SERVER_INFO;
+		
+		if(m_pClient->m_IsRace)
+		{
+			Box.VSplitLeft(4.0f, 0, &Box);
+			Box.VSplitLeft(100.0f, &Button, &Box);
+			static int s_GhostButton=0;
+			if(DoButton_MenuTab(&s_GhostButton, Localize("Ghost"), m_ActivePage==PAGE_GHOST, &Button, CUI::CORNER_T))
+				NewPage = PAGE_GHOST;
+		}
 
 		Box.VSplitLeft(4.0f, 0, &Box);
 		Box.VSplitLeft(140.0f, &Button, &Box);
@@ -788,6 +797,8 @@ int CMenus::Render()
 				RenderGame(MainView);
 			else if(m_GamePage == PAGE_SERVER_INFO)
 				RenderServerInfo(MainView);
+			else if(m_GamePage == PAGE_GHOST)
+				RenderGhost(MainView);
 			else if(m_GamePage == PAGE_CALLVOTE)
 				RenderServerControl(MainView);
 			else if(m_GamePage == PAGE_BROWSER)
@@ -1393,4 +1404,19 @@ void CMenus::RenderBackground()
 	// restore screen	
     {CUIRect Screen = *UI()->Screen();
 	Graphics()->MapScreen(Screen.x, Screen.y, Screen.w, Screen.h);}	
+}
+
+int CMenus::DoButton_CheckBox_DontCare(const void *pID, const char *pText, int Checked, const CUIRect *pRect)
+{
+	switch(Checked)
+	{
+	case 0:
+		return DoButton_CheckBox_Common(pID, pText, "", pRect);
+	case 1:
+		return DoButton_CheckBox_Common(pID, pText, "X", pRect);
+	case 2:
+		return DoButton_CheckBox_Common(pID, pText, "O", pRect);
+	default:
+		return DoButton_CheckBox_Common(pID, pText, "", pRect);
+	}
 }

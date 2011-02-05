@@ -1,3 +1,4 @@
+/* (c) Shereef Marzouk. See "licence DDRace.txt" and the readme.txt in the root of the distribution for more information. */
 #include "gamecontext.h"
 #include <engine/shared/config.h>
 #include <engine/server/server.h>
@@ -48,8 +49,8 @@ void CGameContext::MoveCharacter(int ClientId, int Victim, int X, int Y, bool Ra
 	if(!pChr)
 		return;
 
-	pChr->m_Core.m_Pos.x += ((Raw) ? 1 : 32) * X;
-	pChr->m_Core.m_Pos.y += ((Raw) ? 1 : 32) * Y;
+	pChr->Core()->m_Pos.x += ((Raw) ? 1 : 32) * X;
+	pChr->Core()->m_Pos.y += ((Raw) ? 1 : 32) * Y;
 
 	if(!g_Config.m_SvCheatTime)
 		pChr->m_DDRaceState = DDRACE_CHEAT;
@@ -64,10 +65,10 @@ void CGameContext::ConMute(IConsole::IResult *pResult, void *pUserData, int Clie
 	if(Seconds < 10)
 		Seconds = 10;
 
-	if(Victim == ClientId) {
-		pSelf->SendChatTarget(ClientId, "You can\'t mute yourself");
-	}
-	else {
+	if(Victim == ClientId)
+		pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You can\'t mute yourself");
+	else
+	{
 		/*pSelf->m_apPlayers[Victim]->m_Muted = Seconds * pSelf->Server()->TickSpeed();
 		str_format(aBuf, sizeof(aBuf), "You have been muted by for %d seconds", pSelf->Server()->ClientName(Victim), Seconds);
 		pSelf->SendChatTarget(Victim, aBuf);*/
@@ -84,10 +85,10 @@ void CGameContext::ConUnmute(IConsole::IResult *pResult, void *pUserData, int Cl
 	int Victim = pResult->GetVictim();
 	char aBuf[512];
 
-	if(Victim == ClientId) {
-		pSelf->SendChatTarget(ClientId, "You can\'t unmute yourself");
-	}
-	else {
+	if(Victim == ClientId)
+		pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You can\'t unmute yourself");
+	else
+	{
 		if(pSelf->m_apPlayers[Victim]->m_Muted > 0)
 		{
 			pSelf->m_apPlayers[Victim]->m_Muted = 0;
@@ -304,25 +305,25 @@ void CGameContext::ModifyWeapons(int ClientId, int Victim, int Weapon, bool Remo
 	
 	if(Weapon == -1)
 	{
-		if(Remove && (pChr->m_ActiveWeapon == WEAPON_SHOTGUN || pChr->m_ActiveWeapon == WEAPON_GRENADE || pChr->m_ActiveWeapon == WEAPON_RIFLE))
-			pChr->m_ActiveWeapon = WEAPON_GUN;
+		if(Remove && (pChr->GetActiveWeapon() == WEAPON_SHOTGUN || pChr->GetActiveWeapon() == WEAPON_GRENADE || pChr->GetActiveWeapon() == WEAPON_RIFLE))
+			pChr->SetActiveWeapon(WEAPON_GUN);
 		
 		if(Remove)
 		{
-			pChr->m_aWeapons[WEAPON_SHOTGUN].m_Got = false;
-			pChr->m_aWeapons[WEAPON_GRENADE].m_Got = false;
-			pChr->m_aWeapons[WEAPON_RIFLE].m_Got = false;
+			pChr->SetWeaponGot(WEAPON_SHOTGUN, false);
+			pChr->SetWeaponGot(WEAPON_GRENADE, false);
+			pChr->SetWeaponGot(WEAPON_RIFLE, false);
 		}
 		else
 			pChr->GiveAllWeapons();	
 	}
 	else if(Weapon != WEAPON_NINJA)
 	{
-		if(Remove && pChr->m_ActiveWeapon == Weapon)
-			pChr->m_ActiveWeapon = WEAPON_GUN;
+		if(Remove && pChr->GetActiveWeapon() == Weapon)
+			pChr->SetActiveWeapon(WEAPON_GUN);
 		
 		if(Remove)
-			pChr->m_aWeapons[Weapon].m_Got = false;
+			pChr->SetWeaponGot(Weapon, false);
 		else
 			pChr->GiveWeapon(Weapon, -1);
 	}
@@ -352,7 +353,7 @@ void CGameContext::ConTeleport(IConsole::IResult *pResult, void *pUserData, int 
 			CCharacter* pChr = pSelf->GetPlayerChar(Victim);
 			if(pChr)
 			{
-				pChr->m_Core.m_Pos = pSelf->m_apPlayers[TeleTo]->m_ViewPos;
+				pChr->Core()->m_Pos = pSelf->m_apPlayers[TeleTo]->m_ViewPos;
 				if(!g_Config.m_SvCheatTime)
 					pChr->m_DDRaceState = DDRACE_CHEAT;
 			}
@@ -455,7 +456,7 @@ void CGameContext::ConFreeze(IConsole::IResult *pResult, void *pUserData, int Cl
 	if(pSelf->m_apPlayers[Victim])
 	{
 		pChr->Freeze(Seconds);
-		pChr->m_pPlayer->m_RconFreeze = Seconds != -2;
+		pChr->GetPlayer()->m_RconFreeze = Seconds != -2;
 		CServer* pServ = (CServer*)pSelf->Server();
 		if(Seconds >= 0)
 			str_format(aBuf, sizeof(aBuf), "'%s' ClientId=%d has been Frozen for %d.", pServ->ClientName(ClientId), Victim, Seconds);
@@ -492,7 +493,7 @@ void CGameContext::ConUnFreeze(IConsole::IResult *pResult, void *pUserData, int 
 		Warning = false;
 	}
 	pChr->m_FreezeTime = 2;
-	pChr->m_pPlayer->m_RconFreeze = false;
+	pChr->GetPlayer()->m_RconFreeze = false;
 	CServer* pServ = (CServer*)pSelf->Server();
 	str_format(aBuf, sizeof(aBuf), "'%s' ClientId=%d has been defrosted.", pServ->ClientName(ClientId), Victim);
 	pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", aBuf);
@@ -551,8 +552,10 @@ void CGameContext::ConCredits(IConsole::IResult *pResult, void *pUserData, int C
 void CGameContext::ConInfo(IConsole::IResult *pResult, void *pUserData, int ClientId)
 {
 	CGameContext *pSelf = (CGameContext *)pUserData;
-
-	pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "DDRace Mod. Version: " DDRACE_VERSION);
+	pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "DDRace Mod. Version: " GAME_VERSION);
+	pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "Official site: DDRace.info");
+	pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "For more Info /cmdlist");
+	pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "Or visit DDRace.info");
 }
 
 void CGameContext::ConHelp(IConsole::IResult *pResult, void *pUserData, int ClientId)
@@ -749,7 +752,7 @@ void CGameContext::ConTogglePause(IConsole::IResult *pResult, void *pUserData, i
 	if(g_Config.m_SvPauseable)
 	{
 		CCharacter* pChr = pPlayer->GetCharacter();
-		if(!pPlayer->GetTeam() && pChr && (!pChr->m_aWeapons[WEAPON_NINJA].m_Got || pChr->m_FreezeTime) && pChr->IsGrounded() && pChr->m_Pos==pChr->m_PrevPos && !pChr->Team() && !pPlayer->m_InfoSaved)
+		if(!pPlayer->GetTeam() && pChr && (!pChr->GetWeaponGot(WEAPON_NINJA) || pChr->m_FreezeTime) && pChr->IsGrounded() && pChr->m_Pos==pChr->m_PrevPos && !pChr->Team() && !pPlayer->m_InfoSaved)
 		{
 			if(pPlayer->m_Last_Pause + pSelf->Server()->TickSpeed() * g_Config.m_SvPauseFrequency <= pSelf->Server()->Tick()) {
 				pPlayer->SaveCharacter();
@@ -768,7 +771,7 @@ void CGameContext::ConTogglePause(IConsole::IResult *pResult, void *pUserData, i
 			//pPlayer->LoadCharacter();//TODO:Check if this system Works
 		}
 		else if(pChr)
-			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", (pChr->Team())?"You can't pause while you are in a team":(pChr->m_aWeapons[WEAPON_NINJA].m_Got)?"You can't use /pause while you are a ninja":(!pChr->IsGrounded())?"You can't use /pause while you are a in air":"You can't use /pause while you are moving");
+			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", (pChr->Team())?"You can't pause while you are in a team":pChr->GetWeaponGot(WEAPON_NINJA)?"You can't use /pause while you are a ninja":(!pChr->IsGrounded())?"You can't use /pause while you are a in air":"You can't use /pause while you are moving");
 		else
 			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "No pause data saved.");
 	}
@@ -818,39 +821,66 @@ void CGameContext::ConJoinTeam(IConsole::IResult *pResult, void *pUserData, int 
 {
 	
 	CGameContext *pSelf = (CGameContext *)pUserData;
-	if(g_Config.m_SvTeam == -1) {
+	CGameControllerDDRace* Controller = (CGameControllerDDRace*)pSelf->m_pController;
+	if(g_Config.m_SvTeam == -1)
+	{
 		pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "Admin disable teams");
 		return;
-	} else if (g_Config.m_SvTeam == 1) {
+	}
+	else if (g_Config.m_SvTeam == 1)
+	{
 		pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You must join to any team and play with anybody or you will not play");
 	}
 	CPlayer *pPlayer = pSelf->m_apPlayers[ClientId];
 
 	if(pResult->NumArguments() > 0)
 	{
+		int Team = pResult->GetInteger(0);
 		if(pPlayer->GetCharacter() == 0)
 		{
 			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You can't change teams while you are dead/a spectator.");
 		}
 		else
 		{
-			if(((CGameControllerDDRace*)pSelf->m_pController)->m_Teams.SetCharacterTeam(pPlayer->GetCID(), pResult->GetInteger(0)))
+			if(pPlayer->m_Last_Team + pSelf->Server()->TickSpeed() * g_Config.m_SvTeamChangeDelay <= pSelf->Server()->Tick())
 			{
-				if(pPlayer->m_Last_Team + pSelf->Server()->TickSpeed() * g_Config.m_SvTeamChangeDelay <= pSelf->Server()->Tick())
-				{
-					char aBuf[512];
-					str_format(aBuf, sizeof(aBuf), "%s joined team %d", pSelf->Server()->ClientName(pPlayer->GetCID()), pResult->GetInteger(0));
-					pSelf->SendChat(-1, CGameContext::CHAT_ALL, aBuf);
-					pPlayer->m_Last_Team = pSelf->Server()->Tick();
-				}
+				if(Controller->m_Teams.GetTeamLeader(Team) == -1)
+					switch(Controller->m_Teams.SetCharacterTeam(pPlayer->GetCID(), Team))
+					{
+					case 0:
+						char aBuf[512];
+						pPlayer->m_Last_Team = pSelf->Server()->Tick();
+						break;
+					case CGameTeams::ERROR_ALREADY_THERE:
+						str_format(aBuf, sizeof(aBuf), "You are already in team %d...!", Team);
+						pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", aBuf);
+						break;
+					case CGameTeams::ERROR_CLOSED:
+						str_format(aBuf, sizeof(aBuf), "Team %d is closed, they have to kill or finish for u to join.", Team);
+						pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", aBuf);
+						break;
+					case CGameTeams::ERROR_NOT_SUPER:
+						pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You are trying to join team Super but you are not super.");
+						break;
+					case CGameTeams::ERROR_STARTED:
+						pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You already started, kill first.");
+						break;
+					case CGameTeams::ERROR_WRONG_PARAMS:
+						pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "The wrong parameters were given.");
+						break;
+					default:
+						pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You cannot join this team at this time");
+					}
 				else
 				{
-					pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You can\'t join teams that fast!");
+					char aBuf[512];
+					str_format(aBuf, sizeof(aBuf), "Team %d is led by \'%s\', please ask him to join his team.", Team, pSelf->Server()->ClientName(Controller->m_Teams.GetTeamLeader(Team)));
+					pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", aBuf);
 				}
 			}
 			else
 			{
-				pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You cannot join this team at this time");
+				pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You can\'t change teams that fast!");
 			}
 		}
 	}
@@ -965,6 +995,223 @@ void CGameContext::ConShowOthers(IConsole::IResult *pResult, void *pUserData, in
 	if(pSelf->m_apPlayers[ClientId]->m_IsUsingDDRaceClient)
 		pSelf->m_apPlayers[ClientId]->m_ShowOthers = !pSelf->m_apPlayers[ClientId]->m_ShowOthers;
 	else
-		pSelf->SendChatTarget(ClientId, "Showing players from other teams is only available with DDRace Client, http://DDRace.info");
+		pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "Showing players from other teams is only available with DDRace Client, http://DDRace.info");
 }
 
+void CGameContext::ConAsk(IConsole::IResult *pResult, void *pUserData, int ClientId)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	char aBuf[512];
+	CServer* pServ = (CServer*)pSelf->Server();
+	const char *Name = pResult->GetString(0);
+	int Matches = 0;
+	int Victim = -1;
+	CCharacter* pAsker = pSelf->m_apPlayers[ClientId]->GetCharacter();
+	CCharacter* pVictim = 0;
+
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if(pSelf->m_apPlayers[i] && i != ClientId && !str_comp_nocase(pServ->ClientName(i), Name))
+		{
+			Victim = i;
+			pVictim = pSelf->m_apPlayers[i]->GetCharacter();
+			Matches = 1;
+			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "Exact Match found");
+			break;
+		}
+		else if(pSelf->m_apPlayers[i] && i != ClientId && str_find_nocase(pServ->ClientName(i), Name))
+		{
+			Victim = i;
+			pVictim = pSelf->m_apPlayers[i]->GetCharacter();
+			Matches++;
+		}
+	}
+	if(!pAsker || !pAsker->IsAlive())
+		str_format(aBuf, sizeof(aBuf), "You can\'t invite while dead.");
+	else if(pAsker->Team())
+		str_format(aBuf, sizeof(aBuf), "You already are in team %d, you can use /invite if you are the leader.", pAsker->Team());
+	else if(Matches > 1)
+		str_format(aBuf, sizeof(aBuf), "More Than one player matches the given string, maybe use auto complete (tab in any 0.5 trunk client)");
+	else if(Matches == 0)
+		str_format(aBuf, sizeof(aBuf), "No matches found.");
+	else if(pAsker->m_DDRaceState != DDRACE_NONE)
+		str_format(aBuf, sizeof(aBuf), "You can't start a team at this time, please kill.");
+	else if(!pVictim || !pVictim->IsAlive())
+		str_format(aBuf, sizeof(aBuf), "You can\'t invite him while he is dead.");
+	else if(pVictim->m_DDRaceState != DDRACE_NONE)
+	str_format(aBuf, sizeof(aBuf), "He can't change teams at this time, please tell him to kill.");
+	else if(pSelf->m_apPlayers[Victim]->m_Asker != -1 && pSelf->m_apPlayers[Victim]->m_AskedTick > pSelf->Server()->Tick() - g_Config.m_SvTeamAskTime)
+		str_format(aBuf, sizeof(aBuf), "\'%s\' is already being asked wait for %.1f seconds.", pServ->ClientName(Victim), (pSelf->m_apPlayers[Victim]->m_AskedTick + g_Config.m_SvTeamAskTime * pSelf->Server()->TickSpeed() - pSelf->Server()->Tick()) / (float)pSelf->Server()->TickSpeed());
+	else if(pSelf->m_apPlayers[Victim]->m_Asked != -1 && pSelf->m_apPlayers[Victim]->m_AskerTick > pSelf->Server()->Tick() - g_Config.m_SvTeamAskTime)
+		str_format(aBuf, sizeof(aBuf), "\'%s\' is already is asking someone wait for %.1f seconds.", pServ->ClientName(Victim), (pSelf->m_apPlayers[Victim]->m_AskedTick + g_Config.m_SvTeamAskTime * pSelf->Server()->TickSpeed() - pSelf->Server()->Tick()) / (float)pSelf->Server()->TickSpeed());
+	else if(!pVictim->Team())
+	{
+		pSelf->m_apPlayers[Victim]->m_Asker = ClientId;
+		pSelf->m_apPlayers[Victim]->m_AskedTick = pSelf->Server()->Tick();
+		pSelf->m_apPlayers[ClientId]->m_Asked = Victim;
+		pSelf->m_apPlayers[ClientId]->m_AskerTick = pSelf->Server()->Tick();
+		char aTempBuf[512];
+		str_format(aTempBuf, sizeof(aTempBuf), "Do you want to start a team with \'%s\' as leader ?", pServ->ClientName(ClientId));
+		pSelf->SendChatTarget(Victim, aTempBuf);
+		str_format(aTempBuf, sizeof(aTempBuf), "Please say /yes or /no within %d seconds.", g_Config.m_SvTeamAskTime);
+		pSelf->SendChatTarget(Victim, aTempBuf);
+		str_format(aBuf, sizeof(aBuf), "\'%s\' has been asked to start a team with you as leader.", pServ->ClientName(Victim));
+	}
+	else if(pVictim->Team() && pAsker->Teams()->GetTeamLeader(pVictim->Team()) != Victim)
+	{
+		str_format(aBuf, sizeof(aBuf), "You can't ask a team member you can only ask a team leader, Team %d is led by \'%s\'.", pVictim->Team(), pServ->ClientName(Victim));
+	}
+	else if(pVictim->Team() && pAsker->Teams()->GetTeamState(pVictim->Team()) == CGameTeams::TEAMSTATE_OPEN)
+	{
+		pSelf->m_apPlayers[Victim]->m_Asker = ClientId;
+		pSelf->m_apPlayers[Victim]->m_AskedTick = pSelf->Server()->Tick();
+		pSelf->m_apPlayers[ClientId]->m_Asked = Victim;
+		pSelf->m_apPlayers[ClientId]->m_AskerTick = pSelf->Server()->Tick();
+		char aTempBuf[512];
+		str_format(aTempBuf, sizeof(aTempBuf), "%s wants to join your team ?", pServ->ClientName(ClientId));
+		pSelf->SendChatTarget(Victim, aTempBuf);
+		str_format(aTempBuf, sizeof(aTempBuf), "Please say /yes or /no within %d seconds.", g_Config.m_SvTeamAskTime);
+		pSelf->SendChatTarget(Victim, aTempBuf);
+		str_format(aBuf, sizeof(aBuf), "You asked to join %s\'s team %d.", pServ->ClientName(Victim), pVictim->Team());
+	}
+	else
+		str_format(aBuf, sizeof(aBuf), "hmm, i don't know why but you are not allowed to ask this player");
+	pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", aBuf);
+	return;
+}
+
+void CGameContext::ConYes(IConsole::IResult *pResult, void *pUserData, int ClientId)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	CServer* pServ = (CServer*)pSelf->Server();
+	CGameControllerDDRace* Controller = (CGameControllerDDRace*)pSelf->m_pController;
+	char aBuf[512];
+	if((pSelf->m_apPlayers[ClientId]->m_Asker == -1 || pSelf->m_apPlayers[ClientId]->m_Asker != -1) && pSelf->m_apPlayers[ClientId]->m_AskedTick + g_Config.m_SvTeamAskTime > pSelf->Server()->Tick() )
+		pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "No valid questions, maybe they timed out.");
+	else
+	{
+		str_format(aBuf, sizeof(aBuf), "\'%s\' has accepted your request.", pServ->ClientName(ClientId));
+		pSelf->SendChatTarget(pSelf->m_apPlayers[ClientId]->m_Asker, aBuf);
+		if(pSelf->m_apPlayers[pSelf->m_apPlayers[ClientId]->m_Asker]->GetCharacter()->Team() != 0)
+		{
+			Controller->m_Teams.SetCharacterTeam(ClientId, pSelf->m_apPlayers[pSelf->m_apPlayers[ClientId]->m_Asker]->GetCharacter()->Team());
+		}
+		else if(pSelf->m_apPlayers[ClientId]->GetCharacter()->Team() != 0)
+		{
+			Controller->m_Teams.SetCharacterTeam(pSelf->m_apPlayers[ClientId]->m_Asker, pSelf->m_apPlayers[ClientId]->GetCharacter()->Team());
+			str_format(aBuf, sizeof(aBuf), "\'%s\' joined team %d.", pServ->ClientName(pSelf->m_apPlayers[ClientId]->m_Asker), pSelf->m_apPlayers[ClientId]->GetCharacter()->Team());
+			pSelf->SendChat(-1, CGameContext::CHAT_ALL, aBuf);
+		}
+		else
+			for(int i = 1; i < MAX_CLIENTS; ++i)
+			{
+				if(Controller->m_Teams.GetTeamState(i) == CGameTeams::TEAMSTATE_EMPTY)
+				{
+					Controller->m_Teams.SetCharacterTeam(pSelf->m_apPlayers[ClientId]->m_Asker, i);
+					Controller->m_Teams.SetCharacterTeam(ClientId, i);
+					Controller->m_Teams.SetTeamLeader(i, pSelf->m_apPlayers[ClientId]->m_Asker);
+					return;
+				}
+			}
+	}
+	/*
+	if(pSelf->m_apPlayers[ClientId]->m_Asker != -1 && pSelf->m_apPlayers[pSelf->m_apPlayers[ClientId]->m_Asker]->m_Asked == ClientId)
+	{
+		pSelf->m_apPlayers[pSelf->m_apPlayers[ClientId]->m_Asker]->m_Asked = -1;
+		pSelf->m_apPlayers[pSelf->m_apPlayers[ClientId]->m_Asker]->m_AskerTick = -g_Config.m_SvTeamAskTime;
+	}
+	pSelf->m_apPlayers[ClientId]->m_Asker = -1;
+	pSelf->m_apPlayers[ClientId]->m_AskedTick = -g_Config.m_SvTeamAskTime;
+	*/
+}
+
+void CGameContext::ConNo(IConsole::IResult *pResult, void *pUserData, int ClientId)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	CServer* pServ = (CServer*)pSelf->Server();
+	char aBuf[512];
+	if((pSelf->m_apPlayers[ClientId]->m_Asker == -1 || pSelf->m_apPlayers[ClientId]->m_Asker != -1) && pSelf->m_apPlayers[ClientId]->m_AskedTick + g_Config.m_SvTeamAskTime > pSelf->Server()->Tick() )
+		pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "No valid question, maybe it timed out.");
+	else
+	{
+		str_format(aBuf, sizeof(aBuf), "\'%s\' has rejected your request.", pServ->ClientName(ClientId));
+		pSelf->SendChatTarget(pSelf->m_apPlayers[ClientId]->m_Asker, aBuf);
+	}
+	/*
+	if(pSelf->m_apPlayers[ClientId]->m_Asker != -1 && pSelf->m_apPlayers[pSelf->m_apPlayers[ClientId]->m_Asker]->m_Asked == ClientId)
+	{
+		pSelf->m_apPlayers[pSelf->m_apPlayers[ClientId]->m_Asker]->m_Asked = -1;
+		pSelf->m_apPlayers[pSelf->m_apPlayers[ClientId]->m_Asker]->m_AskerTick = -g_Config.m_SvTeamAskTime;
+	}
+	pSelf->m_apPlayers[ClientId]->m_Asker = -1;
+	pSelf->m_apPlayers[ClientId]->m_AskedTick = -g_Config.m_SvTeamAskTime;
+	*/
+}
+
+void CGameContext::ConInvite(IConsole::IResult *pResult, void *pUserData, int ClientId)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	CServer* pServ = (CServer*)pSelf->Server();
+	CGameControllerDDRace* Controller = (CGameControllerDDRace*)pSelf->m_pController;
+	char aBuf[512];
+	const char *Name = pResult->GetString(0);
+	int Matches = 0;
+	int Victim = -1;
+	CCharacter* pAsker = pSelf->m_apPlayers[ClientId]->GetCharacter();
+	CCharacter* pVictim = 0;
+
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		if(pSelf->m_apPlayers[i] && i != ClientId && !str_comp_nocase(pServ->ClientName(i), Name))
+		{
+			Victim = i;
+			pVictim = pSelf->m_apPlayers[i]->GetCharacter();
+			Matches = 1;
+			pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "Exact Match found");
+			break;
+		}
+		else if(pSelf->m_apPlayers[i] && i != ClientId && str_find_nocase(pServ->ClientName(i), Name))
+		{
+			Victim = i;
+			pVictim = pSelf->m_apPlayers[i]->GetCharacter();
+			Matches++;
+		}
+	}
+	if(!pAsker || !pAsker->IsAlive())
+		str_format(aBuf, sizeof(aBuf), "You can\'t invite while dead.");
+	else if(pAsker->Team() == 0)
+		str_format(aBuf, sizeof(aBuf), "You are in team %d, use /leader or /ask.", pAsker->Team());
+	else if(pAsker->Team() && ClientId != Controller->m_Teams.GetTeamLeader(pAsker->Team()))
+		str_format(aBuf, sizeof(aBuf), "You already are in team %d, but not leader.", pAsker->Team());
+	else if(Matches > 1)
+		str_format(aBuf, sizeof(aBuf), "More Than one player matches the given string, maybe use auto complete (tab in any 0.5 trunk client)");
+	else if(Matches == 0)
+		str_format(aBuf, sizeof(aBuf), "No matches found.");
+	else if(Controller->m_Teams.GetTeamState(pAsker->Team()) != CGameTeams::TEAMSTATE_OPEN)
+		str_format(aBuf, sizeof(aBuf), "You can't invite anyone at this time, your team is closed.");
+	else if(!pVictim || !pVictim->IsAlive())
+		str_format(aBuf, sizeof(aBuf), "You can\'t invite him while he is dead.");
+	else if(pVictim->m_DDRaceState != DDRACE_NONE)
+	str_format(aBuf, sizeof(aBuf), "He can't change teams at this time, please tell him to kill.");
+	else if(pSelf->m_apPlayers[Victim]->m_Asker != -1 && pSelf->m_apPlayers[Victim]->m_AskedTick > pSelf->Server()->Tick() - g_Config.m_SvTeamAskTime)
+		str_format(aBuf, sizeof(aBuf), "\'%s\' is already being asked wait for %.1f seconds.", pServ->ClientName(Victim), (pSelf->m_apPlayers[Victim]->m_AskedTick + g_Config.m_SvTeamAskTime * pSelf->Server()->TickSpeed() - pSelf->Server()->Tick()) / (float)pSelf->Server()->TickSpeed());
+	else if(pSelf->m_apPlayers[Victim]->m_Asked != -1 && pSelf->m_apPlayers[Victim]->m_AskerTick > pSelf->Server()->Tick() - g_Config.m_SvTeamAskTime)
+		str_format(aBuf, sizeof(aBuf), "\'%s\' is already is asking someone wait for %.1f seconds.", pServ->ClientName(Victim), (pSelf->m_apPlayers[Victim]->m_AskedTick + g_Config.m_SvTeamAskTime * pSelf->Server()->TickSpeed() - pSelf->Server()->Tick()) / (float)pSelf->Server()->TickSpeed());
+	else if(!pVictim->Team())
+	{
+		pSelf->m_apPlayers[Victim]->m_Asker = ClientId;
+		pSelf->m_apPlayers[Victim]->m_AskedTick = pSelf->Server()->Tick();
+		pSelf->m_apPlayers[ClientId]->m_Asked = Victim;
+		pSelf->m_apPlayers[ClientId]->m_AskerTick = pSelf->Server()->Tick();
+		char aTempBuf[512];
+		str_format(aTempBuf, sizeof(aTempBuf), "Do you want to join \'%s\' \'s team?", pServ->ClientName(ClientId));
+		pSelf->SendChatTarget(Victim, aTempBuf);
+		str_format(aTempBuf, sizeof(aTempBuf), "Please say /yes or /no within %d seconds.", g_Config.m_SvTeamAskTime);
+		pSelf->SendChatTarget(Victim, aTempBuf);
+		str_format(aBuf, sizeof(aBuf), "\'%s\' has been asked to join your team.", pServ->ClientName(Victim));
+	}
+	else
+		str_format(aBuf, sizeof(aBuf), "hmm, i don't know why but you are not allowed to ask this player");
+	pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", aBuf);
+	return;
+}

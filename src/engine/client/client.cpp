@@ -1084,8 +1084,8 @@ void CClient::ProcessPacket(CNetChunk *pPacket)
 				// don't add invalid info to the server browser list
 				if(Info.m_NumPlayers < 0 || Info.m_NumPlayers > MAX_CLIENTS || Info.m_MaxPlayers < 0 || Info.m_MaxPlayers > MAX_CLIENTS)
 					return;
-				
-				if((Info.m_Flags | SERVER_FLAGS_VERSION) != SERVER_FLAG_VERSION || !str_find_nocase(Info.m_aGameType, "DDRace"))
+
+				if((Info.m_Flags & SERVER_FLAG_VERSION) != SERVER_FLAG_VERSION || !str_find_nocase(Info.m_aGameType, "DDRace"))
 					Info.m_Flags &= SERVER_FLAGS_DEFAULT;
 				else
 					Info.m_Flags &= SERVER_FLAGS_ALL;
@@ -2354,3 +2354,38 @@ int main(int argc, const char **argv) // ignore_convention
 
 	return 0;
 }
+
+const char* CClient::GetCurrentMap()
+{
+	return m_aCurrentMap;
+}
+
+int CClient::GetCurrentMapCrc()
+{
+	return m_CurrentMapCrc;
+}
+
+const char* CClient::RaceRecordStart(const char *pFilename)
+{
+	char aFilename[128];
+	str_format(aFilename, sizeof(aFilename), "demos/%s_%s.demo", m_aCurrentMap, pFilename);
+	
+	if(State() != STATE_ONLINE)
+		dbg_msg("demorec/record", "client is not online");
+	else
+		m_DemoRecorder.Start(Storage(),  m_pConsole, aFilename, GameClient()->NetVersion(), m_aCurrentMap, m_CurrentMapCrc, "client");
+		
+	return m_aCurrentMap;
+}
+
+void CClient::RaceRecordStop()
+{
+	if(m_DemoRecorder.IsRecording())
+		m_DemoRecorder.Stop();
+}
+
+bool CClient::DemoIsRecording()
+{
+	return m_DemoRecorder.IsRecording();
+}
+

@@ -407,6 +407,7 @@ void CMenus::RenderServerbrowserFilters(CUIRect View)
 {
 	// filters
 	CUIRect Button;
+	char aBuf[32];
 
 	View.HSplitTop(5.0f, 0, &View);
 	View.VSplitLeft(5.0f, 0, &View);
@@ -438,7 +439,181 @@ void CMenus::RenderServerbrowserFilters(CUIRect View)
 	//button.VSplitLeft(20.0f, 0, &button);
 	if (DoButton_CheckBox((char *)&g_Config.m_BrFilterPureMap, Localize("Standard map"), g_Config.m_BrFilterPureMap, &Button))
 		g_Config.m_BrFilterPureMap ^= 1;
-	
+
+	switch(g_Config.m_BrFilterCheats)
+	{
+	default:
+		str_format(aBuf, sizeof(aBuf), "%s ?", Localize("Cheats"));
+		break;
+	case 1:
+		str_format(aBuf, sizeof(aBuf), Localize("Cheats off"));
+		break;
+	case 2:
+		str_format(aBuf, sizeof(aBuf), Localize("Cheats on"));
+		break;
+	}
+	View.HSplitTop(20.0f, &Button, &View);
+	if (DoButton_CheckBox_DontCare((char *)&g_Config.m_BrFilterCheats, aBuf, g_Config.m_BrFilterCheats, &Button))
+	{
+		g_Config.m_BrFilterCheats = (g_Config.m_BrFilterCheats + 1) % 3;
+		if(g_Config.m_BrFilterCheats == 1)
+			g_Config.m_BrFilterCheatTime = 0;
+	}
+
+	switch(g_Config.m_BrFilterCheatTime)
+	{
+	default:
+		str_format(aBuf, sizeof(aBuf), "%s ?", Localize("Cheats with time"));
+		break;
+	case 1:
+		str_format(aBuf, sizeof(aBuf), Localize("Cheats with time off"));
+		break;
+	case 2:
+		str_format(aBuf, sizeof(aBuf), Localize("Cheats with time on"));
+		break;
+	}
+	View.HSplitTop(20.0f, &Button, &View);
+	if (DoButton_CheckBox_DontCare((char *)&g_Config.m_BrFilterCheatTime, aBuf, (!g_Config.m_BrFilterCheats || g_Config.m_BrFilterCheats == 2) ? g_Config.m_BrFilterCheatTime : 0, &Button))
+	{
+		if(!g_Config.m_BrFilterCheats || g_Config.m_BrFilterCheats == 2)
+			g_Config.m_BrFilterCheatTime = (g_Config.m_BrFilterCheatTime + 1) % 3;
+		else
+			g_Config.m_BrFilterCheatTime = 0;
+	}
+
+	switch(g_Config.m_BrFilterTeams)
+	{
+	default:
+		str_format(aBuf, sizeof(aBuf), "%s ?", Localize("Teams"));
+		break;
+	case 1:
+		str_format(aBuf, sizeof(aBuf), Localize("Teams off"));
+		break;
+	case 2:
+		str_format(aBuf, sizeof(aBuf), Localize("Teams on"));
+		break;
+	}
+	View.HSplitTop(20.0f, &Button, &View);
+	if (DoButton_CheckBox_DontCare((char *)&g_Config.m_BrFilterTeams, aBuf, g_Config.m_BrFilterTeams, &Button))
+		g_Config.m_BrFilterTeams = (g_Config.m_BrFilterTeams + 1) % 3;
+/*
+	View.HSplitTop(20.0f, &Button, &View);
+	if (DoButton_CheckBox_DontCare((char *)&g_Config.m_BrFilterTeamsStrict, Localize("Strict Teams"), g_Config.m_BrFilterTeamsStrict, &Button))
+		g_Config.m_BrFilterTeamsStrict = (g_Config.m_BrFilterTeamsStrict + 1) % 3;
+*/
+	switch(g_Config.m_BrFilterPause)
+	{
+	default:
+		str_format(aBuf, sizeof(aBuf), "%s ?", Localize("Pause"));
+		break;
+	case 1:
+		str_format(aBuf, sizeof(aBuf), Localize("Pause off"));
+		break;
+	case 2:
+		str_format(aBuf, sizeof(aBuf), Localize("Pause on"));
+		break;
+	}
+	View.HSplitTop(20.0f, &Button, &View);
+	if (DoButton_CheckBox_DontCare((char *)&g_Config.m_BrFilterPause, aBuf, g_Config.m_BrFilterPause, &Button))
+	{
+		g_Config.m_BrFilterPause = (g_Config.m_BrFilterPause + 1) % 3;
+		if(g_Config.m_BrFilterPause == 1)
+			g_Config.m_BrFilterPauseTime = 0;
+	}
+
+	switch(g_Config.m_BrFilterPauseTime)
+	{
+	default:
+		str_format(aBuf, sizeof(aBuf), "%s ?", Localize("Pause with time"));
+		break;
+	case 1:
+		str_format(aBuf, sizeof(aBuf), Localize("Pause with time  off"));
+		break;
+	case 2:
+		str_format(aBuf, sizeof(aBuf), Localize("Pause with time on"));
+		break;
+	}
+	View.HSplitTop(20.0f, &Button, &View);
+	if (DoButton_CheckBox_DontCare((char *)&g_Config.m_BrFilterPauseTime, aBuf, (!g_Config.m_BrFilterPause || g_Config.m_BrFilterPause == 2) ? g_Config.m_BrFilterPauseTime : 0, &Button))
+	{
+		if(!g_Config.m_BrFilterPause || g_Config.m_BrFilterPause == 2)
+			g_Config.m_BrFilterPauseTime = (g_Config.m_BrFilterPauseTime + 1) % 3;
+		else
+			g_Config.m_BrFilterPauseTime = 0;
+	}
+
+	switch(g_Config.m_BrFilterPlayerCollision)
+	{
+	default:
+		str_format(aBuf, sizeof(aBuf), "%s ?", Localize("Players Collide"));
+		break;
+	case 1:
+		str_format(aBuf, sizeof(aBuf), Localize("Player Collision off"));
+		break;
+	case 2:
+		str_format(aBuf, sizeof(aBuf), Localize("Player Collision on"));
+		break;
+	}
+	View.HSplitTop(20.0f, &Button, &View);
+	if (DoButton_CheckBox_DontCare((char *)&g_Config.m_BrFilterPlayerCollision, aBuf, g_Config.m_BrFilterPlayerCollision, &Button))
+		g_Config.m_BrFilterPlayerCollision = (g_Config.m_BrFilterPlayerCollision + 1) % 3;
+
+	switch(g_Config.m_BrFilterPlayerHooking)
+	{
+	default:
+		str_format(aBuf, sizeof(aBuf), "%s ?", Localize("Player Hooking"));
+		break;
+	case 1:
+		str_format(aBuf, sizeof(aBuf), Localize("Player Hooking off"));
+		break;
+	case 2:
+		str_format(aBuf, sizeof(aBuf), Localize("Player Hooking on"));
+		break;
+	}
+	View.HSplitTop(20.0f, &Button, &View);
+	if (DoButton_CheckBox_DontCare((char *)&g_Config.m_BrFilterPlayerHooking, aBuf, g_Config.m_BrFilterPlayerHooking, &Button))
+		g_Config.m_BrFilterPlayerHooking = (g_Config.m_BrFilterPlayerHooking + 1) % 3;
+
+	switch(g_Config.m_BrFilterPlayerHitting)
+	{
+	default:
+		str_format(aBuf, sizeof(aBuf), "%s ?", Localize("Player Hitting"));
+		break;
+	case 1:
+		str_format(aBuf, sizeof(aBuf), Localize("Player Hitting off"));
+		break;
+	case 2:
+		str_format(aBuf, sizeof(aBuf), Localize("Player Hitting on"));
+		break;
+	}
+	View.HSplitTop(20.0f, &Button, &View);
+	if (DoButton_CheckBox_DontCare((char *)&g_Config.m_BrFilterPlayerHitting, aBuf, g_Config.m_BrFilterPlayerHitting, &Button))
+		g_Config.m_BrFilterPlayerHitting = (g_Config.m_BrFilterPlayerHitting + 1) % 3;
+
+	switch(g_Config.m_BrFilterEndlessHooking)
+	{
+	default:
+		str_format(aBuf, sizeof(aBuf), "%s ?", Localize("Hooking Ends"));
+		break;
+	case 1:
+		str_format(aBuf, sizeof(aBuf), Localize("Hooking normal"));
+		break;
+	case 2:
+		str_format(aBuf, sizeof(aBuf), Localize("Endless Hooking"));
+		break;
+	}
+	View.HSplitTop(20.0f, &Button, &View);
+	if (DoButton_CheckBox_DontCare((char *)&g_Config.m_BrFilterEndlessHooking, aBuf, g_Config.m_BrFilterEndlessHooking, &Button))
+		g_Config.m_BrFilterEndlessHooking = (g_Config.m_BrFilterEndlessHooking + 1) % 3;
+/*
+	View.HSplitTop(20.0f, &Button, &View);
+	if (DoButton_CheckBox_DontCare((char *)&g_Config.m_BrFilterTestMap, Localize("Test Map"), g_Config.m_BrFilterTestMap, &Button))
+		g_Config.m_BrFilterTestMap = (g_Config.m_BrFilterTestMap + 1) % 3;
+
+	View.HSplitTop(20.0f, &Button, &View);
+	if (DoButton_CheckBox_DontCare((char *)&g_Config.m_BrFilterTestServer, Localize("Test Server"), g_Config.m_BrFilterTestServer, &Button))
+		g_Config.m_BrFilterTestServer = (g_Config.m_BrFilterTestServer + 1) % 3;
+*/
 	View.HSplitTop(20.0f, &Button, &View);
 	if (DoButton_CheckBox((char *)&g_Config.m_BrFilterGametypeStrict, Localize("Filter gametype strict"), g_Config.m_BrFilterGametypeStrict, &Button))
 		g_Config.m_BrFilterGametypeStrict ^= 1;
@@ -477,10 +652,22 @@ void CMenus::RenderServerbrowserFilters(CUIRect View)
 		g_Config.m_BrFilterGametypeStrict = 0;
 		g_Config.m_BrFilterPing = 999;
 		g_Config.m_BrFilterGametype[0] = 0;
-		g_Config.m_BrFilterCompatversion = 1;
+		g_Config.m_BrFilterCompatversion = 0;
 		g_Config.m_BrFilterString[0] = 0;
-		g_Config.m_BrFilterPure = 1;
-		g_Config.m_BrFilterPureMap = 1;
+		g_Config.m_BrFilterPure = 0;
+		g_Config.m_BrFilterPureMap = 0;
+		g_Config.m_BrFilterCheats = 0;
+		g_Config.m_BrFilterCheatTime = 0;
+		g_Config.m_BrFilterTeams = 0;
+		g_Config.m_BrFilterTeamsStrict = 0;
+		g_Config.m_BrFilterPause = 0;
+		g_Config.m_BrFilterPauseTime = 0;
+		g_Config.m_BrFilterPlayerCollision = 0;
+		g_Config.m_BrFilterPlayerHooking = 0;
+		g_Config.m_BrFilterPlayerHitting = 0;
+		g_Config.m_BrFilterEndlessHooking = 0;
+		g_Config.m_BrFilterTestMap = 0;
+		g_Config.m_BrFilterTestServer = 0;
 	}
 }
 
@@ -537,7 +724,7 @@ void CMenus::RenderServerbrowserServerDetail(CUIRect View)
 		//UI()->DoLabel(&row, temp, font_size, -1);
 
 		ServerDetails.VSplitLeft(5.0f, 0x0, &ServerDetails);
-		ServerDetails.VSplitLeft(80.0f, &LeftColumn, &RightColumn);
+		ServerDetails.VSplitLeft(75.0f, &LeftColumn, &RightColumn);
 
 		for (unsigned int i = 0; i < sizeof(s_aLabels) / sizeof(s_aLabels[0]); i++)
 		{
@@ -555,8 +742,26 @@ void CMenus::RenderServerbrowserServerDetail(CUIRect View)
 		Cursor.m_LineWidth = Row.w;
 		TextRender()->TextEx(&Cursor, pSelectedServer->m_aGameType, -1);
 
-		char aTemp[16];
+		char aTemp[32];
 		str_format(aTemp, sizeof(aTemp), "%d", pSelectedServer->m_Latency);
+		RightColumn.HSplitTop(15.0f, &Row, &RightColumn);
+		TextRender()->SetCursor(&Cursor, Row.x, Row.y, FontSize, TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
+		Cursor.m_LineWidth = Row.w;
+		TextRender()->TextEx(&Cursor, aTemp, -1);
+
+		//DDRace
+
+		LeftColumn.HSplitTop(15.0f, &Row, &LeftColumn);
+		UI()->DoLabelScaled(&Row, "Cheats", FontSize, -1);
+		str_format(aTemp, sizeof(aTemp), "%s", pSelectedServer->m_Flags&SERVER_FLAG_CHEATS ? pSelectedServer->m_Flags&SERVER_FLAG_CHEATTIME? "On & can finish" : "On & can't finish" : "Off");
+		RightColumn.HSplitTop(15.0f, &Row, &RightColumn);
+		TextRender()->SetCursor(&Cursor, Row.x, Row.y, FontSize, TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
+		Cursor.m_LineWidth = Row.w;
+		TextRender()->TextEx(&Cursor, aTemp, -1);
+
+		LeftColumn.HSplitTop(15.0f, &Row, &LeftColumn);
+		UI()->DoLabelScaled(&Row, "Pause", FontSize, -1);
+		str_format(aTemp, sizeof(aTemp), "%s", pSelectedServer->m_Flags&SERVER_FLAG_PAUSE ? pSelectedServer->m_Flags&SERVER_FLAG_PAUSETIME? "On & pauses time" : "On but not time" : "Off");
 		RightColumn.HSplitTop(15.0f, &Row, &RightColumn);
 		TextRender()->SetCursor(&Cursor, Row.x, Row.y, FontSize, TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
 		Cursor.m_LineWidth = Row.w;

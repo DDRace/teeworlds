@@ -16,14 +16,13 @@ public:
 	CPlayer(CGameContext *pGameServer, int CID, int Team);
 	~CPlayer();
 
-	//void Init(int CID); idk what this does or where it is so i commented it. GreYFoXWas Here
+	void Init(int CID);
 
 	void TryRespawn();
 	void Respawn();
 	void SetTeam(int Team);
 	int GetTeam() const { return m_Team; };
 	int GetCID() const { return m_ClientID; };
-	
 	
 	void Tick();
 	void Snap(int SnappingClient);
@@ -35,37 +34,6 @@ public:
 	void KillCharacter(int Weapon = WEAPON_GAME);
 	CCharacter *GetCharacter();
 	
-	struct PauseInfo {
-		CCharacterCore m_Core;
-		int m_StartTime;
-		int m_DDRaceState;
-		//int m_RefreshTime;
-		int m_FreezeTime;
-		bool m_Doored;
-		vec2 m_OldPos;
-		vec2 m_OlderPos;
-		int m_LastAction;
-		int m_Jumped;
-		int m_Health;
-		int m_Armor;
-		int m_PlayerState;
-		int m_LastMove;
-		vec2 m_PrevPos;
-		int m_ActiveWeapon;
-		int m_LastWeapon;
-		bool m_Respawn;
-		bool m_aHasWeapon[NUM_WEAPONS];
-		int m_HammerType;
-		bool m_Super;
-		bool m_DeepFreeze;
-		bool m_EndlessHook;
-		int m_PauseTime;
-		int m_Team;
-	} m_PauseInfo;
-	bool m_InfoSaved;
-	void LoadCharacter();
-	void SaveCharacter();
-	
 	//---------------------------------------------------------
 	// this is used for snapping so we know how we can clip the view for the player
 	vec2 m_ViewPos;
@@ -74,36 +42,14 @@ public:
 	int m_Vote;
 	int m_VotePos;
 	//
-	int64 m_Last_KickVote;
-	
-	int64 m_Last_VoteCall;
-	int64 m_Last_VoteTry;
-	int64 m_Last_Chat;
-	int64 m_Last_SetTeam;
-	int64 m_Last_ChangeInfo;
-	int64 m_Last_Emote;
-	int64 m_Last_Kill;
-	int64 m_Last_Pause;
-	int64 m_Last_Team;
-	int64 m_TimerMap;
-
-	bool m_Invisible;
-	
-   int m_Muted;  		 
-   //int hammer_ type;  		 
- 		 
-   // TODO: clean this up
-   int m_Authed;
-
-   bool m_IsUsingDDRaceClient;
-   bool m_ShowOthers;
-   
-   int m_Starttime;  		 
-   int m_Refreshtime;  		 
-   int m_DDRaceState;  		 
-   int m_Besttick;  		 
-   int m_Lasttick;  		 
-   float m_BestLap;  
+	int m_Last_VoteCall;
+	int m_Last_VoteTry;
+	int m_TimerMap;
+	int m_Last_Chat;
+	int m_Last_SetTeam;
+	int m_Last_ChangeInfo;
+	int m_Last_Emote;
+	int m_Last_Kill;
 	
 	// TODO: clean this up
 	struct 
@@ -126,20 +72,12 @@ public:
 		int m_TargetY;
 	} m_LatestActivity;
 	
-	float m_BestTime;
-	float m_aBestCpTime[25];
-	
-	bool m_ResetPickups;
-	
-	bool m_RconFreeze;
 private:
 	CCharacter *Character;
 	CGameContext *m_pGameServer;
 	
 	CGameContext *GameServer() const { return m_pGameServer; }
 	IServer *Server() const;
-	
-	
 	
 	//
 	bool m_Spawning;
@@ -156,6 +94,48 @@ private:
 		int m_Min;
 		int m_Max;	
 	} m_Latency;
+
+	//DDRace
+public:
+	struct PauseInfo
+	{
+		CCharacterCore m_Core;
+		int m_StartTime;
+		int m_DDRaceState;
+		//int m_RefreshTime;
+		int m_FreezeTime;
+		int m_Armor;
+		int m_LastMove;
+		vec2 m_PrevPos;
+		int m_ActiveWeapon;
+		int m_LastWeapon;
+		bool m_Respawn;
+		bool m_aHasWeapon[NUM_WEAPONS];
+		int m_HammerType;
+		bool m_Super;
+		bool m_DeepFreeze;
+		bool m_EndlessHook;
+		int m_PauseTime;
+		int m_Team;
+	} m_PauseInfo;
+	bool m_InfoSaved;
+	void LoadCharacter();
+	void SaveCharacter();
+	int64 m_Last_Pause;
+	int64 m_Last_KickVote;
+	int64 m_Last_Team;
+	bool m_Invisible;
+	int m_Muted;
+	int m_Authed;
+	bool m_IsUsingDDRaceClient;
+	bool m_ShowOthers;
+	bool m_RconFreeze;
+
+	// necessary for asking mutual exclusion
+	int m_Asker; // who asked this player
+	int m_AskedTick; // when was this player asked by another player
+	int m_Asked; // who did this player ask
+	int m_AskerTick; // when did this player ask another player
 };
 
 #endif
