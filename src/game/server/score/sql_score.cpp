@@ -308,24 +308,24 @@ void CSqlScore::ShowRankThread(void *pUser)
 			char aBuf[512];
 						
 			pData->m_pSqlData->m_pStatement->execute("SET @rownum := 0;");
-			// str_format(aBuf, sizeof(aBuf), 	"SELECT Rank, Name, Time "
-			// 								"FROM ("
-			// 									"SELECT @rownum := @rownum + 1 AS RANK, Name, Time "
-			// 									"FROM ("
-			// 									    "SELECT Name, min(Time) as Time, Timestamp"
-			// 									    "FROM %s_%s_race"
-			// 									    "Group By Name"
-			// 									") as all_top_times"
-			// 									"ORDER BY Time ASC ) as all_ranks"												
-			// 								"WHERE Name = '%s';", pData->m_pSqlData->m_pPrefix, pData->m_pSqlData->m_aMap,pData->m_aName);
-
 			str_format(aBuf, sizeof(aBuf), 	"SELECT Rank, Name, Time, UNIX_TIMESTAMP(CURRENT_TIMESTAMP)-UNIX_TIMESTAMP(Timestamp) as Ago "
-											"FROM ("
-												"SELECT @rownum := @rownum + 1 AS RANK, Name, min(Time) as Time, Timestamp "
-												"FROM %s_%s_race "
-												"Group By Name "												
+											"FROM ( "
+												"SELECT @rownum := @rownum + 1 AS RANK, Name, Time, Timestamp "
+												"FROM ( "
+												    "SELECT Name, min(Time) as Time, Timestamp "
+												    "FROM %s_%s_race "
+												    "Group By Name "
+												") as all_top_times "
 												"ORDER BY Time ASC ) as all_ranks "												
 											"WHERE Name = '%s';", pData->m_pSqlData->m_pPrefix, pData->m_pSqlData->m_aMap,pData->m_aName);
+			// 
+			// str_format(aBuf, sizeof(aBuf), 	"SELECT Rank, Name, Time, UNIX_TIMESTAMP(CURRENT_TIMESTAMP)-UNIX_TIMESTAMP(Timestamp) as Ago "
+			// 								"FROM ("
+			// 									"SELECT @rownum := @rownum + 1 AS RANK, Name, min(Time) as Time, Timestamp "
+			// 									"FROM %s_%s_race "
+			// 									"Group By Name "												
+			// 									"ORDER BY Time ASC ) as all_ranks "												
+			// 								"WHERE Name = '%s';", pData->m_pSqlData->m_pPrefix, pData->m_pSqlData->m_aMap,pData->m_aName);
 
 										
 			pData->m_pSqlData->m_pResults = pData->m_pSqlData->m_pStatement->executeQuery(aBuf);
@@ -435,10 +435,8 @@ void CSqlScore::agoTimeToString(int agoTime, char agoString[]){
 	
 	    if (count2 != 0) {
 			if(count2 == 1){
-				dbg_msg("SQL","What");
 				str_format(aBuf, sizeof(aBuf), " and %d %s", 1 , name2);
 			}else{
-				dbg_msg("SQL","NOT");
 				str_format(aBuf, sizeof(aBuf), " and %d %ss", count2 , name2);
 			}
 			strcat(agoString,aBuf);
