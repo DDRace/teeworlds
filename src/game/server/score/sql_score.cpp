@@ -124,7 +124,7 @@ void CSqlScore::Init()
 		{
 			// create tables
 			char aBuf[768];
-			str_format(aBuf, sizeof(aBuf), "CREATE TABLE IF NOT EXISTS %s_%s_race (Name VARCHAR(%d) NOT NULL, Time FLOAT DEFAULT 0, cp1 FLOAT DEFAULT 0, cp2 FLOAT DEFAULT 0, cp3 FLOAT DEFAULT 0, cp4 FLOAT DEFAULT 0, cp5 FLOAT DEFAULT 0, cp6 FLOAT DEFAULT 0, cp7 FLOAT DEFAULT 0, cp8 FLOAT DEFAULT 0, cp9 FLOAT DEFAULT 0, cp10 FLOAT DEFAULT 0, cp11 FLOAT DEFAULT 0, cp12 FLOAT DEFAULT 0, cp13 FLOAT DEFAULT 0, cp14 FLOAT DEFAULT 0, cp15 FLOAT DEFAULT 0, cp16 FLOAT DEFAULT 0, cp17 FLOAT DEFAULT 0, cp18 FLOAT DEFAULT 0, cp19 FLOAT DEFAULT 0, cp20 FLOAT DEFAULT 0, cp21 FLOAT DEFAULT 0, cp22 FLOAT DEFAULT 0, cp23 FLOAT DEFAULT 0, cp24 FLOAT DEFAULT 0, cp25 FLOAT DEFAULT 0)  CHARACTER SET utf8 ;", m_pPrefix, m_aMap, MAX_NAME_LENGTH);
+			str_format(aBuf, sizeof(aBuf), "CREATE TABLE IF NOT EXISTS %s_%s_race (Name VARCHAR(%d) NOT NULL, Timestamp TIMESTAMP, Time FLOAT DEFAULT 0, cp1 FLOAT DEFAULT 0, cp2 FLOAT DEFAULT 0, cp3 FLOAT DEFAULT 0, cp4 FLOAT DEFAULT 0, cp5 FLOAT DEFAULT 0, cp6 FLOAT DEFAULT 0, cp7 FLOAT DEFAULT 0, cp8 FLOAT DEFAULT 0, cp9 FLOAT DEFAULT 0, cp10 FLOAT DEFAULT 0, cp11 FLOAT DEFAULT 0, cp12 FLOAT DEFAULT 0, cp13 FLOAT DEFAULT 0, cp14 FLOAT DEFAULT 0, cp15 FLOAT DEFAULT 0, cp16 FLOAT DEFAULT 0, cp17 FLOAT DEFAULT 0, cp18 FLOAT DEFAULT 0, cp19 FLOAT DEFAULT 0, cp20 FLOAT DEFAULT 0, cp21 FLOAT DEFAULT 0, cp22 FLOAT DEFAULT 0, cp23 FLOAT DEFAULT 0, cp24 FLOAT DEFAULT 0, cp25 FLOAT DEFAULT 0)  CHARACTER SET utf8 ;", m_pPrefix, m_aMap, MAX_NAME_LENGTH);
 			m_pStatement->execute(aBuf);
 			dbg_msg("SQL", "Tables were created successfully");
 			
@@ -176,7 +176,7 @@ void CSqlScore::LoadScoreThread(void *pUser)
 			char aBuf[512];
 
 		
-			str_format(aBuf, sizeof(aBuf), "SELECT * FROM %s_%s_race WHERE Name='%s';", pData->m_pSqlData->m_pPrefix, pData->m_pSqlData->m_aMap, pData->m_aName);
+			str_format(aBuf, sizeof(aBuf), "SELECT * FROM %s_%s_race WHERE Name='%s' ORDER BY time ASC LIMIT 1;", pData->m_pSqlData->m_pPrefix, pData->m_pSqlData->m_aMap, pData->m_aName);
 			pData->m_pSqlData->m_pResults = pData->m_pSqlData->m_pStatement->executeQuery(aBuf);
 			if(pData->m_pSqlData->m_pResults->next())
 			{
@@ -244,37 +244,7 @@ void CSqlScore::SaveScoreThread(void *pUser)
 			pData->m_pSqlData->ClearString(pData->m_aName);
 			
 			char aBuf[768];
-			
-			// fisrt check for the name
-			str_format(aBuf, sizeof(aBuf), "SELECT * FROM %s_%s_race WHERE Name='%s';", pData->m_pSqlData->m_pPrefix, pData->m_pSqlData->m_aMap, pData->m_aName);
-			pData->m_pSqlData->m_pResults = pData->m_pSqlData->m_pStatement->executeQuery(aBuf);
-			
-			// if the name is found...
-			if(pData->m_pSqlData->m_pResults->next())
-			{
-				// update time
-				if(g_Config.m_SvCheckpointSave)
-					str_format(aBuf, sizeof(aBuf), "UPDATE %s_%s_race SET Time='%.2f', cp1='%.2f', cp2='%.2f', cp3='%.2f', cp4='%.2f', cp5='%.2f', cp6='%.2f', cp7='%.2f', cp8='%.2f', cp9='%.2f', cp10='%.2f', cp11='%.2f', cp12='%.2f', cp13='%.2f', cp14='%.2f', cp15='%.2f', cp16='%.2f', cp17='%.2f', cp18='%.2f', cp19='%.2f', cp20='%.2f', cp21='%.2f', cp22='%.2f', cp23='%.2f', cp24='%.2f', cp25='%.2f' WHERE Name='%s';", pData->m_pSqlData->m_pPrefix, pData->m_pSqlData->m_aMap, pData->m_Time, pData->m_aCpCurrent[0], pData->m_aCpCurrent[1], pData->m_aCpCurrent[2], pData->m_aCpCurrent[3], pData->m_aCpCurrent[4], pData->m_aCpCurrent[5], pData->m_aCpCurrent[6], pData->m_aCpCurrent[7], pData->m_aCpCurrent[8], pData->m_aCpCurrent[9], pData->m_aCpCurrent[10], pData->m_aCpCurrent[11], pData->m_aCpCurrent[12], pData->m_aCpCurrent[13], pData->m_aCpCurrent[14], pData->m_aCpCurrent[15], pData->m_aCpCurrent[16], pData->m_aCpCurrent[17], pData->m_aCpCurrent[18], pData->m_aCpCurrent[19], pData->m_aCpCurrent[20], pData->m_aCpCurrent[21], pData->m_aCpCurrent[22], pData->m_aCpCurrent[23], pData->m_aCpCurrent[24], pData->m_aName);
-				else
-					str_format(aBuf, sizeof(aBuf), "UPDATE %s_%s_race SET Time='%.2f' WHERE Name='%s';", pData->m_pSqlData->m_pPrefix, pData->m_pSqlData->m_aMap, pData->m_Time, pData->m_aName);
-				pData->m_pSqlData->m_pStatement->execute(aBuf);
-				
-				dbg_msg("SQL", "Updating time done");
-				
-				// delete results statement
-				delete pData->m_pSqlData->m_pResults;
-				delete pData->m_pSqlData->m_pStatement;
-				
-				// disconnect from database
-				pData->m_pSqlData->Disconnect();
-				
-				delete pData;
-				
-				lock_release(gs_SqlLock);
-				
-				return;
-			}
-			
+
 			// if no entry found... create a new one
 			str_format(aBuf, sizeof(aBuf), "INSERT IGNORE INTO %s_%s_race(Name, Time, cp1, cp2, cp3, cp4, cp5, cp6, cp7, cp8, cp9, cp10, cp11, cp12, cp13, cp14, cp15, cp16, cp17, cp18, cp19, cp20, cp21, cp22, cp23, cp24, cp25) VALUES ('%s', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f', '%.2f');", pData->m_pSqlData->m_pPrefix, pData->m_pSqlData->m_aMap, pData->m_aName, pData->m_Time, pData->m_aCpCurrent[0], pData->m_aCpCurrent[1], pData->m_aCpCurrent[2], pData->m_aCpCurrent[3], pData->m_aCpCurrent[4], pData->m_aCpCurrent[5], pData->m_aCpCurrent[6], pData->m_aCpCurrent[7], pData->m_aCpCurrent[8], pData->m_aCpCurrent[9], pData->m_aCpCurrent[10], pData->m_aCpCurrent[11], pData->m_aCpCurrent[12], pData->m_aCpCurrent[13], pData->m_aCpCurrent[14], pData->m_aCpCurrent[15], pData->m_aCpCurrent[16], pData->m_aCpCurrent[17], pData->m_aCpCurrent[18], pData->m_aCpCurrent[19], pData->m_aCpCurrent[20], pData->m_aCpCurrent[21], pData->m_aCpCurrent[22], pData->m_aCpCurrent[23], pData->m_aCpCurrent[24]);
 			pData->m_pSqlData->m_pStatement->execute(aBuf);
@@ -338,11 +308,25 @@ void CSqlScore::ShowRankThread(void *pUser)
 			char aBuf[512];
 						
 			pData->m_pSqlData->m_pStatement->execute("SET @rownum := 0;");
-			str_format(aBuf, sizeof(aBuf), 	"SELECT Rank, Name, Time "
+			// str_format(aBuf, sizeof(aBuf), 	"SELECT Rank, Name, Time "
+			// 								"FROM ("
+			// 									"SELECT @rownum := @rownum + 1 AS RANK, Name, Time "
+			// 									"FROM ("
+			// 									    "SELECT Name, min(Time) as Time, Timestamp"
+			// 									    "FROM %s_%s_race"
+			// 									    "Group By Name"
+			// 									") as all_top_times"
+			// 									"ORDER BY Time ASC ) as all_ranks"												
+			// 								"WHERE Name = '%s';", pData->m_pSqlData->m_pPrefix, pData->m_pSqlData->m_aMap,pData->m_aName);
+
+			str_format(aBuf, sizeof(aBuf), 	"SELECT Rank, Name, Time, UNIX_TIMESTAMP(CURRENT_TIMESTAMP)-UNIX_TIMESTAMP(Timestamp) as Ago "
 											"FROM ("
-												"SELECT @rownum := @rownum + 1 AS RANK, Name, Time FROM %s_%s_race ORDER BY Time ASC"
-												") as Query "
+												"SELECT @rownum := @rownum + 1 AS RANK, Name, min(Time) as Time, Timestamp "
+												"FROM %s_%s_race "
+												"Group By Name "												
+												"ORDER BY Time ASC ) as all_ranks "												
 											"WHERE Name = '%s';", pData->m_pSqlData->m_pPrefix, pData->m_pSqlData->m_aMap,pData->m_aName);
+
 										
 			pData->m_pSqlData->m_pResults = pData->m_pSqlData->m_pStatement->executeQuery(aBuf);
 			
@@ -353,18 +337,24 @@ void CSqlScore::ShowRankThread(void *pUser)
 			}
 			else
 			{
-				pData->m_pSqlData->m_pResults->next();			
+				pData->m_pSqlData->m_pResults->next();	
+				int since = (float)pData->m_pSqlData->m_pResults->getDouble("Ago");
+				char agoString[40];
+				agoTimeToString(since,agoString);
+							
 				float Time = (float)pData->m_pSqlData->m_pResults->getDouble("Time");			
 				int Rank = (float)pData->m_pSqlData->m_pResults->getInt("Rank");				
 				if(g_Config.m_SvHideScore)
 					str_format(aBuf, sizeof(aBuf), "Your time: %d minute(s) %5.2f second(s)", (int)(Time/60), Time-((int)Time/60*60));
 				else
-					str_format(aBuf, sizeof(aBuf), "%d. %s Time: %d minute(s) %5.2f second(s)", Rank, pData->m_pSqlData->m_pResults->getString("Name").c_str(), (int)(Time/60), Time-((int)Time/60*60));
+					str_format(aBuf, sizeof(aBuf), "%d. %s Time: %d minute(s) %5.2f second(s)", Rank, pData->m_pSqlData->m_pResults->getString("Name").c_str(), (int)(Time/60), Time-((int)Time/60*60), agoString);
 				
+				pData->m_pSqlData->GameServer()->SendChatTarget(-1, aBuf);
+				
+				str_format(aBuf, sizeof(aBuf), "Finished: %s ago", agoString);
 				if(pData->m_Search)
 					strcat(aBuf, pData->m_aRequestingPlayer);
-					
-				pData->m_pSqlData->GameServer()->SendChatTarget(-1, aBuf);
+				pData->m_pSqlData->GameServer()->SendChatTarget(-1, aBuf);				
 			}
 			
 			dbg_msg("SQL", "Showing rank done");
@@ -388,6 +378,72 @@ void CSqlScore::ShowRankThread(void *pUser)
 	delete pData;
 
 	lock_release(gs_SqlLock);
+}
+
+void CSqlScore::agoTimeToString(int agoTime, char agoString[]){
+	char aBuf[20];
+	int times[7] = {
+		60 * 60 * 24 * 365 ,
+	    60 * 60 * 24 * 30 ,
+	    60 * 60 * 24 * 7, 
+	    60 * 60 * 24 ,
+	    60 * 60 , 
+	    60 , 
+	    1
+	};
+	char names[7][6] = {
+		"year",
+		"month",
+		"week",
+		"day",
+		"hour",
+		"min",
+		"sec"
+	};
+	
+	int seconds = 0;
+	char name[6];
+	int count = 0;	
+	int i = 0;	
+		
+	// finding biggest match
+	for(i = 0; i<7; i++){
+		seconds = times[i];
+		strcpy(name,names[i]);
+	
+		count = floor(agoTime/seconds);
+		if(count != 0){
+			break;
+		}
+	}
+	
+	if(count == 1){
+		str_format(aBuf, sizeof(aBuf), "%d %s", 1 , name);
+	}else{
+		str_format(aBuf, sizeof(aBuf), "%d %ss", count , name);
+	}
+	strcat(agoString,aBuf);
+					
+    if (i + 1 < 7) {
+	    // getting second piece now
+	    int seconds2 = times[i+1];
+		char name2[6];			
+		strcpy(name2,names[i+1]);
+
+	    // add second piece if it's greater than 0
+		int count2 = floor((agoTime - (seconds * count)) / seconds2);
+	
+	    if (count2 != 0) {
+			if(count2 == 1){
+				dbg_msg("SQL","What");
+				str_format(aBuf, sizeof(aBuf), " and %d %s", 1 , name2);
+			}else{
+				dbg_msg("SQL","NOT");
+				str_format(aBuf, sizeof(aBuf), " and %d %ss", count2 , name2);
+			}
+			strcat(agoString,aBuf);
+	    }
+    }
 }
 
 void CSqlScore::ShowRank(int ClientID, const char* pName, bool Search)
