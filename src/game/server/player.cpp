@@ -122,7 +122,7 @@ void CPlayer::Snap(int SnappingClient)
 	pPlayerInfo->m_Latency = m_Latency.m_Min;
 	pPlayerInfo->m_LatencyFlux = m_Latency.m_Max-m_Latency.m_Min;
 	pPlayerInfo->m_Local = 0;
-	pPlayerInfo->m_ClientId = m_ClientID;
+	pPlayerInfo->m_ClientID = m_ClientID;
 	if(m_ClientID == SnappingClient)
 		pPlayerInfo->m_Local = 1;	
 	

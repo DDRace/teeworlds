@@ -201,7 +201,7 @@ void CGameContext::CreateDeath(vec2 p, int ClientId, int Mask)
 	{
 		ev->m_X = (int)p.x;
 		ev->m_Y = (int)p.y;
-		ev->m_ClientId = ClientId;
+		ev->m_ClientID = ClientId;
 	}
 }
 
@@ -216,7 +216,7 @@ void CGameContext::CreateSound(vec2 Pos, int Sound, int Mask)
 	{
 		ev->m_X = (int)Pos.x;
 		ev->m_Y = (int)Pos.y;
-		ev->m_SoundId = Sound;
+		ev->m_SoundID = Sound;
 	}
 }
 
@@ -226,7 +226,7 @@ void CGameContext::CreateSoundGlobal(int Sound, int Target)
 		return;
 
 	CNetMsg_Sv_SoundGlobal Msg;
-	Msg.m_Soundid = Sound;
+	Msg.m_SoundID = Sound;
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, Target);
 }
 
@@ -235,7 +235,7 @@ void CGameContext::SendChatTarget(int To, const char *pText)
 {
 	CNetMsg_Sv_Chat Msg;
 	Msg.m_Team = 0;
-	Msg.m_Cid = -1;
+	Msg.m_ClientID = -1;
 	Msg.m_pMessage = pText;
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, To);
 }
@@ -270,7 +270,7 @@ void CGameContext::SendChat(int ChatterClientId, int Team, const char *pText, in
 	{
 		CNetMsg_Sv_Chat Msg;
 		Msg.m_Team = 0;
-		Msg.m_Cid = ChatterClientId;
+		Msg.m_ClientID = ChatterClientId;
 		Msg.m_pMessage = aText;
 		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
 	}
@@ -279,7 +279,7 @@ void CGameContext::SendChat(int ChatterClientId, int Team, const char *pText, in
 		CTeamsCore * Teams = &((CGameControllerDDRace*)m_pController)->m_Teams.m_Core;
 		CNetMsg_Sv_Chat Msg;
 		Msg.m_Team = 1;
-		Msg.m_Cid = ChatterClientId;
+		Msg.m_ClientID = ChatterClientId;
 		Msg.m_pMessage = aText;
 		
 		// pack one for the recording only
@@ -306,7 +306,7 @@ void CGameContext::SendChat(int ChatterClientId, int Team, const char *pText, in
 void CGameContext::SendEmoticon(int ClientId, int Emoticon)
 {
 	CNetMsg_Sv_Emoticon Msg;
-	Msg.m_Cid = ClientId;
+	Msg.m_ClientID = ClientId;
 	Msg.m_Emoticon = Emoticon;
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
 }

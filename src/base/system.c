@@ -1354,7 +1354,7 @@ void gui_messagebox(const char *title, const char *message)
 		title,
 		message);
 
-	(void)system(cmd);
+	int err = system(cmd);
 #elif defined(CONF_FAMILY_WINDOWS)
 	MessageBox(NULL,
 		message,

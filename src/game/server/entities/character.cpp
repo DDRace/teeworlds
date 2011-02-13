@@ -1366,14 +1366,10 @@ void CCharacter::HandleTiles(int Index)
 		Freeze();
 	else if(((m_TileIndex == TILE_UNFREEZE) || (m_TileFIndex == TILE_UNFREEZE)) && !m_DeepFreeze)
 		UnFreeze();
-	else if(((m_TileIndex == TILE_DFREEZE) || (m_TileFIndex == TILE_DFREEZE)) && !m_Super && !m_DeepFreeze)
+	if(((m_TileIndex == TILE_DFREEZE) || (m_TileFIndex == TILE_DFREEZE)) && !m_Super && !m_DeepFreeze)
 		m_DeepFreeze = true;
 	else if(((m_TileIndex == TILE_DUNFREEZE) || (m_TileFIndex == TILE_DUNFREEZE)) && !m_Super && m_DeepFreeze)
-	{
-		if((m_TileIndex != TILE_FREEZE) && (m_TileFIndex != TILE_FREEZE))
-			UnFreeze();
 		m_DeepFreeze = false;
-	}
 	if(((m_TileIndex == TILE_EHOOK_START) || (m_TileFIndex == TILE_EHOOK_START)) && !m_EndlessHook)
 	{
 		GameServer()->SendChatTarget(GetPlayer()->GetCID(),"Endless hook has been activated");

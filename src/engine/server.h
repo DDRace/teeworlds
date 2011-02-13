@@ -51,7 +51,7 @@ public:
 	
 	virtual int SnapNewID() = 0;
 	virtual void SnapFreeID(int ID) = 0;
-	virtual void *SnapNewItem(int Type, int Id, int Size) = 0;
+	virtual void *SnapNewItem(int Type, int ID, int Size) = 0;
 
 	virtual void SnapSetStaticsize(int ItemType, int Size) = 0;
 	
@@ -73,7 +73,7 @@ public:
 	virtual void OnSnap(int ClientID) = 0;
 	virtual void OnPostSnap() = 0;
 	
-	virtual void OnMessage(int MsgId, CUnpacker *pUnpacker, int ClientID) = 0;
+	virtual void OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID) = 0;
 
 	virtual void OnClientConnected(int ClientID) = 0;
 	virtual void OnClientEnter(int ClientID) = 0;
