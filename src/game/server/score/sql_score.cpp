@@ -126,6 +126,20 @@ void CSqlScore::Init()
 			char aBuf[768];
 			str_format(aBuf, sizeof(aBuf), "CREATE TABLE IF NOT EXISTS %s_%s_race (Name VARCHAR(%d) NOT NULL, Timestamp TIMESTAMP, Time FLOAT DEFAULT 0, cp1 FLOAT DEFAULT 0, cp2 FLOAT DEFAULT 0, cp3 FLOAT DEFAULT 0, cp4 FLOAT DEFAULT 0, cp5 FLOAT DEFAULT 0, cp6 FLOAT DEFAULT 0, cp7 FLOAT DEFAULT 0, cp8 FLOAT DEFAULT 0, cp9 FLOAT DEFAULT 0, cp10 FLOAT DEFAULT 0, cp11 FLOAT DEFAULT 0, cp12 FLOAT DEFAULT 0, cp13 FLOAT DEFAULT 0, cp14 FLOAT DEFAULT 0, cp15 FLOAT DEFAULT 0, cp16 FLOAT DEFAULT 0, cp17 FLOAT DEFAULT 0, cp18 FLOAT DEFAULT 0, cp19 FLOAT DEFAULT 0, cp20 FLOAT DEFAULT 0, cp21 FLOAT DEFAULT 0, cp22 FLOAT DEFAULT 0, cp23 FLOAT DEFAULT 0, cp24 FLOAT DEFAULT 0, cp25 FLOAT DEFAULT 0)  CHARACTER SET utf8 ;", m_pPrefix, m_aMap, MAX_NAME_LENGTH);
 			m_pStatement->execute(aBuf);
+			
+			// Check if table has new column with timestamp
+			str_format(aBuf, sizeof(aBuf), "SELECT column_name FROM INFORMATION_SCHEMA.COLUMNS WHERE table_name = '%s_%s_race' AND column_name = 'Timestamp'",m_pPrefix, m_aMap);
+			m_pResults = m_pStatement->executeQuery(aBuf);
+
+			if(m_pResults->rowsCount() < 1){
+				// If not... add the column
+				str_format(aBuf, sizeof(aBuf), "%s_%s_race has no column Timestamp, I will add it now",m_pPrefix, m_aMap);
+				dbg_msg("SQL",aBuf);
+				str_format(aBuf, sizeof(aBuf), "ALTER TABLE  %s_%s_race ADD Timestamp TIMESTAMP AFTER Name",m_pPrefix, m_aMap);
+				dbg_msg("SQL",aBuf);
+				m_pStatement->execute(aBuf);
+			}
+						
 			dbg_msg("SQL", "Tables were created successfully");
 			
 			// get the best time
@@ -308,25 +322,19 @@ void CSqlScore::ShowRankThread(void *pUser)
 			char aBuf[512];
 						
 			pData->m_pSqlData->m_pStatement->execute("SET @rownum := 0;");
-			str_format(aBuf, sizeof(aBuf), 	"SELECT Rank, Name, Time, UNIX_TIMESTAMP(CURRENT_TIMESTAMP)-UNIX_TIMESTAMP(Timestamp) as Ago "
-											"FROM ( "
-												"SELECT @rownum := @rownum + 1 AS RANK, Name, Time, Timestamp "
-												"FROM ( "
-												    "SELECT Name, min(Time) as Time, Timestamp "
-												    "FROM %s_%s_race "
-												    "Group By Name "
-												") as all_top_times "
-												"ORDER BY Time ASC ) as all_ranks "												
-											"WHERE Name = '%s';", pData->m_pSqlData->m_pPrefix, pData->m_pSqlData->m_aMap,pData->m_aName);
-			// 
-			// str_format(aBuf, sizeof(aBuf), 	"SELECT Rank, Name, Time, UNIX_TIMESTAMP(CURRENT_TIMESTAMP)-UNIX_TIMESTAMP(Timestamp) as Ago "
-			// 								"FROM ("
-			// 									"SELECT @rownum := @rownum + 1 AS RANK, Name, min(Time) as Time, Timestamp "
-			// 									"FROM %s_%s_race "
-			// 									"Group By Name "												
-			// 									"ORDER BY Time ASC ) as all_ranks "												
-			// 								"WHERE Name = '%s';", pData->m_pSqlData->m_pPrefix, pData->m_pSqlData->m_aMap,pData->m_aName);
-
+			str_format(aBuf, sizeof(aBuf), 	"SELECT Rank, one_rank.Name, one_rank.Time, UNIX_TIMESTAMP(CURRENT_TIMESTAMP)-UNIX_TIMESTAMP(r.Timestamp) as Ago, UNIX_TIMESTAMP(r.Timestamp) as stamp "
+											"FROM ("
+												"SELECT * FROM ("
+													"SELECT @rownum := @rownum + 1 AS RANK, Name, Time "
+													"FROM ("
+													    "SELECT Name, min(Time) as Time "
+													    "FROM %s_%s_race "
+													    "Group By Name) as all_top_times "
+													"ORDER BY Time ASC) as all_ranks "
+												"WHERE all_ranks.Name = '%s') as one_rank "
+											"LEFT JOIN %s_%s_race as r "
+											"ON one_rank.Name = r.Name && one_rank.Time = r.Time "
+											";", pData->m_pSqlData->m_pPrefix, pData->m_pSqlData->m_aMap,pData->m_aName, pData->m_pSqlData->m_pPrefix, pData->m_pSqlData->m_aMap);
 										
 			pData->m_pSqlData->m_pResults = pData->m_pSqlData->m_pStatement->executeQuery(aBuf);
 			
@@ -338,23 +346,25 @@ void CSqlScore::ShowRankThread(void *pUser)
 			else
 			{
 				pData->m_pSqlData->m_pResults->next();	
-				int since = (float)pData->m_pSqlData->m_pResults->getDouble("Ago");
+				int since = (int)pData->m_pSqlData->m_pResults->getInt("Ago");
 				char agoString[40];
 				agoTimeToString(since,agoString);
 							
 				float Time = (float)pData->m_pSqlData->m_pResults->getDouble("Time");			
-				int Rank = (float)pData->m_pSqlData->m_pResults->getInt("Rank");				
+				int Rank = (int)pData->m_pSqlData->m_pResults->getInt("Rank");				
 				if(g_Config.m_SvHideScore)
 					str_format(aBuf, sizeof(aBuf), "Your time: %d minute(s) %5.2f second(s)", (int)(Time/60), Time-((int)Time/60*60));
 				else
 					str_format(aBuf, sizeof(aBuf), "%d. %s Time: %d minute(s) %5.2f second(s)", Rank, pData->m_pSqlData->m_pResults->getString("Name").c_str(), (int)(Time/60), Time-((int)Time/60*60), agoString);
-				
-				pData->m_pSqlData->GameServer()->SendChatTarget(-1, aBuf);
-				
-				str_format(aBuf, sizeof(aBuf), "Finished: %s ago", agoString);
+								
+				if(pData->m_pSqlData->m_pResults->getInt("stamp") != 0){
+					pData->m_pSqlData->GameServer()->SendChatTarget(-1, aBuf);
+					str_format(aBuf, sizeof(aBuf), "Finished: %s ago", agoString);
+				}				
 				if(pData->m_Search)
 					strcat(aBuf, pData->m_aRequestingPlayer);
-				pData->m_pSqlData->GameServer()->SendChatTarget(-1, aBuf);				
+				pData->m_pSqlData->GameServer()->SendChatTarget(-1, aBuf);
+				
 			}
 			
 			dbg_msg("SQL", "Showing rank done");
