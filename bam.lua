@@ -138,8 +138,8 @@ function build(settings)
 	else
 		settings.cc.flags:Add("-Wall")
 		if platform == "macosx" then
-			settings.cc.flags:Add("-mmacosx-version-min=10.5", "-isysroot /Developer/SDKs/MacOSX10.5.sdk")
-			settings.link.flags:Add("-mmacosx-version-min=10.5", "-isysroot /Developer/SDKs/MacOSX10.5.sdk")
+			settings.cc.flags:Add("-mmacosx-version-min=10.6", "-isysroot /Developer/SDKs/MacOSX10.6.sdk")
+			settings.link.flags:Add("-mmacosx-version-min=10.6", "-isysroot /Developer/SDKs/MacOSX10.6.sdk")
 		elseif config.stackprotector.value == 1 then
 			settings.cc.flags:Add("-fstack-protector", "-fstack-protector-all")
 			settings.link.flags:Add("-fstack-protector", "-fstack-protector-all")
@@ -234,7 +234,7 @@ function build(settings)
 	-- apply freetype settings
 	config.freetype:Apply(client_settings)
 	
-	engine = Compile(engine_settings, Collect("src/engine/shared/*.cpp", "src/base/*.c"))
+	engine = Compile(engine_settings, Collect("src/engine/shared/*.cpp", "src/base/*.c","src/base/*.cpp"))
 	client = Compile(client_settings, Collect("src/engine/client/*.cpp"))
 	server = Compile(server_settings, Collect("src/engine/server/*.cpp"))
 	
