@@ -26,6 +26,7 @@
 #if defined(CONF_SQL)
 #include "score/sql_score.h"
 #endif
+#include <base/utf8convert.h>
 
 enum
 {
@@ -227,18 +228,21 @@ void CGameContext::CreateSoundGlobal(int Sound, int Target)
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, Target);
 }
 
-
 void CGameContext::SendChatTarget(int To, const char *pText)
 {
 	CNetMsg_Sv_Chat Msg;
 	Msg.m_Team = 0;
 	Msg.m_ClientID = -1;
 	Msg.m_pMessage = pText;
+	dbg_msg("CGameContext","Saying sth in SendChatTarget....");
+	dbg_msg("CGameContext",pText);
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, To);
 }
 
 void CGameContext::SendChat(int ChatterClientID, int Team, const char *pText, int SpamProtectionClientID)
 {
+	dbg_msg("CGameContext","Saying sth in SendChatTarget....");
+	dbg_msg("CGameContext",pText);
 	if(SpamProtectionClientID >= 0 && SpamProtectionClientID < MAX_CLIENTS)
 	{
 		if(ProcessSpamProtection(SpamProtectionClientID))
@@ -261,8 +265,9 @@ void CGameContext::SendChat(int ChatterClientID, int Team, const char *pText, in
 	}
 	else
 		str_format(aBuf, sizeof(aBuf), "*** %s", aText);
+	dbg_msg("CGameContext","before chat2");
 	Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "chat", aBuf);
-
+	dbg_msg("CGameContext","after chat2");
 	if(Team == CHAT_ALL)
 	{
 		CNetMsg_Sv_Chat Msg;
@@ -677,6 +682,7 @@ void CGameContext::OnClientDrop(int ClientID)
 
 void CGameContext::OnMessage(int MsgId, CUnpacker *pUnpacker, int ClientID)
 {
+	dbg_msg("CGameContext","OnMessage");
 	void *pRawMsg = m_NetObjHandler.SecureUnpackMsg(MsgId, pUnpacker);
 	CPlayer *p = m_apPlayers[ClientID];
 	
@@ -733,7 +739,13 @@ void CGameContext::OnMessage(int MsgId, CUnpacker *pUnpacker, int ClientID)
 			Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "chat", pMsg->m_pMessage);
 		}
 		else
-			SendChat(ClientID, Team, pMsg->m_pMessage, ClientID);
+		{
+			std::string utf8Message;
+			if (!is_utf8(pMsg->m_pMessage)) {
+				utf8Message = Latin1toUTF8(pMsg->m_pMessage).c_str();
+			}
+			SendChat(ClientID, Team, utf8Message.c_str(), ClientID);
+		}
 	}
 	else if(MsgId == NETMSGTYPE_CL_CALLVOTE)
 	{

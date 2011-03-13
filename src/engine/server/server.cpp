@@ -40,6 +40,7 @@
 	#define NOGDI
 	#include <windows.h>
 #endif
+#include <base/utf8convert.h>
 
 static const char SERVER_BANMASTERFILE[] = "banmasters.cfg";
 
@@ -214,6 +215,12 @@ int CServer::TrySetClientName(int ClientID, const char *pName)
 	Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "server", aBuf);
 	pName = aTrimmedName;
 	
+	if (is_utf8(pName)) {
+		dbg_msg("Server2","Client Name ist utf8");
+	}else{
+		dbg_msg("Server2","Client Name ist latin");
+		pName = Latin1toUTF8(pName).c_str();
+	}
 	
 	// check for empty names
 	if(!pName[0])
