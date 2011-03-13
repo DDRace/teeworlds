@@ -241,8 +241,6 @@ void CGameContext::SendChatTarget(int To, const char *pText)
 
 void CGameContext::SendChat(int ChatterClientID, int Team, const char *pText, int SpamProtectionClientID)
 {
-	dbg_msg("CGameContext","Saying sth in SendChatTarget....");
-	dbg_msg("CGameContext",pText);
 	if(SpamProtectionClientID >= 0 && SpamProtectionClientID < MAX_CLIENTS)
 	{
 		if(ProcessSpamProtection(SpamProtectionClientID))
@@ -265,17 +263,39 @@ void CGameContext::SendChat(int ChatterClientID, int Team, const char *pText, in
 	}
 	else
 		str_format(aBuf, sizeof(aBuf), "*** %s", aText);
-	dbg_msg("CGameContext","before chat2");
-	Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "chat", aBuf);
-	dbg_msg("CGameContext","after chat2");
+
+	if (!is_utf8(aText)) 					
+		Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "chat", Latin1toUTF8(aText).c_str());	
+	else
+		Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "chat", aBuf);
+		
 	if(Team == CHAT_ALL)
 	{
 		CNetMsg_Sv_Chat Msg;
 		Msg.m_Team = 0;
 		Msg.m_ClientID = ChatterClientID;
-		Msg.m_pMessage = aText;
-		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
+
+		for (int i = 0 ; i < MAX_CLIENTS; i++) 
+		{
+			if(m_apPlayers[i] != 0)//m_apPlayers[i]->GetCharacter();->CClient && m_apPlayers[i].m_State == CClient::STATE_INGAME) 
+			{
+				if (m_apPlayers[i]->m_IsUsingDDRaceClient) {
+					if (!is_utf8(aText)) 					
+						Msg.m_pMessage = Latin1toUTF8(aText).c_str();
+					else
+						Msg.m_pMessage = aText;
+				}
+				else {
+					if (is_utf8(aText)) 					
+						Msg.m_pMessage = UTF8toLatin1(aText).c_str();
+					else
+						Msg.m_pMessage = aText;
+				}				
+				Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, i);
+			}
+		}
 	}
+	
 	else
 	{
 		CTeamsCore * Teams = &((CGameControllerDDRace*)m_pController)->m_Teams.m_Core;
@@ -739,13 +759,7 @@ void CGameContext::OnMessage(int MsgId, CUnpacker *pUnpacker, int ClientID)
 			Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "chat", pMsg->m_pMessage);
 		}
 		else
-		{
-			std::string utf8Message;
-			if (!is_utf8(pMsg->m_pMessage)) {
-				utf8Message = Latin1toUTF8(pMsg->m_pMessage).c_str();
-			}
-			SendChat(ClientID, Team, utf8Message.c_str(), ClientID);
-		}
+			SendChat(ClientID, Team, pMsg->m_pMessage, ClientID);	
 	}
 	else if(MsgId == NETMSGTYPE_CL_CALLVOTE)
 	{

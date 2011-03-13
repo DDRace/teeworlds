@@ -7,7 +7,7 @@
 //
 
 #include "utf8convert.h"
-
+#include "system.h"
 
 int is_utf8(const char * string)
 {
@@ -231,6 +231,7 @@ std::string UTF8toLatin1( const char* szStr )
 	
 std::string Latin1toUTF8( const char* szStr )
 {
+	dbg_msg("utf8","Latin1toUTF8");
 	const unsigned char* pSource = (const unsigned char*)szStr;
 	std::string strResult;
 	int nLen = strlen( szStr );

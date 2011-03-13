@@ -216,9 +216,7 @@ int CServer::TrySetClientName(int ClientID, const char *pName)
 	pName = aTrimmedName;
 	
 	if (is_utf8(pName)) {
-		dbg_msg("Server2","Client Name ist utf8");
 	}else{
-		dbg_msg("Server2","Client Name ist latin");
 		pName = Latin1toUTF8(pName).c_str();
 	}
 	
