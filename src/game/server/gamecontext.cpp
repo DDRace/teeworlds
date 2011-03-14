@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <base/math.h>
+#include <base/utf8convert.h>
 #include <base/tl/sorted_array.h>
 #include <engine/shared/config.h>
 #include <engine/server/server.h>
@@ -26,7 +27,6 @@
 #if defined(CONF_SQL)
 #include "score/sql_score.h"
 #endif
-#include <base/utf8convert.h>
 
 enum
 {
@@ -274,18 +274,24 @@ void CGameContext::SendChat(int ChatterClientID, int Team, const char *pText, in
 		CNetMsg_Sv_Chat Msg;
 		Msg.m_Team = 0;
 		Msg.m_ClientID = ChatterClientID;
+		
+		if (!is_utf8(aText))
+			((CServer*)Server())->m_aClients[ChatterClientID].m_IsUsingUTF8Client = false;
+		
 
 		for (int i = 0 ; i < MAX_CLIENTS; i++) 
 		{
 			if(m_apPlayers[i] != 0)//m_apPlayers[i]->GetCharacter();->CClient && m_apPlayers[i].m_State == CClient::STATE_INGAME) 
 			{
-				if (m_apPlayers[i]->m_IsUsingDDRaceClient) {
-					if (!is_utf8(aText)) 					
-						Msg.m_pMessage = Latin1toUTF8(aText).c_str();
+				if (((CServer*)Server())->m_aClients[i].m_IsUsingUTF8Client) 
+				{
+					if (is_utf8(aText)) 
+						Msg.m_pMessage = aText;				
 					else
-						Msg.m_pMessage = aText;
+						Msg.m_pMessage = Latin1toUTF8(aText).c_str();						
 				}
-				else {
+				else 
+				{
 					if (is_utf8(aText)) 					
 						Msg.m_pMessage = UTF8toLatin1(aText).c_str();
 					else

@@ -215,9 +215,15 @@ int CServer::TrySetClientName(int ClientID, const char *pName)
 	Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "server", aBuf);
 	pName = aTrimmedName;
 	
-	if (is_utf8(pName)) {
-	}else{
+	// dirty hack that does only work if client uses special chars
+	// otherwise its always utf8
+	if (is_utf8(pName)) 
+	{
+		m_aClients[ClientID].m_IsUsingUTF8Client = true;	
+	}else
+	{
 		pName = Latin1toUTF8(pName).c_str();
+		m_aClients[ClientID].m_IsUsingUTF8Client = false;
 	}
 	
 	// check for empty names
