@@ -708,7 +708,6 @@ void CGameContext::OnClientDrop(int ClientID)
 
 void CGameContext::OnMessage(int MsgId, CUnpacker *pUnpacker, int ClientID)
 {
-	dbg_msg("CGameContext","OnMessage");
 	void *pRawMsg = m_NetObjHandler.SecureUnpackMsg(MsgId, pUnpacker);
 	CPlayer *p = m_apPlayers[ClientID];
 	
