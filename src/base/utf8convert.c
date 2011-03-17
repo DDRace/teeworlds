@@ -8,10 +8,11 @@ extern "C" {
 
 int is_utf8(const char *string)
 {
+	const unsigned char *bytes = (const unsigned char *)string;
+
 	if(!string)
 		return 0;
 	
-	const unsigned char *bytes = (const unsigned char *)string;
 	while(*bytes)
 	{
 		if(     (// ASCII
@@ -93,18 +94,18 @@ int is_utf8(const char *string)
  In the original code "const char* latin" was a allocated variable in the method as string and the reserverd length was
  strlen(utf8) + stren(utf8)/10, don't know why, but keep that in mind 
 */
-void UTF8toLatin1(const char* utf8, char* latin)
+void UTF8toLatin1(const char *utf8, char *latin)
 {
 	
 	const unsigned char* pSource = (const unsigned char*)utf8;
 	
 	unsigned long ucs4;
-	int c, state, octets;
+	int c, state, octets, i;
 	
 	ucs4 = 0;
 	state = 0;
 	octets = 0;
-	int i = 0;
+	i = 0;
 	
 	c = *(pSource);
 	
@@ -264,7 +265,7 @@ void UTF8toLatin1(const char* utf8, char* latin)
 	latin[i] = '\0';
 }
 	
-void Latin1toUTF8(const char* latin, char* utf8)
+void Latin1toUTF8(const char *latin, char *utf8)
 {
 	const unsigned char* pSource = (const unsigned char*)latin;
 	int i = 0;
