@@ -1,12 +1,17 @@
 #include "utf8convert.h"
 #include "system.h"
+#include <string.h>
 
-int is_utf8(const char * string)
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+int is_utf8(const char *string)
 {
 	if(!string)
 		return 0;
 	
-	const unsigned char * bytes = (const unsigned char *)string;
+	const unsigned char *bytes = (const unsigned char *)string;
 	while(*bytes)
 	{
 		if(     (// ASCII
@@ -84,13 +89,14 @@ int is_utf8(const char * string)
 	return 1;
 }
 
-std::string UTF8toLatin1( const char* szStr )
+/* 
+ In the original code "const char* latin" was a allocated variable in the method as string and the reserverd length was
+ strlen(utf8) + stren(utf8)/10, don't know why, but keep that in mind 
+*/
+void UTF8toLatin1(const char* utf8, char* latin)
 {
 	
-	const unsigned char* pSource = (const unsigned char*)szStr;
-	std::string strResult;
-	int nLen = strlen( szStr );
-	strResult.reserve( nLen + nLen/10 );
+	const unsigned char* pSource = (const unsigned char*)utf8;
 	
 	unsigned long ucs4;
 	int c, state, octets;
@@ -98,6 +104,7 @@ std::string UTF8toLatin1( const char* szStr )
 	ucs4 = 0;
 	state = 0;
 	octets = 0;
+	int i = 0;
 	
 	c = *(pSource);
 	
@@ -249,32 +256,34 @@ std::string UTF8toLatin1( const char* szStr )
 			}
 			if (ucs4 != 0xffffffff) 
 			{
-				strResult += (char)ucs4;
+				latin[i++] = (char)ucs4;
 			}
 		}
 		c = *(++pSource);
 	}
-	return strResult;
+	latin[i] = '\0';
 }
 	
-std::string Latin1toUTF8( const char* szStr )
+void Latin1toUTF8(const char* latin, char* utf8)
 {
-	const unsigned char* pSource = (const unsigned char*)szStr;
-	std::string strResult;
-	int nLen = strlen( szStr );
-	strResult.reserve( nLen + nLen/10 );
+	const unsigned char* pSource = (const unsigned char*)latin;
+	int i = 0;
 	int cSource = *(pSource);
 	while ( cSource )
 	{
 		if ( cSource >= 128 )
 		{
-			strResult += (char)(((cSource&0x7c0)>>6) | 0xc0);
-			strResult += (char)((cSource&0x3f) | 0x80);
+			utf8[i++] = (char)(((cSource&0x7c0)>>6) | 0xc0);
+			utf8[i++] = (char)((cSource&0x3f) | 0x80);
 		}
 		else
-			strResult += cSource;
+			utf8[i++] = cSource;
 		cSource = *(++pSource);
 	}
-	return strResult;
+	utf8[i] = '\0';
+
 }
 	
+#if defined(__cplusplus)
+}
+#endif

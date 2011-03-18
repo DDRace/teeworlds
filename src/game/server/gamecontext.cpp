@@ -251,23 +251,40 @@ void CGameContext::SendChat(int ChatterClientID, int Team, const char *pText, in
 		}
 	}
 
-	char aBuf[256], aText[256];
+	char aBuf[268], aText[256], aConvertedTextUTF8[512], aConvertedTextLatin[512]; 
+	// just do be safe a little bit more, cause I have a lack of understanding here, what happens if we convert from utf8 to latin or vice versa
+	bool isUTF8Text;
+	
 	str_copy(aText, pText, sizeof(aText));
+	// chat
 	if(ChatterClientID >= 0 && ChatterClientID < MAX_CLIENTS)
 		str_format(aBuf, sizeof(aBuf), "%d:%d:%s: %s", ChatterClientID, Team, Server()->ClientName(ChatterClientID), aText);
+	// /me chat
 	else if(ChatterClientID == -2)
 	{
 		str_format(aBuf, sizeof(aBuf), "### %s", aText);
 		str_copy(aText, aBuf, sizeof(aText));
 		ChatterClientID = -1;
 	}
+	// /say chat
 	else
 		str_format(aBuf, sizeof(aBuf), "*** %s", aText);
 
-	if (!is_utf8(aText)) 					
-		Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "chat", Latin1toUTF8(aText).c_str());	
-	else
+
+	if (is_utf8(aText))
+	{
 		Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "chat", aBuf);
+		UTF8toLatin1(aText,aConvertedTextLatin); // we will need this in a loop soon		
+		isUTF8Text = true;
+	}
+	else
+	{
+		Latin1toUTF8(aBuf,aConvertedTextUTF8);
+		Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "chat", aConvertedTextUTF8);
+		Latin1toUTF8(aText,aConvertedTextUTF8); // we will need this in a loop soon		
+		isUTF8Text = false;
+	}
+
 		
 	if(Team == CHAT_ALL)
 	{
@@ -285,15 +302,19 @@ void CGameContext::SendChat(int ChatterClientID, int Team, const char *pText, in
 			{
 				if (((CServer*)Server())->m_aClients[i].m_IsUsingUTF8Client) 
 				{
-					if (is_utf8(aText)) 
+					if (isUTF8Text) 
 						Msg.m_pMessage = aText;				
 					else
-						Msg.m_pMessage = Latin1toUTF8(aText).c_str();						
+					{
+						Msg.m_pMessage = aConvertedTextUTF8;						
+					}
 				}
 				else 
 				{
-					if (is_utf8(aText)) 					
-						Msg.m_pMessage = UTF8toLatin1(aText).c_str();
+					if (isUTF8Text)
+					{
+						Msg.m_pMessage = aConvertedTextLatin;
+					}
 					else
 						Msg.m_pMessage = aText;
 				}				

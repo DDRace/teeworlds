@@ -213,16 +213,19 @@ int CServer::TrySetClientName(int ClientID, const char *pName)
 	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "'%s' -> '%s'", pName, aTrimmedName);
 	Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "server", aBuf);
-	pName = aTrimmedName;
 	
 	// dirty hack that does only work if client uses special chars
 	// otherwise its always utf8
-	if (is_utf8(pName)) 
+	if (is_utf8(aTrimmedName)) 
 	{
-		m_aClients[ClientID].m_IsUsingUTF8Client = true;	
-	}else
+		m_aClients[ClientID].m_IsUsingUTF8Client = true;
+		pName = aTrimmedName;		
+	}
+	else
 	{
-		pName = Latin1toUTF8(pName).c_str();
+		char aTransFormedName[72];
+		Latin1toUTF8(aTrimmedName,aTransFormedName);
+		pName = aTransFormedName;
 		m_aClients[ClientID].m_IsUsingUTF8Client = false;
 	}
 	
