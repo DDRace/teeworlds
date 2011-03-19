@@ -793,7 +793,7 @@ void CGameContext::ConUTF8(IConsole::IResult *pResult, void *pUserData, int Clie
 	CServer* pServ = (CServer*)pSelf->Server();
 	pServ->m_aClients[ClientID].m_IsUsingUTF8Client = !pServ->m_aClients[ClientID].m_IsUsingUTF8Client;
 	if(pServ->m_aClients[ClientID].m_IsUsingUTF8Client)
-		pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "I'm sending you all chat text and names as UTF8");	
+		pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "I'm sending you all chat text and names as UTF8");
 	else
 		pSelf->Console()->PrintResponse(IConsole::OUTPUT_LEVEL_STANDARD, "info", "I'm sending you all chat text and names as latin");			
 	//!((CServer*)Server())->m_aClients[ChatterClientID].m_IsUsingUTF8Client;		

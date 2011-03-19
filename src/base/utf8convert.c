@@ -6,98 +6,14 @@
 extern "C" {
 #endif
 
-int is_utf8(const char *string)
-{
-	const unsigned char *bytes = (const unsigned char *)string;
-
-	if(!string)
-		return 0;
-	
-	while(*bytes)
-	{
-		if(     (// ASCII
-				 bytes[0] == 0x09 ||
-				 bytes[0] == 0x0A ||
-				 bytes[0] == 0x0D ||
-				 (0x20 <= bytes[0] && bytes[0] <= 0x7E)
-				 )
-		   ) 
-		{
-			bytes += 1;
-			continue;
-		}
-		
-		if(     (// non-overlong 2-byte
-				 (0xC2 <= bytes[0] && bytes[0] <= 0xDF) &&
-				 (0x80 <= bytes[1] && bytes[1] <= 0xBF)
-				 )
-		   ) 
-		{
-			bytes += 2;
-			continue;
-		}
-		
-		if(     (// excluding overlongs
-				 bytes[0] == 0xE0 &&
-				 (0xA0 <= bytes[1] && bytes[1] <= 0xBF) &&
-				 (0x80 <= bytes[2] && bytes[2] <= 0xBF)
-				 ) ||
-		   (// straight 3-byte
-			((0xE1 <= bytes[0] && bytes[0] <= 0xEC) ||
-			 bytes[0] == 0xEE ||
-			 bytes[0] == 0xEF) &&
-			(0x80 <= bytes[1] && bytes[1] <= 0xBF) &&
-			(0x80 <= bytes[2] && bytes[2] <= 0xBF)
-			) ||
-		   (// excluding surrogates
-			bytes[0] == 0xED &&
-			(0x80 <= bytes[1] && bytes[1] <= 0x9F) &&
-			(0x80 <= bytes[2] && bytes[2] <= 0xBF)
-			)
-		   ) 
-		{
-			bytes += 3;
-			continue;
-		}
-		
-		if(     (// planes 1-3
-				 bytes[0] == 0xF0 &&
-				 (0x90 <= bytes[1] && bytes[1] <= 0xBF) &&
-				 (0x80 <= bytes[2] && bytes[2] <= 0xBF) &&
-				 (0x80 <= bytes[3] && bytes[3] <= 0xBF)
-				 ) ||
-		   (// planes 4-15
-			(0xF1 <= bytes[0] && bytes[0] <= 0xF3) &&
-			(0x80 <= bytes[1] && bytes[1] <= 0xBF) &&
-			(0x80 <= bytes[2] && bytes[2] <= 0xBF) &&
-			(0x80 <= bytes[3] && bytes[3] <= 0xBF)
-			) ||
-		   (// plane 16
-			bytes[0] == 0xF4 &&
-			(0x80 <= bytes[1] && bytes[1] <= 0x8F) &&
-			(0x80 <= bytes[2] && bytes[2] <= 0xBF) &&
-			(0x80 <= bytes[3] && bytes[3] <= 0xBF)
-			)
-		   ) 
-		{
-			bytes += 4;
-			continue;
-		}
-		
-		return 0;
-	}
-	
-	return 1;
-}
-
 /* 
  In the original code "const char* latin" was a allocated variable in the method as string and the reserverd length was
  strlen(utf8) + stren(utf8)/10, don't know why, but keep that in mind 
 */
-void UTF8toLatin1(const char *utf8, char *latin)
+void UTF8toLatin1(char *dst, const char *src, int dst_size)
 {
 	
-	const unsigned char* pSource = (const unsigned char*)utf8;
+	const unsigned char* pSource = (const unsigned char*)src;
 	
 	unsigned long ucs4;
 	int c, state, octets, i;
@@ -109,7 +25,7 @@ void UTF8toLatin1(const char *utf8, char *latin)
 	
 	c = *(pSource);
 	
-	while (c) 
+	while (c && i<dst_size-1) 
 	{
 		switch (state) 
 		{
@@ -257,31 +173,32 @@ void UTF8toLatin1(const char *utf8, char *latin)
 			}
 			if (ucs4 != 0xffffffff) 
 			{
-				latin[i++] = (char)ucs4;
+				dst[i++] = (char)ucs4;
 			}
 		}
 		c = *(++pSource);
 	}
-	latin[i] = '\0';
+	dst[i] = '\0';
 }
 	
-void Latin1toUTF8(const char *latin, char *utf8)
+void Latin1toUTF8(char *dst, const char *src, int dst_size)
 {
-	const unsigned char* pSource = (const unsigned char*)latin;
+	const unsigned char* pSource = (const unsigned char*)src;
 	int i = 0;
 	int cSource = *(pSource);
-	while ( cSource )
+	while ( cSource && i < dst_size-1)
 	{
 		if ( cSource >= 128 )
 		{
-			utf8[i++] = (char)(((cSource&0x7c0)>>6) | 0xc0);
-			utf8[i++] = (char)((cSource&0x3f) | 0x80);
+			dst[i++] = (char)(((cSource&0x7c0)>>6) | 0xc0);
+			if(i < dst_size-1)
+				dst[i++] = (char)((cSource&0x3f) | 0x80);
 		}
 		else
-			utf8[i++] = cSource;
+			dst[i++] = cSource;
 		cSource = *(++pSource);
 	}
-	utf8[i] = '\0';
+	dst[i] = '\0';
 
 }
 	

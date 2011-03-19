@@ -252,7 +252,7 @@ void CGameContext::SendChat(int ChatterClientID, int Team, const char *pText, in
 	}
 
 	char aBuf[268], aText[256], aConvertedTextUTF8[512], aConvertedTextLatin[512]; 
-	// just do be safe a little bit more, cause I have a lack of understanding here, what happens if we convert from utf8 to latin or vice versa
+	// just to be safe, a little bit more, cause utf8 chars can consist of up to 4 c-chars (4 bytes vs. 1 byte)
 	bool isUTF8Text;
 	
 	str_copy(aText, pText, sizeof(aText));
@@ -271,17 +271,17 @@ void CGameContext::SendChat(int ChatterClientID, int Team, const char *pText, in
 		str_format(aBuf, sizeof(aBuf), "*** %s", aText);
 
 
-	if (is_utf8(aText))
+	if (str_utf8_check(aText))
 	{
 		Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "chat", aBuf);
-		UTF8toLatin1(aText,aConvertedTextLatin); // we will need this in a loop soon		
+		UTF8toLatin1(aConvertedTextLatin,aText,512); // we will need this in a loop soon		
 		isUTF8Text = true;
 	}
 	else
 	{
-		Latin1toUTF8(aBuf,aConvertedTextUTF8);
+		Latin1toUTF8(aConvertedTextUTF8,aBuf,512);
 		Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "chat", aConvertedTextUTF8);
-		Latin1toUTF8(aText,aConvertedTextUTF8); // we will need this in a loop soon		
+		Latin1toUTF8(aConvertedTextUTF8,aText,512); // we will need this in a loop soon		
 		isUTF8Text = false;
 	}
 
@@ -292,7 +292,7 @@ void CGameContext::SendChat(int ChatterClientID, int Team, const char *pText, in
 		Msg.m_Team = 0;
 		Msg.m_ClientID = ChatterClientID;
 		
-		if (!is_utf8(aText))
+		if (!str_utf8_check(aText))
 			((CServer*)Server())->m_aClients[ChatterClientID].m_IsUsingUTF8Client = false;
 		
 

@@ -116,8 +116,8 @@ void CPlayer::Snap(int SnappingClient)
 	if (((CServer*)Server())->m_aClients[SnappingClient].m_IsUsingUTF8Client) {
 		StrToInts(&pClientInfo->m_Name0, 6, Server()->ClientName(m_ClientID));		
 	}else{
-		char aLatinName[72];
-		UTF8toLatin1(Server()->ClientName(m_ClientID),aLatinName);
+		char aLatinName[32];
+		UTF8toLatin1(aLatinName,Server()->ClientName(m_ClientID),32);
 		StrToInts(&pClientInfo->m_Name0, 6, aLatinName);		
 	}
 
