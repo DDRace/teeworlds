@@ -329,7 +329,6 @@ void CGameContext::SendChat(int ChatterClientID, int Team, const char *pText, in
 		CNetMsg_Sv_Chat Msg;
 		Msg.m_Team = 1;
 		Msg.m_ClientID = ChatterClientID;
-		Msg.m_pMessage = aText;
 		
 		// pack one for the recording only
 		Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NOSEND, -1);
@@ -338,6 +337,24 @@ void CGameContext::SendChat(int ChatterClientID, int Team, const char *pText, in
 		for(int i = 0; i < MAX_CLIENTS; i++)
 		{
 			if(m_apPlayers[i] != 0) {
+				if (((CServer*)Server())->m_aClients[i].m_IsUsingUTF8Client) 
+				{
+					if (isUTF8Text) 
+						Msg.m_pMessage = aText;				
+					else
+					{
+						Msg.m_pMessage = aConvertedTextUTF8;						
+					}
+				}
+				else 
+				{
+					if (isUTF8Text)
+					{
+						Msg.m_pMessage = aConvertedTextLatin;
+					}
+					else
+						Msg.m_pMessage = aText;
+				}				
 				if(Team == CHAT_SPEC) {
 					if(m_apPlayers[i]->GetTeam() == CHAT_SPEC) {
 						Server()->SendPackMsg(&Msg, MSGFLAG_VITAL|MSGFLAG_NORECORD, i);
