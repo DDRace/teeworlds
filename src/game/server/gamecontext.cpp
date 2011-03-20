@@ -300,7 +300,7 @@ void CGameContext::SendChat(int ChatterClientID, int Team, const char *pText, in
 		{
 			if(m_apPlayers[i] != 0)//m_apPlayers[i]->GetCharacter();->CClient && m_apPlayers[i].m_State == CClient::STATE_INGAME) 
 			{
-				if (((CServer*)Server())->m_aClients[i].m_IsUsingUTF8Client) 
+				if (((CServer*)Server())->m_aClients[i].m_IsUsingUTF8Client || m_apPlayers[i]->m_IsUsingDDRaceClient) 
 				{
 					if (isUTF8Text) 
 						Msg.m_pMessage = aText;				
@@ -337,7 +337,7 @@ void CGameContext::SendChat(int ChatterClientID, int Team, const char *pText, in
 		for(int i = 0; i < MAX_CLIENTS; i++)
 		{
 			if(m_apPlayers[i] != 0) {
-				if (((CServer*)Server())->m_aClients[i].m_IsUsingUTF8Client) 
+				if (((CServer*)Server())->m_aClients[i].m_IsUsingUTF8Client || m_apPlayers[i]->m_IsUsingDDRaceClient) 
 				{
 					if (isUTF8Text) 
 						Msg.m_pMessage = aText;				
