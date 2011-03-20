@@ -1,5 +1,12 @@
 #include "teams.h"
 #include <engine/shared/config.h>
+#include <engine/server/server.h>
+#include <cstring>
+
+#if defined(CONF_SQL)
+#include "score.h"
+#include "score/sql_score.h"
+#endif
 
 CGameTeams::CGameTeams(CGameContext *pGameContext) : m_pGameContext(pGameContext)
 {
