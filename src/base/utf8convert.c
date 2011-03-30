@@ -197,7 +197,7 @@ extern "C" {
 
 	}
 		
-	int CountLetterInUTF8(const char *src)
+	int CountLettersInUTF8(const char *src)
 	{
 		int oldCursor = 0;
 		int newCursor = 0;

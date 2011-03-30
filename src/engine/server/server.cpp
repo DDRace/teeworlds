@@ -243,28 +243,40 @@ void CServer::SetClientName(int ClientID, const char *pName)
 	
 	// dirty hack that does only work if client uses special chars
 	// otherwise its always utf8
-	char aNameUTF8[MAX_NAME_LENGTH];
+	char aNameUTF8[MAX_NAME_LENGTH*4];
 	
 	if (str_utf8_check(pName)) 
 	{
-		str_copy(aNameUTF8,pName,MAX_NAME_LENGTH);
+		str_copy(aNameUTF8,pName,MAX_NAME_LENGTH*4);
 		m_aClients[ClientID].m_IsUsingUTF8Client = true;
 		dbg_msg("Server","Client uses UTF8");
 	}
 	else
 	{
-		Latin1toUTF8(aNameUTF8,pName,MAX_NAME_LENGTH);
+		Latin1toUTF8(aNameUTF8,pName,MAX_NAME_LENGTH*4);
 		m_aClients[ClientID].m_IsUsingUTF8Client = false;
-		dbg_msg("Server","Client uses Latin");
+		dbg_msg("Server","Client uses Latin");		
 	}
-		
-//	char aBuf[255];
-//	str_format(aBuf,sizeof(aBuf),"Chars in transmitted name = %d",CountChars(pName));
-//	dbg_msg("Server",aBuf);
-//	str_format(aBuf,sizeof(aBuf),"Letters in utf8 transformed name = %d",CountLetterInUTF8(aNameUTF8));
-//	dbg_msg("Server",aBuf);
-//	str_format(aBuf,sizeof(aBuf),"Chars in utf8 transformed name = %d",CountChars(aNameUTF8));
-//	dbg_msg("Server",aBuf);	
+	
+	//	for (int i = 0; i< MAX_NAME_LENGTH; i++) {
+	//		dbg_msg1("IntVal","Char %d = %c%c%c%c%c%c%c%c",i,
+	//		(aNameUTF8[i]&0x80)?'1':'0',
+	//		(aNameUTF8[i]&0x40)?'1':'0',
+	//		(aNameUTF8[i]&0x20)?'1':'0',
+	//		(aNameUTF8[i]&0x10)?'1':'0',
+	//		(aNameUTF8[i]&0x08)?'1':'0',
+	//		(aNameUTF8[i]&0x04)?'1':'0',
+	//		(aNameUTF8[i]&0x02)?'1':'0',
+	//		(aNameUTF8[i]&0x01)?'1':'0'
+	//				 );
+	//	} // if still sth. is wrong, this can be helpful for debug
+	
+	if ((aNameUTF8[MAX_NAME_LENGTH-4]&0xF0) == 0xF0)			// start of a 4 byte letter
+		aNameUTF8[MAX_NAME_LENGTH-4]='\0';
+	else if ((aNameUTF8[MAX_NAME_LENGTH-3]&0xE0) == 0xE0)		// start of a 3 byte letter
+		aNameUTF8[MAX_NAME_LENGTH-3]='\0';
+	else if ((aNameUTF8[MAX_NAME_LENGTH-2]&0xC0) == 0xC0)		// start of a 2 byte letter
+		aNameUTF8[MAX_NAME_LENGTH-2]='\0';
 	
 	char aNameTry[MAX_NAME_LENGTH];
 	str_copy(aNameTry, aNameUTF8, MAX_NAME_LENGTH);
@@ -276,16 +288,14 @@ void CServer::SetClientName(int ClientID, const char *pName)
 		{
 			if (i>9)
 				j = 1;
-			if (aNameUTF8[16-j]&0xF0)
-				aNameUTF8[16-j]='\0';
-			else if (aNameUTF8[17-j]&0xE0)
-				aNameUTF8[17-j]='\0';
-			else if (aNameUTF8[18-j]&0xC0)
-				aNameUTF8[18-j]='\0'; 
-			else if (aNameUTF8[19-j]&0x80)
-				aNameUTF8[19-j]='\0'; 
+			if ((aNameUTF8[MAX_NAME_LENGTH-4-3-j]&0xF0) == 0xF0)		// start of a 4 byte char
+				aNameUTF8[MAX_NAME_LENGTH-4-3-j]='\0';
+			else if ((aNameUTF8[MAX_NAME_LENGTH-3-3-j]&0xE0) == 0xE0)	// start of a 3 byte char
+				aNameUTF8[MAX_NAME_LENGTH-3-3-j]='\0'; 			
+			else if ((aNameUTF8[MAX_NAME_LENGTH-2-3-j]&0xC0) == 0xC0)	// start of a 2 byte char
+				aNameUTF8[MAX_NAME_LENGTH-2-3-j]='\0'; 
 				// cut of x-th char if it is utf8 and length would exceed the following chopping length (chopped by str_format)
-				// if we wouldn't do that our utf8 char consisting of maybe 2 bytes would suddenly be a 1 byte fragment
+				// if we wouldn't do that our utf8 letter consisting of maybe 2 chars would suddenly be a 1 char fragment
 			str_format(aNameTry, MAX_NAME_LENGTH, "(%d)%s", i, aNameUTF8);
 			if(TrySetClientName(ClientID, aNameTry) == 0)
 				break;
