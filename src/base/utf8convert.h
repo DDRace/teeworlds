@@ -5,8 +5,10 @@
 extern "C" {
 #endif
 	
-void UTF8toLatin1(char *dst, const char *src, int dst_size);
-void Latin1toUTF8(char *dst, const char *src, int dst_size);
+	void UTF8toLatin1(char *dst, const char *src, int dst_size);
+	void Latin1toUTF8(char *dst, const char *src, int dst_size);
+	int CountLetterInUTF8(const char *src);
+	int CountChars(const char *src);
 
 #ifdef __cplusplus
 }

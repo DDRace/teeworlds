@@ -258,6 +258,14 @@ void CServer::SetClientName(int ClientID, const char *pName)
 		dbg_msg("Server","Client uses Latin");
 	}
 		
+//	char aBuf[255];
+//	str_format(aBuf,sizeof(aBuf),"Chars in transmitted name = %d",CountChars(pName));
+//	dbg_msg("Server",aBuf);
+//	str_format(aBuf,sizeof(aBuf),"Letters in utf8 transformed name = %d",CountLetterInUTF8(aNameUTF8));
+//	dbg_msg("Server",aBuf);
+//	str_format(aBuf,sizeof(aBuf),"Chars in utf8 transformed name = %d",CountChars(aNameUTF8));
+//	dbg_msg("Server",aBuf);	
+	
 	char aNameTry[MAX_NAME_LENGTH];
 	str_copy(aNameTry, aNameUTF8, MAX_NAME_LENGTH);
 	
