@@ -149,11 +149,18 @@ void CGameTeams::SetForceCharacterTeam(int ClientID, int Team)
 	{
 		bool NoOneInOldTeam = true;
 		for(int i = 0; i < MAX_CLIENTS; ++i)
+		{
 			if(i != ClientID && m_Core.Team(ClientID) == m_Core.Team(i))
 			{
 				NoOneInOldTeam = false;//all good exists someone in old team
 				break;
-			} 
+			}
+			else if(GameServer()->m_apPlayers[i] && GameServer()->m_apPlayers[i]->m_InfoSaved && GameServer()->m_apPlayers[i]->m_PauseInfo.m_Team == m_Core.Team(ClientID))
+			{
+				NoOneInOldTeam = false;//all good exists someone in old team
+				break;
+			}
+		}
 		if(NoOneInOldTeam)
 			m_TeamState[m_Core.Team(ClientID)] = TEAMSTATE_EMPTY;
 	}
@@ -185,8 +192,12 @@ void CGameTeams::ChangeTeamState(int Team, int State)
 bool CGameTeams::TeamFinished(int Team)
 {
 	for(int i = 0; i < MAX_CLIENTS; ++i)
+	{
 		if(m_Core.Team(i) == Team && !m_TeeFinished[i])
 			return false;
+		if(GameServer()->m_apPlayers[i] && GameServer()->m_apPlayers[i]->m_InfoSaved && GameServer()->m_apPlayers[i]->m_PauseInfo.m_Team == Team && !m_TeeFinished[i])
+			return false;
+	}
 	return true;
 }
 

@@ -467,26 +467,26 @@ void CGameContext::ConTogglePause(IConsole::IResult *pResult, void *pUserData, i
 	if(g_Config.m_SvPauseable)
 	{
 		CCharacter* pChr = pPlayer->GetCharacter();
-		if(!pPlayer->GetTeam() && pChr && (!pChr->GetWeaponGot(WEAPON_NINJA) || pChr->m_FreezeTime) && pChr->IsGrounded() && pChr->m_Pos==pChr->m_PrevPos && !pChr->Team() && !pPlayer->m_InfoSaved)
+		if(!pPlayer->GetTeam() && pChr && (!pChr->GetWeaponGot(WEAPON_NINJA) || pChr->m_FreezeTime) && pChr->IsGrounded() && pChr->m_Pos==pChr->m_PrevPos && !pPlayer->m_InfoSaved)
 		{
 			if(pPlayer->m_LastSetTeam + pSelf->Server()->TickSpeed() * g_Config.m_SvPauseFrequency <= pSelf->Server()->Tick())
 			{
 				pPlayer->SaveCharacter();
-				pPlayer->SetTeam(TEAM_SPECTATORS);
 				pPlayer->m_InfoSaved = true;
+				pPlayer->SetTeam(TEAM_SPECTATORS);
 			}
 			else
 				pResult->Print(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You can\'t pause that often.");
 		}
 		else if(pPlayer->GetTeam()==TEAM_SPECTATORS && pPlayer->m_InfoSaved && pPlayer->m_ForcePauseTime==0)
 		{
-			pPlayer->m_InfoSaved = false;
 			pPlayer->m_PauseInfo.m_Respawn = true;
 			pPlayer->SetTeam(TEAM_RED);
+			pPlayer->m_InfoSaved = false;
 			//pPlayer->LoadCharacter();//TODO:Check if this system Works
 		}
 		else if(pChr)
-			pResult->Print(IConsole::OUTPUT_LEVEL_STANDARD, "info", (pChr->Team())?"You can't pause while you are in a team":pChr->GetWeaponGot(WEAPON_NINJA)?"You can't use /pause while you are a ninja":(!pChr->IsGrounded())?"You can't use /pause while you are a in air":"You can't use /pause while you are moving");
+			pResult->Print(IConsole::OUTPUT_LEVEL_STANDARD, "info", pChr->GetWeaponGot(WEAPON_NINJA)?"You can't use /pause while you are a ninja":(!pChr->IsGrounded())?"You can't use /pause while you are a in air":"You can't use /pause while you are moving");
 		else if(pPlayer->m_ForcePauseTime > 0)
 		{
 			str_format(aBuf, sizeof(aBuf), "You have been force-paused. %ds left.", pPlayer->m_ForcePauseTime/pSelf->Server()->TickSpeed());
@@ -524,8 +524,8 @@ void CGameContext::ConForcePause(IConsole::IResult *pResult, void *pUserData, in
 	if(!pPlayer->GetTeam() && pChr && !pPlayer->m_InfoSaved)
 	{
 		pPlayer->SaveCharacter();
-		pPlayer->SetTeam(TEAM_SPECTATORS);
 		pPlayer->m_InfoSaved = true;
+		pPlayer->SetTeam(TEAM_SPECTATORS);
 		pPlayer->m_ForcePauseTime = Seconds*pServ->TickSpeed();
 	}
 	else
@@ -552,9 +552,9 @@ void CGameContext::ConForceUnpause(IConsole::IResult *pResult, void *pUserData, 
 
 	if(pPlayer->GetTeam()==TEAM_SPECTATORS && pPlayer->m_InfoSaved)
 	{
-		pPlayer->m_InfoSaved = false;
 		pPlayer->m_PauseInfo.m_Respawn = true;
 		pPlayer->SetTeam(TEAM_RED);
+		pPlayer->m_InfoSaved = false;
 		//pPlayer->LoadCharacter();//TODO:Check if this system Works
 		pPlayer->m_ForcePauseTime = 0;
 	}
@@ -696,14 +696,19 @@ void CGameContext::ConJoinTeam(IConsole::IResult *pResult, void *pUserData, int 
 	else
 	{
 		char aBuf[512];
-		if(pPlayer->GetCharacter() == 0)
-		{
-			pResult->Print(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You can't check your team while you are dead/a spectator.");
-		}
-		else
+		if(pPlayer->GetCharacter())
 		{
 			str_format(aBuf, sizeof(aBuf), "You are in team %d", pPlayer->GetCharacter()->Team());
 			pResult->Print(IConsole::OUTPUT_LEVEL_STANDARD, "info", aBuf);
+		}
+		else if(pPlayer->m_InfoSaved)
+		{
+			str_format(aBuf, sizeof(aBuf), "You are in team %d", pPlayer->m_PauseInfo.m_Team);
+			pResult->Print(IConsole::OUTPUT_LEVEL_STANDARD, "info", aBuf);
+		}
+		else
+		{
+			pResult->Print(IConsole::OUTPUT_LEVEL_STANDARD, "info", "You can't check your team while you are dead/a spectator.");
 		}
 	}
 }
