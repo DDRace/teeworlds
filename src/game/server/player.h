@@ -132,6 +132,7 @@ public:
 		int m_Team;
 		int m_TeleCheckpoint;
 	} m_PauseInfo;
+	int m_ForcePauseTime;
 	bool m_InfoSaved;
 	void LoadCharacter();
 	void SaveCharacter();
