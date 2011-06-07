@@ -131,8 +131,12 @@ public:
 		int m_PauseTime;
 		int m_Team;
 		int m_TeleCheckpoint;
+		int m_CpActive;
+		float m_CpCurrent[25];
 	} m_PauseInfo;
+	int m_ForcePauseTime;
 	bool m_InfoSaved;
+	bool IsPlaying();
 	void LoadCharacter();
 	void SaveCharacter();
 	int64 m_Last_KickVote;

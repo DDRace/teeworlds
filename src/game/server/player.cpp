@@ -64,6 +64,9 @@ void CPlayer::Tick()
 	if (m_ChatScore > 0)
 		m_ChatScore--;
 
+	if (m_ForcePauseTime > 0)
+		m_ForcePauseTime--;
+
 	Server()->SetClientScore(m_ClientID, m_Score);
 
 	// do latency stuff
@@ -267,7 +270,15 @@ void CPlayer::SetTeam(int Team)
 		return;
 
 	char aBuf[512];
-	str_format(aBuf, sizeof(aBuf), "'%s' joined the %s", Server()->ClientName(m_ClientID), GameServer()->m_pController->GetTeamName(Team));
+	if(m_InfoSaved)
+	{
+		if(Team == TEAM_SPECTATORS)
+			str_format(aBuf, sizeof(aBuf), "'%s' paused", Server()->ClientName(m_ClientID));
+		else
+			str_format(aBuf, sizeof(aBuf), "'%s' resumed", Server()->ClientName(m_ClientID));
+	}
+	else
+		str_format(aBuf, sizeof(aBuf), "'%s' joined the %s", Server()->ClientName(m_ClientID), GameServer()->m_pController->GetTeamName(Team));
 	GameServer()->SendChat(-1, CGameContext::CHAT_ALL, aBuf);
 
 	KillCharacter();
@@ -346,6 +357,9 @@ void CPlayer::LoadCharacter()
 	m_pCharacter->m_DeepFreeze = m_PauseInfo.m_DeepFreeze;
 	m_pCharacter->m_EndlessHook = m_PauseInfo.m_EndlessHook;
 	m_pCharacter->m_TeleCheckpoint = m_PauseInfo.m_TeleCheckpoint;
+	m_pCharacter->m_CpActive = m_PauseInfo.m_CpActive;
+	for(int i = 0; i < NUM_CHECKPOINTS; i++)
+		m_pCharacter->m_CpCurrent[i] = m_PauseInfo.m_CpCurrent[i];
 	((CGameControllerDDRace*)GameServer()->m_pController)->m_Teams.m_Core.Team(GetCID(), m_PauseInfo.m_Team);
 	m_PauseInfo.m_Respawn = false;
 	m_InfoSaved = false;
@@ -370,6 +384,9 @@ void CPlayer::SaveCharacter()
 	m_PauseInfo.m_Team = ((CGameControllerDDRace*)GameServer()->m_pController)->m_Teams.m_Core.Team(GetCID());
 	m_PauseInfo.m_PauseTime = Server()->Tick();
 	m_PauseInfo.m_TeleCheckpoint = m_pCharacter->m_TeleCheckpoint;
+	m_PauseInfo.m_CpActive = m_pCharacter->m_CpActive;
+	for(int i = 0; i < NUM_CHECKPOINTS; i++)
+		m_PauseInfo.m_CpCurrent[i] = m_pCharacter->m_CpCurrent[i];
 	//m_PauseInfo.m_RefreshTime = m_pCharacter->m_RefreshTime;
 }
 
@@ -430,5 +447,12 @@ bool CPlayer::AfkTimer(int NewTargetX, int NewTargetY)
 			return true;
 		}
 	}
+	return false;
+}
+
+bool CPlayer::IsPlaying()
+{
+	if(m_InfoSaved || (m_pCharacter && m_pCharacter->IsAlive()))
+		return true;
 	return false;
 }
