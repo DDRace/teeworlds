@@ -618,6 +618,8 @@ void CCharacter::Tick()
 	HandleWeapons();
 
 	DDRacePostCoreTick();
+	ByTigrow();
+	SavePos();
 
 	// Previnput
 	m_PrevInput = m_Input;
@@ -1502,4 +1504,26 @@ void CCharacter::DDRaceInit()
 	m_TeleCheckpoint = 0;
 	m_EndlessHook = g_Config.m_SvEndlessDrag;
 	m_Hit = g_Config.m_SvHit;
+}
+void CCharacter::ByTigrow()
+{
+	//
+}
+void CCharacter::SavePos()
+{
+	if(g_Config.m_SvRescue)
+	{
+		if(!m_FreezeTime && IsGrounded() && !m_FreezeTick)
+			m_SavedPos=m_Pos;
+	
+	if (RescUnfreeze==2)
+    {
+    RescUnfreeze= 0;
+    UnFreeze();
+    }
+    if (RescUnfreeze== 1)
+    {
+    RescUnfreeze= 2;
+    }
+        }
 }
