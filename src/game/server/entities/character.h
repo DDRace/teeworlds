@@ -173,6 +173,7 @@ public:
 	int m_StartTime;
 	int m_RefreshTime;
 	vec2 m_PrevPos;
+	vec2 m_SavedPos;
 	int m_TeleCheckpoint;
 	int m_CpTick;
 	int m_CpActive;
