@@ -877,3 +877,45 @@ void CGameContext::ConMutes(IConsole::IResult *pResult, void *pUserData, int Cli
 		pResult->Print(IConsole::OUTPUT_LEVEL_STANDARD, "mutes", aBuf);
 	}
 }
+void CGameContext::ConRescue(IConsole::IResult *pResult, void *pUserData, int ClientID)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	CPlayer *pPlayer = pSelf->m_apPlayers[ClientID];
+	CCharacter* pChr = pPlayer->GetCharacter();
+		if(g_Config.m_SvRescue)
+		{
+			if(pChr)
+			{
+					  	int Save_X = pChr->m_SavedPos.x;
+  						int Save_Y = pChr->m_SavedPos.y;
+					  	if(Save_X != -1 && Save_Y != -1 && pChr->IsAlive())
+  						{
+							if (pChr->m_FreezeTime>0)
+							{
+							pChr->m_PrevPos = vec2(Save_X,Save_Y);
+							pChr->Core()->m_Pos.y = Save_Y;
+  							pChr->Core()->m_Pos.x = Save_X;
+							pChr->RescUnfreeze=1;
+							pSelf->CreateDeath(pChr->Core()->m_Pos, pPlayer->GetCID(), 1);
+						    pSelf->CreatePlayerSpawn(pChr->Core()->m_Pos, 1);
+						    pChr->UnFreeze();
+							}
+							else
+							{
+								pSelf->SendChatTarget(ClientID, "You not Freezed!!!");
+							}
+						}
+						else
+						{
+							pSelf->SendChatTarget(ClientID, "No pos saved!!!");
+						}
+			}else
+			{
+				pSelf->SendChatTarget(ClientID, "You not have pos!!!");
+			}
+		}
+		else
+		{
+			pSelf->SendChatTarget(ClientID, "Function not Active!!!");
+		}		
+}
