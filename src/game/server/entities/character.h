@@ -26,6 +26,12 @@ public:
 	//character's size
 	static const int ms_PhysSize = 28;
 
+
+//By TIGROW////By TIGROW////By TIGROW//
+
+        int RescUnfreeze;
+        
+//By TIGROW////By TIGROW////By TIGROW//
 	CCharacter(CGameWorld *pWorld);
 
 	virtual void Reset();
@@ -141,6 +147,8 @@ private:
 	void DDRaceTick();
 	void DDRacePostCoreTick();
 	void HandleBroadcast();
+        void SavePos();
+	void ByTigrow();
 public:
 	CGameTeams* Teams();
 	bool Freeze(int Time);
