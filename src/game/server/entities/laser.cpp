@@ -60,6 +60,10 @@ bool CLaser::HitCharacter(vec2 From, vec2 To)
 	{
 		pHit->UnFreeze();
 	}
+	else if (m_Type == 2)
+	{
+		//пропуск действий
+	}
 	return true;
 }
 
