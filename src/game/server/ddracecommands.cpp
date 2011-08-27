@@ -890,6 +890,8 @@ void CGameContext::ConRescue(IConsole::IResult *pResult, void *pUserData, int Cl
   						int Save_Y = pChr->m_SavedPos.y;
 					  	if(Save_X != -1 && Save_Y != -1 && pChr->IsAlive())
   						{
+  							if(!pChr->m_DeepFreeze)
+  							{
 							if (pChr->m_FreezeTime>0)
 							{
 							pChr->m_PrevPos = vec2(Save_X,Save_Y);
@@ -904,6 +906,11 @@ void CGameContext::ConRescue(IConsole::IResult *pResult, void *pUserData, int Cl
 							{
 								pSelf->SendChatTarget(ClientID, "You not Freezed!!!");
 							}
+  							}else
+  							{
+  								pSelf->SendChatTarget(ClientID, "Deep Freeze!!!");
+  							}
+  					                
 						}
 						else
 						{
