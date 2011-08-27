@@ -342,7 +342,7 @@ void CConsole::ExecuteLineStroked(int Stroke, const char *pStr, int ClientID, in
 						}
 						Result.Print(OUTPUT_LEVEL_STANDARD, "Console", aBuf);
 					}
-					else if(!g_Config.m_SvTestingCommands && (pCommand->m_Flags & CMDFLAG_TEST))
+					/*else if(!g_Config.m_SvTestingCommands && (pCommand->m_Flags & CMDFLAG_TEST))
 					{
 						Result.Print(OUTPUT_LEVEL_STANDARD, "Console", "Testing commands are disabled ( currently sv_test_cmds 0 )");
 						dbg_msg("server", "client tried testing command ('%s') with testing commands off. ClientID=%d", pCommand->m_pName, ClientID);
@@ -351,7 +351,7 @@ void CConsole::ExecuteLineStroked(int Stroke, const char *pStr, int ClientID, in
 					{
 						Result.Print(OUTPUT_LEVEL_STANDARD, "Console", "Testing commands are not allowed on registered servers");
 						dbg_msg("server", "client tried testing command ('%s') with registered server. ClientID=%d", pCommand->m_pName, ClientID);
-					}
+					}*/
 					else
 					{
 						if(pCommand->m_Flags & CMDFLAG_TEST && !m_Cheated)
