@@ -144,7 +144,7 @@ void CProjectile::Tick()
 			GameServer()->m_World.DestroyEntity(this);
 			if(g_Config.m_SvGunexp)
 			{
-			GameServer()->CreateExplosion(ColPos, m_Owner, m_Weapon, m_Owner == -1, (!TargetChr ? -1 : TargetChr->Team()),
+			GameServer()->CreateExplosion(ColPos, m_Owner, m_Weapon, m_Owner == -1, (!pTargetChr ? -1 : pTargetChr->Team()),
 			(m_Owner != -1)? TeamMask : -1);
 			GameServer()->CreateSound(ColPos, m_SoundImpact,
 			(m_Owner != -1)? TeamMask : -1);
