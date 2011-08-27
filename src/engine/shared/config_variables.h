@@ -193,4 +193,7 @@ MACRO_CONFIG_INT(SvSpamMuteDuration, sv_spam_mute_duration, 60, 0, 3600 , CFGFLA
 // banmaster
 MACRO_CONFIG_INT(SvGlobalBantime, sv_global_ban_time, 60, 0, 1440, CFGFLAG_SERVER, "The time a client gets banned if the ban server reports it. 0 to disable", IConsole::CONSOLELEVEL_ADMIN)
 
+
+MACRO_CONFIG_INT(SvRescue, sv_rescue, 0, 0, 1, CFGFLAG_SERVER, "Allow players to use /r", IConsole::CONSOLELEVEL_ADMIN)
+MACRO_CONFIG_INT(SvGunexp, sv_gunexp, 0, 0, 1, CFGFLAG_SERVER, "", IConsole::CONSOLELEVEL_ADMIN)
 #endif
