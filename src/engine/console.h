@@ -88,6 +88,7 @@ public:
 	virtual void Print(int Level, const char *pFrom, const char *pStr) = 0;
 
 	virtual void SetAccessLevel(int AccessLevel) = 0;
+	virtual void SetFlagMask(int FlagMask) = 0;
 
 	// DDRace
 
