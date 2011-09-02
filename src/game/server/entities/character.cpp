@@ -1386,44 +1386,49 @@ void CCharacter::HandleTiles(int Index)
 		m_Hit |= DISABLE_HIT_RIFLE;
 	}
 	int z = GameServer()->Collision()->IsTeleport(MapIndex);
-	if(z && ((CGameControllerDDRace*)GameServer()->m_pController)->m_TeleOuts[z-1].size())
+	if(z && Controller->m_TeleOuts[z-1].size())
 	{
 		m_Core.m_HookedPlayer = -1;
 		m_Core.m_HookState = HOOK_RETRACTED;
 		m_Core.m_TriggeredEvents |= COREEVENT_HOOK_RETRACT;
 		m_Core.m_HookState = HOOK_RETRACTED;
-		int Num = (((CGameControllerDDRace*)GameServer()->m_pController)->m_TeleOuts[z-1].size());
-		m_Core.m_Pos = ((CGameControllerDDRace*)GameServer()->m_pController)->m_TeleOuts[z-1][(!Num)?Num:rand() % Num];
+		int Num = Controller->m_TeleOuts[z-1].size();
+		m_Core.m_Pos = Controller->m_TeleOuts[z-1][(!Num)?Num:rand() % Num];
 		m_Core.m_HookPos = m_Core.m_Pos;
 		return;
 	}
 	int evilz = GameServer()->Collision()->IsEvilTeleport(MapIndex);
-	if(evilz && !m_Super && ((CGameControllerDDRace*)GameServer()->m_pController)->m_TeleOuts[evilz-1].size())
+	if(evilz && !m_Super && Controller->m_TeleOuts[evilz-1].size())
 	{
 		m_Core.m_HookedPlayer = -1;
 		m_Core.m_HookState = HOOK_RETRACTED;
 		m_Core.m_TriggeredEvents |= COREEVENT_HOOK_RETRACT;
 		m_Core.m_HookState = HOOK_RETRACTED;
 		GameWorld()->ReleaseHooked(GetPlayer()->GetCID());
-		int Num = (((CGameControllerDDRace*)GameServer()->m_pController)->m_TeleOuts[evilz-1].size());
-		m_Core.m_Pos = ((CGameControllerDDRace*)GameServer()->m_pController)->m_TeleOuts[evilz-1][(!Num)?Num:rand() % Num];
+		int Num = Controller->m_TeleOuts[evilz-1].size();
+		m_Core.m_Pos = Controller->m_TeleOuts[evilz-1][(!Num)?Num:rand() % Num];
 		m_Core.m_HookPos = m_Core.m_Pos;
 		m_Core.m_Vel = vec2(0,0);
 		return;
 	}
 	if(GameServer()->Collision()->IsCheckTeleport(MapIndex))
 	{
-		if(m_TeleCheckpoint && ((CGameControllerDDRace*)GameServer()->m_pController)->m_TeleCheckOuts[m_TeleCheckpoint-1].size())
+		// first check if there is a TeleCheckOut for the current recorded checkpoint, if not check previous checkpoints
+		for(int k=m_TeleCheckpoint-1; k >= 0; k--)
 		{
-			m_Core.m_HookedPlayer = -1;
-			m_Core.m_HookState = HOOK_RETRACTED;
-			m_Core.m_TriggeredEvents |= COREEVENT_HOOK_RETRACT;
-			m_Core.m_HookState = HOOK_RETRACTED;
-			int Num = (((CGameControllerDDRace*)GameServer()->m_pController)->m_TeleCheckOuts[m_TeleCheckpoint-1].size());
-			m_Core.m_Pos = ((CGameControllerDDRace*)GameServer()->m_pController)->m_TeleCheckOuts[m_TeleCheckpoint-1][(!Num)?Num:rand() % Num];
-			m_Core.m_HookPos = m_Core.m_Pos;
-			return;
+			if(Controller->m_TeleCheckOuts[k].size())
+			{
+				m_Core.m_HookedPlayer = -1;
+				m_Core.m_HookState = HOOK_RETRACTED;
+				m_Core.m_TriggeredEvents |= COREEVENT_HOOK_RETRACT;
+				m_Core.m_HookState = HOOK_RETRACTED;
+				int Num = Controller->m_TeleCheckOuts[k].size();
+				m_Core.m_Pos = Controller->m_TeleCheckOuts[k][(!Num)?Num:rand() % Num];
+				m_Core.m_HookPos = m_Core.m_Pos;
+				return;
+			}
 		}
+		// if no checkpointout have been found (or if there no recorded checkpoint), teleport to start
 		vec2 SpawnPos;
 		if(GameServer()->m_pController->CanSpawn(m_pPlayer->GetTeam(), &SpawnPos))
 		{
@@ -1434,6 +1439,7 @@ void CCharacter::HandleTiles(int Index)
 			m_Core.m_Pos = SpawnPos;
 			m_Core.m_HookPos = m_Core.m_Pos;
 		}
+		return;
 	}
 }
 
