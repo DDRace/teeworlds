@@ -9,7 +9,7 @@ bool CTeamsCore::SameTeam(int ClientID1, int ClientID2)
 {
 	return m_Team[ClientID1] == m_Team[ClientID2];
 }
-	
+
 int CTeamsCore::Team(int ClientID)
 {
 	return m_Team[ClientID];

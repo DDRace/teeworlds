@@ -13,13 +13,13 @@ class CDoor : public CEntity
 	int m_Length;
 	vec2 m_Direction;
 	int m_Angle;
-	
+
 public:
 	void Open(int Tick, bool ActivatedTeam[]);
 	void Open(int Team);
 	void Close(int Team);
 	CDoor(CGameWorld *pGameWorld, vec2 Pos, float Rotation, int Length, int Number);
-	
+
 	virtual void Reset();
 	virtual void Tick();
 	virtual void Snap(int SnappingClient);

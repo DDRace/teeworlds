@@ -73,7 +73,7 @@ void CLight::Step()
 	vec2 to2 = m_Pos + normalize(dir)*m_CurveLength;
 	GameServer()->Collision()->IntersectNoLaser(m_Pos, to2, &m_To,0 );
 }
-	
+
 void CLight::Reset()
 {
 	GameServer()->m_World.DestroyEntity(this);
@@ -81,7 +81,7 @@ void CLight::Reset()
 
 void CLight::Tick()
 {
-	
+
 	if (Server()->Tick()%int(Server()->TickSpeed()*0.15f)==0)
 	{
 		int Flags;
@@ -112,7 +112,7 @@ void CLight::Snap(int SnappingClient)
 	if(pSnappingCharacter && pSnappingCharacter->IsAlive() && m_Layer == LAYER_SWITCH && !GameServer()->Collision()->m_pSwitchers[m_Number].m_Status[pSnappingCharacter->Team()] && (Tick))
 		return;
 
-	
+
 	CNetObj_Laser *pObj = static_cast<CNetObj_Laser *>(Server()->SnapNewItem(NETOBJTYPE_LASER, m_ID, sizeof(CNetObj_Laser)));
 	pObj->m_X = (int)m_Pos.x;
 	pObj->m_Y = (int)m_Pos.y;

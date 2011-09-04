@@ -124,7 +124,7 @@ void CSqlScore::Init()
 		{
 			// create tables
 			char aBuf[768];
-			
+
 			str_format(aBuf, sizeof(aBuf), "CREATE TABLE IF NOT EXISTS %s_%s_race (Name VARCHAR(%d) NOT NULL, Timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP , Time FLOAT DEFAULT 0, cp1 FLOAT DEFAULT 0, cp2 FLOAT DEFAULT 0, cp3 FLOAT DEFAULT 0, cp4 FLOAT DEFAULT 0, cp5 FLOAT DEFAULT 0, cp6 FLOAT DEFAULT 0, cp7 FLOAT DEFAULT 0, cp8 FLOAT DEFAULT 0, cp9 FLOAT DEFAULT 0, cp10 FLOAT DEFAULT 0, cp11 FLOAT DEFAULT 0, cp12 FLOAT DEFAULT 0, cp13 FLOAT DEFAULT 0, cp14 FLOAT DEFAULT 0, cp15 FLOAT DEFAULT 0, cp16 FLOAT DEFAULT 0, cp17 FLOAT DEFAULT 0, cp18 FLOAT DEFAULT 0, cp19 FLOAT DEFAULT 0, cp20 FLOAT DEFAULT 0, cp21 FLOAT DEFAULT 0, cp22 FLOAT DEFAULT 0, cp23 FLOAT DEFAULT 0, cp24 FLOAT DEFAULT 0, cp25 FLOAT DEFAULT 0, KEY Name (Name)) CHARACTER SET utf8 ;", m_pPrefix, m_aMap, MAX_NAME_LENGTH);
 			m_pStatement->execute(aBuf);
 
@@ -133,11 +133,11 @@ void CSqlScore::Init()
 			m_pResults = m_pStatement->executeQuery(aBuf);
 
 			if(m_pResults->rowsCount() < 1){
-				// If not... add the column				
+				// If not... add the column
 				str_format(aBuf, sizeof(aBuf), "ALTER TABLE %s_%s_race ADD Timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP AFTER Name, ADD INDEX(Name);",m_pPrefix, m_aMap);
 				m_pStatement->execute(aBuf);
 			}
-			
+
 			dbg_msg("SQL", "Tables were created successfully");
 
 			// get the best time
@@ -473,7 +473,7 @@ void CSqlScore::ShowTimesThread(void *pUser)
 			char originalName[MAX_NAME_LENGTH];
 			strcpy(originalName,pData->m_aName);
 			pData->m_pSqlData->ClearString(pData->m_aName);
-			
+
 			char aBuf[512];
 
 			if(pData->m_Search) // last 5 times of a player
@@ -485,10 +485,10 @@ void CSqlScore::ShowTimesThread(void *pUser)
 
 			// show top5
 			if(pData->m_pSqlData->m_pResults->rowsCount() == 0){
-				pData->m_pSqlData->GameServer()->SendChatTarget(pData->m_ClientID, "There are no times in the specified range");				
+				pData->m_pSqlData->GameServer()->SendChatTarget(pData->m_ClientID, "There are no times in the specified range");
 				goto end;
 			}
-			
+
 			str_format(aBuf, sizeof(aBuf), "------------ Last Times No %d - %d ------------",pData->m_Num,pData->m_Num + pData->m_pSqlData->m_pResults->rowsCount() - 1);
 			pData->m_pSqlData->GameServer()->SendChatTarget(pData->m_ClientID, aBuf);
 
@@ -503,20 +503,20 @@ void CSqlScore::ShowTimesThread(void *pUser)
 				pStamp = (int)pData->m_pSqlData->m_pResults->getInt("Stamp");
 				pTime = (float)pData->m_pSqlData->m_pResults->getDouble("Time");
 
-				agoTimeToString(pSince,pAgoString);								
-				
+				agoTimeToString(pSince,pAgoString);
+
 				if(pData->m_Search) // last 5 times of a player
 				{
 					if(pStamp == 0) // stamp is 00:00:00 cause it's an old entry from old times where there where no stamps yet
 						str_format(aBuf, sizeof(aBuf), "%d min %.2f sec, don't know how long ago", (int)(pTime/60), pTime-((int)pTime/60*60));
-					else					
+					else
 						str_format(aBuf, sizeof(aBuf), "%s ago, %d min %.2f sec", pAgoString,(int)(pTime/60), pTime-((int)pTime/60*60));
 				}
 				else // last 5 times of the server
 				{
 					if(pStamp == 0) // stamp is 00:00:00 cause it's an old entry from old times where there where no stamps yet
 						str_format(aBuf, sizeof(aBuf), "%s, %d m %.2f s, don't know when", pData->m_pSqlData->m_pResults->getString("Name").c_str(), (int)(pTime/60), pTime-((int)pTime/60*60));
-					else					
+					else
 						str_format(aBuf, sizeof(aBuf), "%s, %s ago, %d m %.2f s", pData->m_pSqlData->m_pResults->getString("Name").c_str(), pAgoString, (int)(pTime/60), pTime-((int)pTime/60*60));
 				}
 				pData->m_pSqlData->GameServer()->SendChatTarget(pData->m_ClientID, aBuf);
@@ -570,7 +570,7 @@ void CSqlScore::ShowTimes(int ClientID, int Debut)
 	void *TimesThread = thread_create(ShowTimesThread, Tmp);
 	#if defined(CONF_FAMILY_UNIX)
 		pthread_detach((pthread_t)TimesThread);
-	#endif	
+	#endif
 }
 
 void CSqlScore::ShowTimes(int ClientID, const char* pName, int Debut)
@@ -581,11 +581,11 @@ void CSqlScore::ShowTimes(int ClientID, const char* pName, int Debut)
 	str_copy(Tmp->m_aName, pName, sizeof(Tmp->m_aName));
 	Tmp->m_pSqlData = this;
 	Tmp->m_Search = true;
-	
+
 	void *TimesThread = thread_create(ShowTimesThread, Tmp);
 	#if defined(CONF_FAMILY_UNIX)
 		pthread_detach((pthread_t)TimesThread);
-	#endif	
+	#endif
 }
 
 // anti SQL injection

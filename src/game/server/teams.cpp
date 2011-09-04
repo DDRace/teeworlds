@@ -108,7 +108,7 @@ void CGameTeams::OnCharacterFinish(int ClientID)
 					}
 				}
 			}
-			
+
 		}
 	}
 }
@@ -136,8 +136,8 @@ bool CGameTeams::SetCharacterTeam(int ClientID, int Team)
 			return false;
 	}
 	SetForceCharacterTeam(ClientID, Team);
-	
-	
+
+
 	//GameServer()->CreatePlayerSpawn(Character(id)->m_Core.m_Pos, TeamMask());
 	return true;
 }
@@ -145,8 +145,8 @@ bool CGameTeams::SetCharacterTeam(int ClientID, int Team)
 void CGameTeams::SetForceCharacterTeam(int ClientID, int Team)
 {
 	m_TeeFinished[ClientID] = false;
-	if(m_Core.Team(ClientID) != TEAM_FLOCK 
-		&& m_Core.Team(ClientID) != TEAM_SUPER 
+	if(m_Core.Team(ClientID) != TEAM_FLOCK
+		&& m_Core.Team(ClientID) != TEAM_SUPER
 		&& m_TeamState[m_Core.Team(ClientID)] != TEAMSTATE_EMPTY)
 	{
 		bool NoOneInOldTeam = true;
@@ -164,7 +164,7 @@ void CGameTeams::SetForceCharacterTeam(int ClientID, int Team)
 	if(m_Core.Team(ClientID) != TEAM_SUPER) m_MembersCount[m_Core.Team(ClientID)]++;
 	if(Team != TEAM_SUPER && m_TeamState[Team] == TEAMSTATE_EMPTY)
 		ChangeTeamState(Team, TEAMSTATE_OPEN);
-	
+
 	for (int LoopClientID = 0; LoopClientID < MAX_CLIENTS; ++LoopClientID)
 	{
 		if(GetPlayer(LoopClientID) && GetPlayer(LoopClientID)->m_IsUsingDDRaceClient)
@@ -227,9 +227,9 @@ void CGameTeams::SendTeamsState(int ClientID)
 	Msg.m_Tee13 = m_Core.Team(13);
 	Msg.m_Tee14 = m_Core.Team(14);
 	Msg.m_Tee15 = m_Core.Team(15);
-	
+
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, ClientID);
-	
+
 }
 
 int CGameTeams::GetDDRaceState(CPlayer* Player)

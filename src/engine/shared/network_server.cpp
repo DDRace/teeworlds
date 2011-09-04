@@ -484,13 +484,13 @@ int CNetServer::BanmasterAdd(const char *pAddrStr)
 {
 	if(m_NumBanmasters >= MAX_BANMASTERS)
 		return 2;
-	
+
 	if(net_host_lookup(pAddrStr, &m_aBanmasters[m_NumBanmasters], NETTYPE_IPV4))
 		return 1;
-	
+
 	if(m_aBanmasters[m_NumBanmasters].port == 0)
 		m_aBanmasters[m_NumBanmasters].port = BANMASTER_PORT;
-	
+
 	m_NumBanmasters++;
 	return 0;
 }
@@ -504,7 +504,7 @@ NETADDR* CNetServer::BanmasterGet(int Index)
 {
 	if(Index < 0 || Index >= m_NumBanmasters)
 		return 0;
-	
+
 	return &m_aBanmasters[Index];
 }
 

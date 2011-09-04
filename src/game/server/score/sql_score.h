@@ -37,7 +37,7 @@ class CSqlScore : public IScore
 	static void SaveScoreThread(void *pUser);
 	static void ShowRankThread(void *pUser);
 	static void ShowTop5Thread(void *pUser);
-	static void ShowTimesThread(void *pUser);	
+	static void ShowTimesThread(void *pUser);
 
 	void Init();
 
@@ -58,7 +58,7 @@ public:
 	virtual void SaveScore(int ClientID, float Time, float CpTime[NUM_CHECKPOINTS]);
 	virtual void ShowRank(int ClientID, const char* pName, bool Search=false);
 	virtual void ShowTimes(int ClientID, const char* pName, int Debut=1);
-	virtual void ShowTimes(int ClientID, int Debut=1);	
+	virtual void ShowTimes(int ClientID, int Debut=1);
 	virtual void ShowTop5(IConsole::IResult *pResult, int ClientID, void *pUserData, int Debut=1);
  	static void agoTimeToString(int agoTime, char agoStrign[]);
 };
