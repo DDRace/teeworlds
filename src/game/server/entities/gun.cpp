@@ -19,7 +19,7 @@ CGun::CGun(CGameWorld *pGameWorld, vec2 Pos, bool Freeze, bool Explosive, int La
 	m_EvalTick = Server()->Tick();
 	m_Freeze = Freeze;
 	m_Explosive = Explosive;
-	
+
 	GameWorld()->InsertEntity(this);
 }
 
@@ -27,14 +27,14 @@ CGun::CGun(CGameWorld *pGameWorld, vec2 Pos, bool Freeze, bool Explosive, int La
 void CGun::Fire()
 {
 	CCharacter *Ents[16];
-	int IdInTeam[16]; 
+	int IdInTeam[16];
 	int LenInTeam[16];
 	for (int i = 0; i < 16; i++)
 	{
 		IdInTeam[i] = -1;
 		LenInTeam[i] = 0;
 	}
-	
+
 	int Num = -1;
 	Num =  GameServer()->m_World.FindEntities(m_Pos, g_Config.m_SvPlasmaRange, (CEntity**)Ents, 16, CGameWorld::ENTTYPE_CHARACTER);
 
@@ -66,9 +66,9 @@ void CGun::Fire()
 			m_LastFire = Server()->Tick();
 		}
 	}
-	
+
 }
-	
+
 void CGun::Reset()
 {
 	GameServer()->m_World.DestroyEntity(this);
@@ -93,7 +93,7 @@ void CGun::Tick()
 }
 
 void CGun::Snap(int SnappingClient)
-{	
+{
 	if(NetworkClipped(SnappingClient))
 		return;
 

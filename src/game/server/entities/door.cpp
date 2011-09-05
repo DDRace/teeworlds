@@ -15,7 +15,7 @@ CDoor::CDoor(CGameWorld *pGameWorld, vec2 Pos, float Rotation, int Length, int N
 
 	m_Direction = vec2(sin(Rotation), cos(Rotation));
 	vec2 To = Pos + normalize(m_Direction) * m_Length;
-	
+
 	GameServer()->Collision()->IntersectNoLaser(Pos, To, &this->m_To, 0);
 	ResetCollision();
 	GameWorld()->InsertEntity(this);

@@ -370,7 +370,7 @@ void CGameContext::ConUnmute(IConsole::IResult *pResult, void *pUserData)
 
 	if(Victim < 0 || Victim >= pSelf->m_NumMutes)
 		return;
-	
+
 	pSelf->m_NumMutes--;
 	pSelf->m_aMutes[Victim] = pSelf->m_aMutes[pSelf->m_NumMutes];
 

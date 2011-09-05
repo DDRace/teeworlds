@@ -47,7 +47,7 @@ void CPlasma::Move()
 	m_Pos += m_Core;
 	m_Core *= ACCEL;
 }
-	
+
 void CPlasma::Reset()
 {
 	GameServer()->m_World.DestroyEntity(this);
@@ -72,11 +72,11 @@ void CPlasma::Tick()
 			GameServer()->CreateExplosion(m_Pos, -1, WEAPON_GRENADE, true, m_ResponsibleTeam, ((CGameControllerDDRace*)GameServer()->m_pController)->m_Teams.TeamMask(m_ResponsibleTeam));
 		Reset();
 	}
-	
+
 }
 
 void CPlasma::Snap(int SnappingClient)
-{	
+{
 	if(NetworkClipped(SnappingClient))
 		return;
 	CCharacter* SnapChar = GameServer()->GetPlayerChar(SnappingClient);
