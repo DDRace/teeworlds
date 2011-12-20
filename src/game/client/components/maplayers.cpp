@@ -138,11 +138,20 @@ void CMapLayers::OnRender()
 			continue;
 		}
 
+		CServerInfo Info;
+		Client()->GetServerInfo(&Info);
 		if(!g_Config.m_GfxNoclip && pGroup->m_Version >= 2 && pGroup->m_UseClipping)
 		{
 			// set clipping
 			float Points[4];
-			MapScreenToGroup(Center.x, Center.y, m_pLayers->GameGroup(), m_pClient->m_pCamera->m_Zoom);
+			
+			if(g_Config.m_ClDDRaceCheats == 1 && str_find_nocase(Info.m_aGameType, "race")) {
+				MapScreenToGroup(Center.x, Center.y, pGroup, m_pClient->m_pCamera->m_Zoom);
+			}
+			else {
+				MapScreenToGroup(Center.x, Center.y, pGroup, 1.0f);
+			}
+			
 			Graphics()->GetScreen(&Points[0], &Points[1], &Points[2], &Points[3]);
 			float x0 = (pGroup->m_ClipX - Points[0]) / (Points[2]-Points[0]);
 			float y0 = (pGroup->m_ClipY - Points[1]) / (Points[3]-Points[1]);
@@ -152,8 +161,12 @@ void CMapLayers::OnRender()
 			Graphics()->ClipEnable((int)(x0*Graphics()->ScreenWidth()), (int)(y0*Graphics()->ScreenHeight()),
 				(int)((x1-x0)*Graphics()->ScreenWidth()), (int)((y1-y0)*Graphics()->ScreenHeight()));
 		}
-
-		MapScreenToGroup(Center.x, Center.y, pGroup, m_pClient->m_pCamera->m_Zoom);
+			if(g_Config.m_ClDDRaceCheats == 1 && str_find_nocase(Info.m_aGameType, "race")) {
+				MapScreenToGroup(Center.x, Center.y, pGroup, m_pClient->m_pCamera->m_Zoom);
+			}
+			else {
+				MapScreenToGroup(Center.x, Center.y, pGroup, 1.0f);
+			}
 
 		for(int l = 0; l < pGroup->m_NumLayers; l++)
 		{
