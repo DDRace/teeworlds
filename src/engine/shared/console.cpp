@@ -363,14 +363,14 @@ void CConsole::ExecuteLineStroked(int Stroke, const char *pStr, int ClientID)
 								for (int i = 0; i < MAX_CLIENTS; i++)
 								{
 										Result.SetVictim(i);
-						pCommand->m_pfnCallback(&Result, pCommand->m_pUserData);
+										pCommand->m_pfnCallback(&Result, pCommand->m_pUserData);
 								}
 							}
 							else
-						pCommand->m_pfnCallback(&Result, pCommand->m_pUserData);
+								pCommand->m_pfnCallback(&Result, pCommand->m_pUserData);
 						}
 						else
-						pCommand->m_pfnCallback(&Result, pCommand->m_pUserData);
+							pCommand->m_pfnCallback(&Result, pCommand->m_pUserData);
 
 						if (pCommand->m_Flags&CMDFLAG_TEST)
 							m_Cheated = true;
@@ -427,11 +427,11 @@ void CConsole::ExecuteLine(const char *pStr, int ClientID)
 	CConsole::ExecuteLineStroked(0, pStr, ClientID); // then release it
 }
 
-void CConsole::ExecuteLineFlag(const char *pStr, int FlagMask)
+void CConsole::ExecuteLineFlag(const char *pStr, int FlagMask, int ClientID)
 {
 	int Temp = m_FlagMask;
 	m_FlagMask = FlagMask;
-	ExecuteLine(pStr);
+	ExecuteLine(pStr, ClientID);
 	m_FlagMask = Temp;
 }
 
