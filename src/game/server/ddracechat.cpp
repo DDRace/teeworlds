@@ -11,6 +11,7 @@
 #endif
 
 bool CheckClientID(int ClientID);
+char* TimerType(int TimerType);
 
 void CGameContext::ConCredits(IConsole::IResult *pResult, void *pUserData)
 {
@@ -327,6 +328,17 @@ void CGameContext::ConTogglePause(IConsole::IResult *pResult, void *pUserData)
 	if (!pPlayer)
 		return;
 
+	if (pPlayer->GetCharacter() == 0)
+	{
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "pause",
+	"You can't pause while you are dead/a spectator.");
+	}
+	if (pPlayer->m_Paused == CPlayer::PAUSED_SPEC && g_Config.m_SvPauseable)
+	{
+		ConToggleSpec(pResult, pUserData);
+		return;
+	}
+
 	if (pPlayer->m_Paused == CPlayer::PAUSED_FORCE)
 	{
 		str_format(aBuf, sizeof(aBuf), "You are force-paused. %ds left.", pPlayer->m_ForcePauseTime/pSelf->Server()->TickSpeed());
@@ -346,6 +358,12 @@ void CGameContext::ConToggleSpec(IConsole::IResult *pResult, void *pUserData)
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientID];
 	if(!pPlayer)
 		return;
+
+	if (pPlayer->GetCharacter() == 0)
+	{
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "spec",
+	"You can't spec while you are dead/a spectator.");
+	}
 
 	if(pPlayer->m_Paused == CPlayer::PAUSED_FORCE)
 	{
@@ -376,7 +394,7 @@ void CGameContext::ConTop5(IConsole::IResult *pResult, void *pUserData)
 		return;
 	}
 
-	if (pResult->NumArguments() > 0)
+	if (pResult->NumArguments() > 0 && pResult->GetInteger(0) >= 0)
 		pSelf->Score()->ShowTop5(pResult, pResult->m_ClientID, pUserData,
 				pResult->GetInteger(0));
 	else
@@ -718,6 +736,11 @@ bool CheckClientID(int ClientID)
 	return true;
 }
 
+char* TimerType(int TimerType)
+{
+	char msg[3][128] = {"game/round timer.", "broadcast.", "both game/round timer and broadcast."};
+	return msg[TimerType];
+}
 void CGameContext::ConSayTime(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *) pUserData;
@@ -790,68 +813,43 @@ void CGameContext::ConTime(IConsole::IResult *pResult, void *pUserData)
 	pSelf->SendBroadcast(aBuftime, pResult->m_ClientID);
 }
 
-void CGameContext::ConSetBroadcastTime(IConsole::IResult *pResult, void *pUserData)
+void CGameContext::ConSetTimerType(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *) pUserData;
+
 	if (!CheckClientID(pResult->m_ClientID))
 		return;
 
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientID];
 	if (!pPlayer)
 		return;
+
+	char aBuf[128];
+	if(pPlayer->m_TimerType <= 2 && pPlayer->m_TimerType >= 0)
+		str_format(aBuf, sizeof(aBuf), "Timer is displayed in", TimerType(pPlayer->m_TimerType));
+	else if(pPlayer->m_TimerType == 3)
+		str_format(aBuf, sizeof(aBuf), "Timer isn't displayed.");
+
 	if(pResult->NumArguments() == 0) {
-		pSelf->Console()->Print(
-				IConsole::OUTPUT_LEVEL_STANDARD,
-				"emote",
-				(pPlayer->m_BroadcastTime) ?
-						"Time is displayed in broadcast now." :
-						"Time will not be displayed in broadcast now");
+		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD,"timer",aBuf);
 		return;
 	}
-	else if(str_comp_nocase(pResult->GetString(0), "on") == 0)
-		pPlayer->m_BroadcastTime = true;
-	else if(str_comp_nocase(pResult->GetString(0), "off") == 0)
-		pPlayer->m_BroadcastTime = false;
-	else if(str_comp_nocase(pResult->GetString(0), "toggle") == 0)
-		pPlayer->m_BroadcastTime = !pPlayer->m_BroadcastTime;
-
-	pSelf->Console()->Print(
-			IConsole::OUTPUT_LEVEL_STANDARD,
-			"emote",
-			(pPlayer->m_BroadcastTime) ?
-					"Time is displayed in broadcast now." :
-					"Time will not be displayed in broadcast now");
-}
-
-void CGameContext::ConSetServerGameTime(IConsole::IResult *pResult, void *pUserData)
-{
-	CGameContext *pSelf = (CGameContext *) pUserData;
-	if (!CheckClientID(pResult->m_ClientID))
-		return;
-
-	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientID];
-	if (!pPlayer)
-		return;
-	if(pResult->NumArguments() == 0) {
-		pSelf->Console()->Print(
-				IConsole::OUTPUT_LEVEL_STANDARD,
-				"emote",
-				(pPlayer->m_GameTimerTime) ?
-						"Time is displayed in game/round timer now." :
-						"Time will not be displayed in game/round timer now");
-		return;
+	else if(str_comp_nocase(pResult->GetString(0), "gametimer") == 0) {
+		pSelf->SendBroadcast("", pResult->m_ClientID);
+		pPlayer->m_TimerType = 0;
 	}
-	else if(str_comp_nocase(pResult->GetString(0), "on") == 0)
-		pPlayer->m_GameTimerTime = true;
-	else if(str_comp_nocase(pResult->GetString(0), "off") == 0)
-		pPlayer->m_GameTimerTime = false;
-	else if(str_comp_nocase(pResult->GetString(0), "toggle") == 0)
-		pPlayer->m_GameTimerTime = !pPlayer->m_GameTimerTime;
-
-	pSelf->Console()->Print(
-			IConsole::OUTPUT_LEVEL_STANDARD,
-			"emote",
-			(pPlayer->m_GameTimerTime) ?
-					"Time is displayed in game/round timer now." :
-					"Time will not be displayed in game/round timer now");
+	else if(str_comp_nocase(pResult->GetString(0), "broadcast") == 0)
+			pPlayer->m_TimerType = 1;
+	else if(str_comp_nocase(pResult->GetString(0), "both") == 0)
+			pPlayer->m_TimerType = 2;
+	else if(str_comp_nocase(pResult->GetString(0), "none") == 0)
+			pPlayer->m_TimerType = 3;
+	else if(str_comp_nocase(pResult->GetString(0), "cycle") == 0) {
+		if(pPlayer->m_TimerType < 3)
+			pPlayer->m_TimerType++;
+		else if(pPlayer->m_TimerType == 3)
+			pPlayer->m_TimerType = 0;
+	}
+	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD,"timer",aBuf);
 }
+

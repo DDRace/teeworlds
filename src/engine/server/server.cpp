@@ -1001,7 +1001,7 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 				m_RconClientID = ClientID;
 				m_RconAuthLevel = m_aClients[ClientID].m_Authed;
 				Console()->SetAccessLevel(m_aClients[ClientID].m_Authed == AUTHED_ADMIN ? IConsole::ACCESS_LEVEL_ADMIN : m_aClients[ClientID].m_Authed == AUTHED_MOD ? IConsole::ACCESS_LEVEL_MOD : IConsole::ACCESS_LEVEL_USER);
-				Console()->ExecuteLineFlag(pCmd, CFGFLAG_SERVER);
+				Console()->ExecuteLineFlag(pCmd, CFGFLAG_SERVER, ClientID);
 				Console()->SetAccessLevel(IConsole::ACCESS_LEVEL_ADMIN);
 				m_RconClientID = IServer::RCON_CID_SERV;
 				m_RconAuthLevel = AUTHED_ADMIN;
@@ -1807,8 +1807,7 @@ int main(int argc, const char **argv) // ignore_convention
 void CServer::GetClientAddr(int ClientID, NETADDR *pAddr)
 {
 	if(ClientID >= 0 && ClientID < MAX_CLIENTS && m_aClients[ClientID].m_State == CClient::STATE_INGAME) {
-		NETADDR temp = *m_NetServer.ClientAddr(ClientID);
-		pAddr = &temp;
+		*pAddr = *m_NetServer.ClientAddr(ClientID);
 	}
 }
 
