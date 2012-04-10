@@ -28,6 +28,7 @@ buildlog.txt
 autoexec.cfg
 bam.exe
 *.bat
+*.cmd
 .cproject
 .project
 *.dtb
