@@ -205,17 +205,6 @@ void CGameContext::ConSettings(IConsole::IResult *pResult, void *pUserData)
 							aBuf :
 							"Players are just kicked and not banned if they get voted off");
 		}
-		else if (str_comp(pArg, "pause") == 0)
-		{
-			pSelf->Console()->Print(
-					IConsole::OUTPUT_LEVEL_STANDARD,
-					"settings",
-					g_Config.m_SvPauseable ?
-							g_Config.m_SvPauseTime ?
-									"/pause is available on this server and it pauses your time too" :
-									"/pause is available on this server but it doesn't pause your time"
-									:"/pause is NOT available on this server");
-		}
 		else if (str_comp(pArg, "scores") == 0)
 		{
 			pSelf->Console()->Print(
@@ -313,41 +302,7 @@ void CGameContext::ConRules(IConsole::IResult *pResult, void *pUserData)
 
 void CGameContext::ConTogglePause(IConsole::IResult *pResult, void *pUserData)
 {
-	CGameContext *pSelf = (CGameContext *) pUserData;
-	if (!CheckClientID(pResult->m_ClientID))
-		return;
-	char aBuf[128];
-
-	if(!g_Config.m_SvPauseable)
-	{
 		ConToggleSpec(pResult, pUserData);
-		return;
-	}
-
-	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientID];
-	if (!pPlayer)
-		return;
-
-	if (pPlayer->GetCharacter() == 0)
-	{
-	pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "pause",
-	"You can't pause while you are dead/a spectator.");
-	return;
-	}
-	if (pPlayer->m_Paused == CPlayer::PAUSED_SPEC && g_Config.m_SvPauseable)
-	{
-		ConToggleSpec(pResult, pUserData);
-		return;
-	}
-
-	if (pPlayer->m_Paused == CPlayer::PAUSED_FORCE)
-	{
-		str_format(aBuf, sizeof(aBuf), "You are force-paused. %ds left.", pPlayer->m_ForcePauseTime/pSelf->Server()->TickSpeed());
-		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "pause", aBuf);
-		return;
-	}
-
-	pPlayer->m_Paused = (pPlayer->m_Paused == CPlayer::PAUSED_PAUSED) ? CPlayer::PAUSED_NONE : CPlayer::PAUSED_PAUSED;
 }
 
 void CGameContext::ConToggleSpec(IConsole::IResult *pResult, void *pUserData)

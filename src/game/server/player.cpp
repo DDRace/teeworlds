@@ -45,15 +45,13 @@ CPlayer::CPlayer(CGameContext *pGameServer, int ClientID, int Team)
 	time_t rawtime;
 	struct tm* timeinfo;
 	char d[16], m[16], y[16];
-	int dd, mm, yy;
+	int dd, mm;
 	time ( &rawtime );
 	timeinfo = localtime ( &rawtime );
 	strftime (d,sizeof(y),"%d",timeinfo);
 	strftime (m,sizeof(m),"%m",timeinfo);
-	strftime (y,sizeof(y),"%Y",timeinfo);
 	dd = atoi(d);
 	mm = atoi(m);
-	yy = atoi(y);
 
 	m_DefEmote = ((mm == 12 && dd >= 20) || (mm == 1 && dd <= 20)) ? EMOTE_HAPPY : EMOTE_NORMAL;
 	m_DefEmoteReset = -1;
@@ -135,11 +133,6 @@ void CPlayer::Tick()
 					m_Paused = PAUSED_NONE;
 					ProcessPause();
 				}
-				else if(m_Paused == PAUSED_PAUSED && m_NextPauseTick < Server()->Tick())
-				{
-					if((!m_pCharacter->GetWeaponGot(WEAPON_NINJA) || m_pCharacter->m_FreezeTime) && m_pCharacter->IsGrounded() && m_pCharacter->m_Pos == m_pCharacter->m_PrevPos)
-						ProcessPause();
-				}
 				else if(m_NextPauseTick < Server()->Tick())
 				{
 					ProcessPause();
@@ -211,7 +204,7 @@ void CPlayer::Snap(int SnappingClient)
 	pPlayerInfo->m_Local = 0;
 	pPlayerInfo->m_ClientID = m_ClientID;
 	pPlayerInfo->m_Score = abs(m_Score) * -1;
-	pPlayerInfo->m_Team = (m_Paused != PAUSED_SPEC || m_ClientID != SnappingClient) && m_Paused < PAUSED_PAUSED ? m_Team : TEAM_SPECTATORS;
+	pPlayerInfo->m_Team = (m_Paused != PAUSED_SPEC || m_ClientID != SnappingClient) && m_Paused < PAUSED_SPEC ? m_Team : TEAM_SPECTATORS;
 
 	if(m_ClientID == SnappingClient)
 		pPlayerInfo->m_Local = 1;
@@ -449,12 +442,12 @@ bool CPlayer::AfkTimer(int NewTargetX, int NewTargetY)
 void CPlayer::ProcessPause()
 {
 	char aBuf[128];
-	if(m_Paused >= PAUSED_PAUSED)
+	if(m_Paused == PAUSED_FORCE)
 	{
 		if(!m_pCharacter->IsPaused())
 		{
 			m_pCharacter->Pause(true);
-			str_format(aBuf, sizeof(aBuf), (m_Paused == PAUSED_PAUSED) ? "'%s' paused" : "'%s' was force-paused for %ds", Server()->ClientName(m_ClientID), m_ForcePauseTime/Server()->TickSpeed());
+			str_format(aBuf, sizeof(aBuf),"'%s' was force-paused for %ds", Server()->ClientName(m_ClientID), m_ForcePauseTime/Server()->TickSpeed());
 			GameServer()->SendChat(-1, CGameContext::CHAT_ALL, aBuf);
 			GameServer()->CreateDeath(m_pCharacter->m_Pos, m_ClientID, m_pCharacter->Teams()->TeamMask(m_pCharacter->Team(), -1, m_ClientID));
 			GameServer()->CreateSound(m_pCharacter->m_Pos, SOUND_PLAYER_DIE, m_pCharacter->Teams()->TeamMask(m_pCharacter->Team(), -1, m_ClientID));
