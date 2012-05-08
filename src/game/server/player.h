@@ -116,7 +116,6 @@ public:
 	{
 		PAUSED_NONE=0,
 		PAUSED_SPEC,
-		PAUSED_PAUSED,
 		PAUSED_FORCE
 	};
 
