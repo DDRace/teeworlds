@@ -293,7 +293,8 @@ void CGameContext::ConForcePause(IConsole::IResult *pResult, void *pUserData)
 	int Seconds = 0;
 	if (pResult->NumArguments() > 0)
 		Seconds = clamp(pResult->GetInteger(0), 0, 360);
-	if(Seconds < 120){
+	if(Seconds < 120)
+	{
 		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "Console", "Minimum force-pause time is 2 minutes");
 		return;
 	}
