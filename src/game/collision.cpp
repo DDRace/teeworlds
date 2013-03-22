@@ -38,6 +38,7 @@ void CCollision::Init(class CLayers *pLayers)
 	m_Width = m_pLayers->GameLayer()->m_Width;
 	m_Height = m_pLayers->GameLayer()->m_Height;
 	m_pTiles = static_cast<CTile *>(m_pLayers->Map()->GetData(m_pLayers->GameLayer()->m_Data));
+	m_MaxCheckpoint = -1;
 
 	if(m_pLayers->TeleLayer())
 		m_pTele = static_cast<CTeleTile *>(m_pLayers->Map()->GetData(m_pLayers->TeleLayer()->m_Tele));
@@ -137,6 +138,14 @@ void CCollision::Init(class CLayers *pLayers)
 			if(Index == TILE_THROUGH || (Index >= TILE_FREEZE && Index <= TILE_UNFREEZE) || (Index >= TILE_SWITCHOPEN && Index <= TILE_TELECHECKIN) || (Index >= TILE_BEGIN && Index <= TILE_STOPA) || Index == TILE_CP || Index == TILE_CP_F || (Index >= TILE_OLDLASER && Index <= TILE_NPH) || (Index >= TILE_EHOOK_START && Index <= TILE_SOLO_END) || (Index >= TILE_DFREEZE && Index <= TILE_DUNFREEZE))
 				m_pTiles[i].m_Index = Index;
 		}
+
+		int cp = IsCheckpoint(i);
+		if (cp > m_MaxCheckpoint)
+			m_MaxCheckpoint = cp;
+
+		int cpf = IsFCheckpoint(i);
+		if (cpf > m_MaxCheckpoint)
+			m_MaxCheckpoint = cpf;
 	}
 	if(m_NumSwitchers)
 	{

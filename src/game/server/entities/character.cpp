@@ -1190,6 +1190,9 @@ void CCharacter::HandleTiles(int Index)
 	int cp = GameServer()->Collision()->IsCheckpoint(MapIndex);
 	if(cp != -1 && m_DDRaceState == DDRACE_STARTED && cp > m_CpActive)
 	{
+		if (g_Config.m_SvStrictCheckpoints && cp != m_CpActive + 1)
+			return;
+
 		m_CpActive = cp;
 		m_CpCurrent[cp] = m_Time;
 		m_CpTick = Server()->Tick() + Server()->TickSpeed() * 2;
@@ -1215,6 +1218,9 @@ void CCharacter::HandleTiles(int Index)
 	int cpf = GameServer()->Collision()->IsFCheckpoint(MapIndex);
 	if(cpf != -1 && m_DDRaceState == DDRACE_STARTED && cpf > m_CpActive)
 	{
+		if (g_Config.m_SvStrictCheckpoints && cp != m_CpActive + 1)
+			return;
+
 		m_CpActive = cpf;
 		m_CpCurrent[cpf] = m_Time;
 		m_CpTick = Server()->Tick() + Server()->TickSpeed()*2;
@@ -1265,14 +1271,17 @@ void CCharacter::HandleTiles(int Index)
 		if(CanBegin)
 		{
 			Teams()->OnCharacterStart(m_pPlayer->GetCID());
-			m_CpActive = -2;
+			m_CpActive = -1;
 		} else {
 
 		}
 
 	}
 	if(((m_TileIndex == TILE_END) || (m_TileFIndex == TILE_END) || FTile1 == TILE_END || FTile2 == TILE_END || FTile3 == TILE_END || FTile4 == TILE_END || Tile1 == TILE_END || Tile2 == TILE_END || Tile3 == TILE_END || Tile4 == TILE_END) && m_DDRaceState == DDRACE_STARTED)
-		Controller->m_Teams.OnCharacterFinish(m_pPlayer->GetCID());
+	{
+		if (!g_Config.m_SvStrictCheckpoints || m_CpActive == GameServer()->Collision()->m_MaxCheckpoint)
+			Controller->m_Teams.OnCharacterFinish(m_pPlayer->GetCID());
+	}
 	if(((m_TileIndex == TILE_FREEZE) || (m_TileFIndex == TILE_FREEZE)) && !m_Super && !m_DeepFreeze)
 		Freeze();
 	else if(((m_TileIndex == TILE_UNFREEZE) || (m_TileFIndex == TILE_UNFREEZE)) && !m_DeepFreeze)

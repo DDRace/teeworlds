@@ -87,6 +87,7 @@ public:
 
 	int IsCheckpoint(int Index);
 	int IsFCheckpoint(int Index);
+	int m_MaxCheckpoint;
 
 	int IsMover(int x, int y, int* Flags);
 

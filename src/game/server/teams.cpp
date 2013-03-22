@@ -342,7 +342,7 @@ void CGameTeams::OnFinish(CPlayer* Player)
 		return;
 	CPlayerData *pData = GameServer()->Score()->PlayerData(Player->GetCID());
 	char aBuf[128];
-	SetCpActive(Player, -2);
+	SetCpActive(Player, -1);
 	str_format(aBuf, sizeof(aBuf),
 			"%s finished in: %d minute(s) %5.2f second(s)",
 			Server()->ClientName(Player->GetCID()), (int) time / 60,
