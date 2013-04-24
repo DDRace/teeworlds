@@ -11,7 +11,7 @@
 #endif
 
 bool CheckClientID(int ClientID);
-char* TimerType(int TimerType);
+const char* TimerType(int TimerType);
 
 void CGameContext::ConCredits(IConsole::IResult *pResult, void *pUserData)
 {
@@ -740,11 +740,12 @@ bool CheckClientID(int ClientID)
 	return true;
 }
 
-char* TimerType(int TimerType)
+const char* TimerType(int TimerType)
 {
-	char msg[3][128] = {"game/round timer.", "broadcast.", "both game/round timer and broadcast."};
+	const char* msg[3] = {"game/round timer.", "broadcast.", "both game/round timer and broadcast."};
 	return msg[TimerType];
 }
+
 void CGameContext::ConSayTime(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *) pUserData;
