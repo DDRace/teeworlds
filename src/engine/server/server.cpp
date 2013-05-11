@@ -312,6 +312,8 @@ CServer::CServer() : m_DemoRecorder(&m_SnapshotDelta)
 	m_RconClientID = IServer::RCON_CID_SERV;
 	m_RconAuthLevel = AUTHED_ADMIN;
 
+	m_RconOutputRestrict = -1;
+
 	Init();
 }
 
@@ -788,7 +790,7 @@ void CServer::SendRconLineAuthed(const char *pLine, void *pUser)
 
 	for(i = 0; i < MAX_CLIENTS; i++)
 	{
-		if(pThis->m_aClients[i].m_State != CClient::STATE_EMPTY && pThis->m_aClients[i].m_Authed >= pThis->m_RconAuthLevel)
+		if(pThis->m_aClients[i].m_State != CClient::STATE_EMPTY && pThis->m_aClients[i].m_Authed >= pThis->m_RconAuthLevel && (pThis->m_RconOutputRestrict == -1 || pThis->m_RconOutputRestrict == i))
 			pThis->SendRconLine(i, pLine);
 	}
 
@@ -1016,7 +1018,9 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 				m_RconClientID = ClientID;
 				m_RconAuthLevel = m_aClients[ClientID].m_Authed;
 				Console()->SetAccessLevel(m_aClients[ClientID].m_Authed == AUTHED_ADMIN ? IConsole::ACCESS_LEVEL_ADMIN : m_aClients[ClientID].m_Authed == AUTHED_MOD ? IConsole::ACCESS_LEVEL_MOD : IConsole::ACCESS_LEVEL_USER);
+				RestrictRconOutput(ClientID);
 				Console()->ExecuteLineFlag(pCmd, CFGFLAG_SERVER, ClientID);
+				RestrictRconOutput(-1);
 				Console()->SetAccessLevel(IConsole::ACCESS_LEVEL_ADMIN);
 				m_RconClientID = IServer::RCON_CID_SERV;
 				m_RconAuthLevel = AUTHED_ADMIN;

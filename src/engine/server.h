@@ -70,6 +70,7 @@ public:
 	// DDRace
 
 	virtual void GetClientAddr(int ClientID, NETADDR *pAddr) = 0;
+	virtual void RestrictRconOutput(int ClientID) = 0;
 };
 
 class IGameServer : public IInterface
