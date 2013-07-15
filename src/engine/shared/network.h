@@ -290,7 +290,7 @@ public:
 	int BanmasterAdd(const char *pAddrStr);
 	int BanmasterNum() const;
 	NETADDR* BanmasterGet(int Index);
-	int BanmasterCheck(NETADDR *pAddr);
+	int BanmasterCheck(NETADDR *pAddr, unsigned char SequenceNumber);
 	void BanmastersClear();
 	enum
 	{
@@ -298,6 +298,7 @@ public:
 	};
 private:
 	NETADDR m_aBanmasters[MAX_BANMASTERS];
+	int m_aSequenceNumbers[MAX_BANMASTERS];
 	int m_NumBanmasters;
 };
 

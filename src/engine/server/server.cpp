@@ -1239,14 +1239,16 @@ void CServer::PumpNetwork()
 					if(!g_Config.m_SvGlobalBantime)
 						return;
 
-					if(m_NetServer.BanmasterCheck(&Packet.m_Address) == -1)
+					unsigned char SequenceNumber = ((unsigned char*) Packet.m_pData)[sizeof(BANMASTER_IPBAN)];
+
+					if(m_NetServer.BanmasterCheck(&Packet.m_Address, SequenceNumber) == -1)
 						return;
 
 					CUnpacker Up;
 					char aIp[NETADDR_MAXSTRSIZE];
 					char aReason[256];
 					NETADDR Addr;
-					Up.Reset((unsigned char*)Packet.m_pData + sizeof(BANMASTER_IPBAN), Packet.m_DataSize - sizeof(BANMASTER_IPBAN));
+					Up.Reset((unsigned char*)Packet.m_pData + 1 + sizeof(BANMASTER_IPBAN), Packet.m_DataSize - 1 - sizeof(BANMASTER_IPBAN));
 					str_copy(aIp, Up.GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES), sizeof(aIp));
 					str_copy(aReason, Up.GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES), sizeof(aReason));
 					if(net_addr_from_str(&Addr, aIp))

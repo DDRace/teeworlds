@@ -1,5 +1,7 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
+#include <stdlib.h> // rand
+
 #include <base/system.h>
 
 #include <engine/console.h>
@@ -143,9 +145,10 @@ int CNetServer::Recv(CNetChunk *pChunk)
 					if(!Found)
 					{
 						CNetChunk Packet;
-						char aBuffer[sizeof(BANMASTER_IPCHECK) + NETADDR_MAXSTRSIZE];
+						char aBuffer[sizeof(BANMASTER_IPCHECK) + 1 + NETADDR_MAXSTRSIZE];
 						mem_copy(aBuffer, BANMASTER_IPCHECK, sizeof(BANMASTER_IPCHECK));
-						net_addr_str(&Addr, aBuffer + sizeof(BANMASTER_IPCHECK), sizeof(aBuffer) - sizeof(BANMASTER_IPCHECK), false);
+						aBuffer[sizeof(BANMASTER_IPCHECK)] = 0xFF; // Fill in anything for str_length
+						net_addr_str(&Addr, aBuffer + sizeof(BANMASTER_IPCHECK) + 1, sizeof(aBuffer) - 1 - sizeof(BANMASTER_IPCHECK), false);
 
 						Packet.m_ClientID = -1;
 						Packet.m_Flags = NETSENDFLAG_CONNLESS;
@@ -155,6 +158,8 @@ int CNetServer::Recv(CNetChunk *pChunk)
 						for(int i = 0; i < m_NumBanmasters; i++)
 						{
 							Packet.m_Address = m_aBanmasters[i];
+							m_aSequenceNumbers[i] = rand() % 256;
+							aBuffer[sizeof(BANMASTER_IPCHECK)] = m_aSequenceNumbers[i];
 							Send(&Packet);
 						}
 
@@ -295,10 +300,10 @@ NETADDR* CNetServer::BanmasterGet(int Index)
 	return &m_aBanmasters[Index];
 }
 
-int CNetServer::BanmasterCheck(NETADDR *pAddr)
+int CNetServer::BanmasterCheck(NETADDR *pAddr, unsigned char SequenceNumber)
 {
 	for(int i = 0; i < m_NumBanmasters; i++)
-		if(net_addr_comp(&m_aBanmasters[i], pAddr) == 0)
+		if(net_addr_comp(&m_aBanmasters[i], pAddr) == 0 && m_aSequenceNumbers[i] == SequenceNumber)
 			return i;
 
 	return -1;

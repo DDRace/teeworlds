@@ -38,12 +38,14 @@ CBan* CheckBan(NETADDR *pCheck)
 	return 0;
 }
 
-int SendResponse(NETADDR *pAddr, NETADDR *pCheck)
+int SendResponse(NETADDR *pAddr, unsigned char SequenceNumber, NETADDR *pCheck)
 {
-	static char aIpBan[sizeof(BANMASTER_IPBAN) + NETADDR_MAXSTRSIZE + 256] = { 0 };
-	static char *pIpBanContent = aIpBan + sizeof(BANMASTER_IPBAN);
+	static char aIpBan[sizeof(BANMASTER_IPBAN) + 1 + NETADDR_MAXSTRSIZE + 256] = { 0 };
+	static char *pIpBanContent = aIpBan + sizeof(BANMASTER_IPBAN) + 1;
 	if (!aIpBan[0])
 		mem_copy(aIpBan, BANMASTER_IPBAN, sizeof(BANMASTER_IPBAN));
+	
+	aIpBan[sizeof(BANMASTER_IPBAN)] = SequenceNumber;
 	
 	static CNetChunk p;
 	
@@ -59,7 +61,7 @@ int SendResponse(NETADDR *pAddr, NETADDR *pCheck)
 		str_copy(pIpBanReason, pBan->m_aReason, 256);
 		
 		p.m_pData = aIpBan;
-		p.m_DataSize = sizeof(BANMASTER_IPBAN) + str_length(pIpBanContent) + 1 + str_length(pIpBanReason) + 1;
+		p.m_DataSize = sizeof(BANMASTER_IPBAN) + 1 + str_length(pIpBanContent) + 1 + str_length(pIpBanReason) + 1;
 		m_Net.Send(&p);
 		return 1;
 	}
@@ -222,9 +224,9 @@ int main(int argc, const char **argv) // ignore_convention
 			char aAddressStr[NETADDR_MAXSTRSIZE];
 			net_addr_str(&Packet.m_Address, aAddressStr, sizeof(aAddressStr), false);
 
-			if((unsigned)Packet.m_DataSize >= sizeof(BANMASTER_IPCHECK) && mem_comp(Packet.m_pData, BANMASTER_IPCHECK, sizeof(BANMASTER_IPCHECK)) == 0)
+			if((unsigned)Packet.m_DataSize >= sizeof(BANMASTER_IPCHECK) + 1 && mem_comp(Packet.m_pData, BANMASTER_IPCHECK, sizeof(BANMASTER_IPCHECK)) == 0)
 			{
-				char *pAddr = (char *)Packet.m_pData + sizeof(BANMASTER_IPCHECK);
+				char *pAddr = (char *)Packet.m_pData + 1 + sizeof(BANMASTER_IPCHECK);
 				NETADDR CheckAddr;
 				if(net_addr_from_str(&CheckAddr, pAddr))
 				{
@@ -234,7 +236,8 @@ int main(int argc, const char **argv) // ignore_convention
 				{
 					CheckAddr.port = 0;
 
-					int Banned = SendResponse(&Packet.m_Address, &CheckAddr);
+					unsigned char SequenceNumber = ((unsigned char *)Packet.m_pData)[sizeof(BANMASTER_IPCHECK)];
+					int Banned = SendResponse(&Packet.m_Address, SequenceNumber, &CheckAddr);
 
 					char aBuf[NETADDR_MAXSTRSIZE];
 					net_addr_str(&CheckAddr, aBuf, sizeof(aBuf), false);
