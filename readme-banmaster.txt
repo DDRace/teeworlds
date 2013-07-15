@@ -14,7 +14,11 @@ For example:
 
   ban 192.168.0.130 Not welcome on this server
 
-The bans.cfg file is reread every 5 minutes.
+Run the banmaster server:
+
+  ./banmaster
+
+The bans.cfg file is automatically reread every 5 minutes.
 
 For your servers there is a banmasters.cfg that looks like this:
 
