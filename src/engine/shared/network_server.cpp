@@ -1,6 +1,7 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include <stdlib.h> // rand
+#include <string.h> // memset
 
 #include <base/system.h>
 
@@ -145,21 +146,22 @@ int CNetServer::Recv(CNetChunk *pChunk)
 					if(!Found)
 					{
 						CNetChunk Packet;
-						char aBuffer[sizeof(BANMASTER_IPCHECK) + 1 + NETADDR_MAXSTRSIZE];
+						char aBuffer[sizeof(BANMASTER_IPCHECK) + NET_BANMASTER_NR_SIZE + NETADDR_MAXSTRSIZE];
 						mem_copy(aBuffer, BANMASTER_IPCHECK, sizeof(BANMASTER_IPCHECK));
-						aBuffer[sizeof(BANMASTER_IPCHECK)] = 0xFF; // Fill in anything for str_length
-						net_addr_str(&Addr, aBuffer + sizeof(BANMASTER_IPCHECK) + 1, sizeof(aBuffer) - 1 - sizeof(BANMASTER_IPCHECK), false);
+						net_addr_str(&Addr, aBuffer + sizeof(BANMASTER_IPCHECK) + NET_BANMASTER_NR_SIZE, sizeof(aBuffer) - NET_BANMASTER_NR_SIZE - sizeof(BANMASTER_IPCHECK), false);
 
 						Packet.m_ClientID = -1;
 						Packet.m_Flags = NETSENDFLAG_CONNLESS;
-						Packet.m_DataSize = str_length(aBuffer) + 1;
+						Packet.m_DataSize = str_length(aBuffer + sizeof(BANMASTER_IPCHECK) + NET_BANMASTER_NR_SIZE) + sizeof(BANMASTER_IPCHECK) + NET_BANMASTER_NR_SIZE + 1;
 						Packet.m_pData = aBuffer;
 
 						for(int i = 0; i < m_NumBanmasters; i++)
 						{
 							Packet.m_Address = m_aBanmasters[i];
-							m_aSequenceNumbers[i] = rand() % 256;
-							aBuffer[sizeof(BANMASTER_IPCHECK)] = m_aSequenceNumbers[i];
+							for (int j = 0; j < NET_BANMASTER_NR_SIZE; j++) {
+								m_aSequenceNumbers[i][j] = rand() % 256;
+							}
+							mem_copy(aBuffer + sizeof(BANMASTER_IPCHECK), m_aSequenceNumbers[i], NET_BANMASTER_NR_SIZE);
 							Send(&Packet);
 						}
 
@@ -300,11 +302,12 @@ NETADDR* CNetServer::BanmasterGet(int Index)
 	return &m_aBanmasters[Index];
 }
 
-int CNetServer::BanmasterCheck(NETADDR *pAddr, unsigned char SequenceNumber)
+int CNetServer::BanmasterCheck(NETADDR *pAddr, unsigned char *SequenceNumber)
 {
-	for(int i = 0; i < m_NumBanmasters; i++)
-		if(net_addr_comp(&m_aBanmasters[i], pAddr) == 0 && m_aSequenceNumbers[i] == SequenceNumber)
+	for(int i = 0; i < m_NumBanmasters; i++) {
+		if(net_addr_comp(&m_aBanmasters[i], pAddr) == 0 && mem_comp(m_aSequenceNumbers[i], SequenceNumber, NET_BANMASTER_NR_SIZE) == 0)
 			return i;
+	}
 
 	return -1;
 }

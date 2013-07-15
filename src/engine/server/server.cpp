@@ -1233,13 +1233,14 @@ void CServer::PumpNetwork()
 				{
 				}*/
 
-				if((unsigned)Packet.m_DataSize >= sizeof(BANMASTER_IPBAN) &&
+				if((unsigned)Packet.m_DataSize >= sizeof(BANMASTER_IPBAN) + NET_BANMASTER_NR_SIZE &&
 					mem_comp(Packet.m_pData, BANMASTER_IPBAN, sizeof(BANMASTER_IPBAN)) == 0)
 				{
 					if(!g_Config.m_SvGlobalBantime)
 						return;
 
-					unsigned char SequenceNumber = ((unsigned char*) Packet.m_pData)[sizeof(BANMASTER_IPBAN)];
+					unsigned char SequenceNumber[NET_BANMASTER_NR_SIZE];
+					mem_copy(SequenceNumber, (unsigned char *)Packet.m_pData + sizeof(BANMASTER_IPBAN), NET_BANMASTER_NR_SIZE);
 
 					if(m_NetServer.BanmasterCheck(&Packet.m_Address, SequenceNumber) == -1)
 						return;
@@ -1248,7 +1249,7 @@ void CServer::PumpNetwork()
 					char aIp[NETADDR_MAXSTRSIZE];
 					char aReason[256];
 					NETADDR Addr;
-					Up.Reset((unsigned char*)Packet.m_pData + 1 + sizeof(BANMASTER_IPBAN), Packet.m_DataSize - 1 - sizeof(BANMASTER_IPBAN));
+					Up.Reset((unsigned char*)Packet.m_pData + NET_BANMASTER_NR_SIZE + sizeof(BANMASTER_IPBAN), Packet.m_DataSize - NET_BANMASTER_NR_SIZE - sizeof(BANMASTER_IPBAN));
 					str_copy(aIp, Up.GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES), sizeof(aIp));
 					str_copy(aReason, Up.GetString(CUnpacker::SANITIZE_CC|CUnpacker::SKIP_START_WHITESPACES), sizeof(aReason));
 					if(net_addr_from_str(&Addr, aIp))

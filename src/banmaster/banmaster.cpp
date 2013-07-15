@@ -38,14 +38,14 @@ CBan* CheckBan(NETADDR *pCheck)
 	return 0;
 }
 
-int SendResponse(NETADDR *pAddr, unsigned char SequenceNumber, NETADDR *pCheck)
+int SendResponse(NETADDR *pAddr, unsigned char *SequenceNumber, NETADDR *pCheck)
 {
-	static char aIpBan[sizeof(BANMASTER_IPBAN) + 1 + NETADDR_MAXSTRSIZE + 256] = { 0 };
-	static char *pIpBanContent = aIpBan + sizeof(BANMASTER_IPBAN) + 1;
+	static char aIpBan[sizeof(BANMASTER_IPBAN) + NET_BANMASTER_NR_SIZE + NETADDR_MAXSTRSIZE + 256] = { 0 };
+	static char *pIpBanContent = aIpBan + sizeof(BANMASTER_IPBAN) + NET_BANMASTER_NR_SIZE;
 	if (!aIpBan[0])
 		mem_copy(aIpBan, BANMASTER_IPBAN, sizeof(BANMASTER_IPBAN));
 	
-	aIpBan[sizeof(BANMASTER_IPBAN)] = SequenceNumber;
+	mem_copy((unsigned char*)aIpBan + sizeof(BANMASTER_IPBAN), SequenceNumber, NET_BANMASTER_NR_SIZE);
 	
 	static CNetChunk p;
 	
@@ -57,11 +57,11 @@ int SendResponse(NETADDR *pAddr, unsigned char SequenceNumber, NETADDR *pCheck)
 	if(pBan)
 	{
 		net_addr_str(pCheck, pIpBanContent, NETADDR_MAXSTRSIZE, false);
-		char *pIpBanReason = pIpBanContent + (str_length(pIpBanContent) + 1);
+		char *pIpBanReason = pIpBanContent + (str_length(pIpBanContent) + NET_BANMASTER_NR_SIZE);
 		str_copy(pIpBanReason, pBan->m_aReason, 256);
 		
 		p.m_pData = aIpBan;
-		p.m_DataSize = sizeof(BANMASTER_IPBAN) + 1 + str_length(pIpBanContent) + 1 + str_length(pIpBanReason) + 1;
+		p.m_DataSize = sizeof(BANMASTER_IPBAN) + NET_BANMASTER_NR_SIZE + str_length(pIpBanContent) + 1 + str_length(pIpBanReason) + 1;
 		m_Net.Send(&p);
 		return 1;
 	}
@@ -224,9 +224,9 @@ int main(int argc, const char **argv) // ignore_convention
 			char aAddressStr[NETADDR_MAXSTRSIZE];
 			net_addr_str(&Packet.m_Address, aAddressStr, sizeof(aAddressStr), false);
 
-			if((unsigned)Packet.m_DataSize >= sizeof(BANMASTER_IPCHECK) + 1 && mem_comp(Packet.m_pData, BANMASTER_IPCHECK, sizeof(BANMASTER_IPCHECK)) == 0)
+			if((unsigned)Packet.m_DataSize >= sizeof(BANMASTER_IPCHECK) + NET_BANMASTER_NR_SIZE && mem_comp(Packet.m_pData, BANMASTER_IPCHECK, sizeof(BANMASTER_IPCHECK)) == 0)
 			{
-				char *pAddr = (char *)Packet.m_pData + 1 + sizeof(BANMASTER_IPCHECK);
+				char *pAddr = (char *)Packet.m_pData + NET_BANMASTER_NR_SIZE + sizeof(BANMASTER_IPCHECK);
 				NETADDR CheckAddr;
 				if(net_addr_from_str(&CheckAddr, pAddr))
 				{
@@ -236,7 +236,8 @@ int main(int argc, const char **argv) // ignore_convention
 				{
 					CheckAddr.port = 0;
 
-					unsigned char SequenceNumber = ((unsigned char *)Packet.m_pData)[sizeof(BANMASTER_IPCHECK)];
+					unsigned char SequenceNumber[NET_BANMASTER_NR_SIZE];
+					mem_copy(SequenceNumber, (unsigned char *)Packet.m_pData + sizeof(BANMASTER_IPCHECK), NET_BANMASTER_NR_SIZE);
 					int Banned = SendResponse(&Packet.m_Address, SequenceNumber, &CheckAddr);
 
 					char aBuf[NETADDR_MAXSTRSIZE];
