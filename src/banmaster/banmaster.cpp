@@ -174,7 +174,7 @@ int main(int argc, const char **argv) // ignore_convention
 	net_init();
 
 	IKernel *pKernel = IKernel::Create();
-	IStorage *pStorage = CreateStorage("Teeworlds", argc, argv); // ignore_convention
+	IStorage *pStorage = CreateStorage("Teeworlds", IStorage::STORAGETYPE_SERVER, argc, argv); // ignore_convention
 
 	m_pConsole = CreateConsole(CFGFLAG_BANMASTER);
 	m_pConsole->RegisterPrintCallback(2, StandardOutput, 0);

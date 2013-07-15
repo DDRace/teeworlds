@@ -1255,8 +1255,7 @@ void CServer::PumpNetwork()
 						return;
 					}
 
-					// TODO(heinrich5991): fix banmaster global ban addition
-					//m_NetServer.BanAdd(Addr, g_Config.m_SvGlobalBantime * 60, aReason);
+					m_ServerBan.BanAddr(&Addr, g_Config.m_SvGlobalBantime * 60, aReason);
 					dbg_msg("globalbans", "added ban, ip=%s, reason='%s'", aIp, aReason);
 				}
 			}
