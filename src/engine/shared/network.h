@@ -301,6 +301,7 @@ public:
 private:
 	NETADDR m_aBanmasters[MAX_BANMASTERS];
 	int m_aSequenceNumbers[MAX_BANMASTERS][NET_BANMASTER_NR_SIZE];
+	int64 m_aTimeouts[MAX_BANMASTERS];
 	int m_NumBanmasters;
 };
 

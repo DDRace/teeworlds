@@ -155,13 +155,18 @@ int CNetServer::Recv(CNetChunk *pChunk)
 						Packet.m_DataSize = str_length(aBuffer + sizeof(BANMASTER_IPCHECK) + NET_BANMASTER_NR_SIZE) + sizeof(BANMASTER_IPCHECK) + NET_BANMASTER_NR_SIZE + 1;
 						Packet.m_pData = aBuffer;
 
+						int64 Now = time_get();
+
 						for(int i = 0; i < m_NumBanmasters; i++)
 						{
 							Packet.m_Address = m_aBanmasters[i];
+							m_aTimeouts[i] = Now;
+
 							for(int j = 0; j < NET_BANMASTER_NR_SIZE; j++)
 							{
 								m_aSequenceNumbers[i][j] = rand() % 256;
 							}
+
 							mem_copy(aBuffer + sizeof(BANMASTER_IPCHECK), m_aSequenceNumbers[i], NET_BANMASTER_NR_SIZE);
 							Send(&Packet);
 						}
@@ -305,10 +310,17 @@ NETADDR* CNetServer::BanmasterGet(int Index)
 
 int CNetServer::BanmasterCheck(NETADDR *pAddr, unsigned char *SequenceNumber)
 {
+	int64 Timeout = time_freq();
+	int64 Now = time_get();
+
 	for(int i = 0; i < m_NumBanmasters; i++)
 	{
-		if(net_addr_comp(&m_aBanmasters[i], pAddr) == 0 && mem_comp(m_aSequenceNumbers[i], SequenceNumber, NET_BANMASTER_NR_SIZE) == 0)
+		if(net_addr_comp(&m_aBanmasters[i], pAddr) == 0 &&
+			(mem_comp(m_aSequenceNumbers[i], SequenceNumber, NET_BANMASTER_NR_SIZE) == 0) &&
+			(m_aTimeouts[i] && m_aTimeouts[i]+Timeout > Now))
+		{
 			return i;
+		}
 	}
 
 	return -1;
