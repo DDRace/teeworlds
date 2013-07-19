@@ -57,7 +57,7 @@ int SendResponse(NETADDR *pAddr, unsigned char *SequenceNumber, NETADDR *pCheck)
 	if(pBan)
 	{
 		net_addr_str(pCheck, pIpBanContent, NETADDR_MAXSTRSIZE, false);
-		char *pIpBanReason = pIpBanContent + (str_length(pIpBanContent) + NET_BANMASTER_NR_SIZE);
+		char *pIpBanReason = pIpBanContent + (str_length(pIpBanContent) + 1);
 		str_copy(pIpBanReason, pBan->m_aReason, 256);
 		
 		p.m_pData = aIpBan;
