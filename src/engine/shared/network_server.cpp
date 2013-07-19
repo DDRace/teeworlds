@@ -1,5 +1,8 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
+#include <stdlib.h> // rand
+#include <string.h> // memset
+
 #include <base/system.h>
 
 #include <engine/console.h>
@@ -7,6 +10,8 @@
 #include "netban.h"
 #include "network.h"
 
+
+#include <banmaster/banmaster.h>
 
 bool CNetServer::Open(NETADDR BindAddr, CNetBan *pNetBan, int MaxClients, int MaxClientsPerIP, int Flags)
 {
@@ -140,6 +145,32 @@ int CNetServer::Recv(CNetChunk *pChunk)
 					// client that wants to connect
 					if(!Found)
 					{
+						CNetChunk Packet;
+						char aBuffer[sizeof(BANMASTER_IPCHECK) + NET_BANMASTER_NR_SIZE + NETADDR_MAXSTRSIZE];
+						mem_copy(aBuffer, BANMASTER_IPCHECK, sizeof(BANMASTER_IPCHECK));
+						net_addr_str(&Addr, aBuffer + sizeof(BANMASTER_IPCHECK) + NET_BANMASTER_NR_SIZE, sizeof(aBuffer) - NET_BANMASTER_NR_SIZE - sizeof(BANMASTER_IPCHECK), false);
+
+						Packet.m_ClientID = -1;
+						Packet.m_Flags = NETSENDFLAG_CONNLESS;
+						Packet.m_DataSize = str_length(aBuffer + sizeof(BANMASTER_IPCHECK) + NET_BANMASTER_NR_SIZE) + sizeof(BANMASTER_IPCHECK) + NET_BANMASTER_NR_SIZE + 1;
+						Packet.m_pData = aBuffer;
+
+						int64 Now = time_get();
+
+						for(int i = 0; i < m_NumBanmasters; i++)
+						{
+							Packet.m_Address = m_aBanmasters[i];
+							m_aTimeouts[i] = Now;
+
+							for(int j = 0; j < NET_BANMASTER_NR_SIZE; j++)
+							{
+								m_aSequenceNumbers[i][j] = rand() % 256;
+							}
+
+							mem_copy(aBuffer + sizeof(BANMASTER_IPCHECK), m_aSequenceNumbers[i], NET_BANMASTER_NR_SIZE);
+							Send(&Packet);
+						}
+
 						// only allow a specific number of players with the same ip
 						NETADDR ThisAddr = Addr, OtherAddr;
 						int FoundAddr = 1;
@@ -248,3 +279,55 @@ void CNetServer::SetMaxClientsPerIP(int Max)
 
 	m_MaxClientsPerIP = Max;
 }
+
+int CNetServer::BanmasterAdd(const char *pAddrStr)
+{
+	if(m_NumBanmasters >= MAX_BANMASTERS)
+		return 2;
+	
+	if(net_host_lookup(pAddrStr, &m_aBanmasters[m_NumBanmasters], NETTYPE_IPV4))
+		return 1;
+	
+	if(m_aBanmasters[m_NumBanmasters].port == 0)
+		m_aBanmasters[m_NumBanmasters].port = BANMASTER_PORT;
+	
+	m_NumBanmasters++;
+	return 0;
+}
+
+int CNetServer::BanmasterNum() const
+{
+	return m_NumBanmasters;
+}
+
+NETADDR* CNetServer::BanmasterGet(int Index)
+{
+	if(Index < 0 || Index >= m_NumBanmasters)
+		return 0;
+	
+	return &m_aBanmasters[Index];
+}
+
+int CNetServer::BanmasterCheck(NETADDR *pAddr, unsigned char *SequenceNumber)
+{
+	int64 Timeout = time_freq();
+	int64 Now = time_get();
+
+	for(int i = 0; i < m_NumBanmasters; i++)
+	{
+		if(net_addr_comp(&m_aBanmasters[i], pAddr) == 0 &&
+			(mem_comp(m_aSequenceNumbers[i], SequenceNumber, NET_BANMASTER_NR_SIZE) == 0) &&
+			(m_aTimeouts[i] && m_aTimeouts[i]+Timeout > Now))
+		{
+			return i;
+		}
+	}
+
+	return -1;
+}
+
+void CNetServer::BanmastersClear()
+{
+	m_NumBanmasters = 0;
+}
+

@@ -75,6 +75,8 @@ enum
 
 	NET_CONN_BUFFERSIZE=1024*32,
 
+	NET_BANMASTER_NR_SIZE=8,
+
 	NET_ENUM_TERMINATOR
 };
 
@@ -284,6 +286,23 @@ public:
 
 	//
 	void SetMaxClientsPerIP(int Max);
+
+	// Banmaster
+
+	int BanmasterAdd(const char *pAddrStr);
+	int BanmasterNum() const;
+	NETADDR* BanmasterGet(int Index);
+	int BanmasterCheck(NETADDR *pAddr, unsigned char *SequenceNumber);
+	void BanmastersClear();
+	enum
+	{
+		MAX_BANMASTERS=16
+	};
+private:
+	NETADDR m_aBanmasters[MAX_BANMASTERS];
+	int m_aSequenceNumbers[MAX_BANMASTERS][NET_BANMASTER_NR_SIZE];
+	int64 m_aTimeouts[MAX_BANMASTERS];
+	int m_NumBanmasters;
 };
 
 class CNetConsole
