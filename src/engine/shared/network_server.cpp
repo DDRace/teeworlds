@@ -158,7 +158,8 @@ int CNetServer::Recv(CNetChunk *pChunk)
 						for(int i = 0; i < m_NumBanmasters; i++)
 						{
 							Packet.m_Address = m_aBanmasters[i];
-							for (int j = 0; j < NET_BANMASTER_NR_SIZE; j++) {
+							for(int j = 0; j < NET_BANMASTER_NR_SIZE; j++)
+							{
 								m_aSequenceNumbers[i][j] = rand() % 256;
 							}
 							mem_copy(aBuffer + sizeof(BANMASTER_IPCHECK), m_aSequenceNumbers[i], NET_BANMASTER_NR_SIZE);
@@ -304,7 +305,8 @@ NETADDR* CNetServer::BanmasterGet(int Index)
 
 int CNetServer::BanmasterCheck(NETADDR *pAddr, unsigned char *SequenceNumber)
 {
-	for(int i = 0; i < m_NumBanmasters; i++) {
+	for(int i = 0; i < m_NumBanmasters; i++)
+	{
 		if(net_addr_comp(&m_aBanmasters[i], pAddr) == 0 && mem_comp(m_aSequenceNumbers[i], SequenceNumber, NET_BANMASTER_NR_SIZE) == 0)
 			return i;
 	}
