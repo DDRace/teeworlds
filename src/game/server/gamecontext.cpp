@@ -74,6 +74,9 @@ CGameContext::~CGameContext()
 		delete m_apPlayers[i];
 	if(!m_Resetting)
 		delete m_pVoteOptionHeap;
+
+	if(m_pScore)
+		delete m_pScore;
 }
 
 void CGameContext::Clear()
@@ -259,8 +262,8 @@ void CGameContext::SendChat(int ChatterClientID, int Team, const char *pText, in
 	{
 		if(ProcessSpamProtection(SpamProtectionClientID))
 		{
-			SendChatTarget(SpamProtectionClientID, "Muted text:");
-			SendChatTarget(SpamProtectionClientID, pText);
+			//SendChatTarget(SpamProtectionClientID, "Muted text:");
+			//SendChatTarget(SpamProtectionClientID, pText);
 			return;
 		}
 	}
@@ -513,6 +516,9 @@ void CGameContext::OnTick()
 						GetPlayerChar(m_VoteCreator)->Team() != GetPlayerChar(i)->Team())
 						continue;
 
+					if (m_apPlayers[i]->m_Afk)
+						continue;
+
 					int ActVote = m_apPlayers[i]->m_Vote;
 					int ActVotePos = m_apPlayers[i]->m_VotePos;
 
@@ -667,8 +673,8 @@ void CGameContext::OnClientEnter(int ClientID)
 		str_format(aBuf, sizeof(aBuf), "'%s' entered and joined the %s", Server()->ClientName(ClientID), m_pController->GetTeamName(m_apPlayers[ClientID]->GetTeam()));
 		SendChat(-1, CGameContext::CHAT_ALL, aBuf);
 
-		SendChatTarget(ClientID, "DDRace Mod. Version: " GAME_VERSION);
-		SendChatTarget(ClientID, "please visit http://DDRace.info or say /info for more info");
+		SendChatTarget(ClientID, "DDraceNetwork Mod. Version: " GAME_VERSION);
+		SendChatTarget(ClientID, "please visit http://ddnet.tw or say /info for more info");
 
 		if(g_Config.m_SvWelcome[0]!=0)
 			SendChatTarget(ClientID,g_Config.m_SvWelcome);
@@ -804,23 +810,52 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 		}
 		if(pMsg->m_pMessage[0]=='/')
 		{
-			m_ChatResponseTargetID = ClientID;
-			Console()->SetFlagMask(CFGFLAG_CHAT);
-
-			if (pPlayer->m_Authed)
-				Console()->SetAccessLevel(pPlayer->m_Authed == CServer::AUTHED_ADMIN ? IConsole::ACCESS_LEVEL_ADMIN : IConsole::ACCESS_LEVEL_MOD);
+			if (str_comp_nocase_num(pMsg->m_pMessage+1, "w ", 2) == 0)
+			{
+				char pWhisperMsg[256];
+				str_copy(pWhisperMsg, pMsg->m_pMessage + 3, 256);
+				Whisper(pPlayer->GetCID(), pWhisperMsg);
+			}
+			else if (str_comp_nocase_num(pMsg->m_pMessage+1, "whisper ", 8) == 0)
+			{
+				char pWhisperMsg[256];
+				str_copy(pWhisperMsg, pMsg->m_pMessage + 9, 256);
+				Whisper(pPlayer->GetCID(), pWhisperMsg);
+			}
 			else
-				Console()->SetAccessLevel(IConsole::ACCESS_LEVEL_USER);
-			Console()->SetPrintOutputLevel(m_ChatPrintCBIndex, 0);
+			{
+				if(g_Config.m_SvSpamprotection
+					&& pPlayer->m_LastCommands[0] && pPlayer->m_LastCommands[0]+Server()->TickSpeed() > Server()->Tick()
+					&& pPlayer->m_LastCommands[1] && pPlayer->m_LastCommands[1]+Server()->TickSpeed() > Server()->Tick()
+					&& pPlayer->m_LastCommands[2] && pPlayer->m_LastCommands[2]+Server()->TickSpeed() > Server()->Tick()
+					&& pPlayer->m_LastCommands[3] && pPlayer->m_LastCommands[3]+Server()->TickSpeed() > Server()->Tick()
+				)
+					return;
 
-			Console()->ExecuteLine(pMsg->m_pMessage + 1, ClientID);
-			char aBuf[256];
-			str_format(aBuf, sizeof(aBuf), "%d used %s", ClientID, pMsg->m_pMessage);
-			Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "chat-command", aBuf);
+				int64 Now = Server()->Tick();
+				pPlayer->m_LastCommands[pPlayer->m_LastCommandPos] = Now;
+				pPlayer->m_LastCommandPos = (pPlayer->m_LastCommandPos + 1) % 4;
 
-			Console()->SetAccessLevel(IConsole::ACCESS_LEVEL_ADMIN);
-			Console()->SetFlagMask(CFGFLAG_SERVER);
-			m_ChatResponseTargetID = -1;
+				m_ChatResponseTargetID = ClientID;
+				Server()->RestrictRconOutput(ClientID);
+				Console()->SetFlagMask(CFGFLAG_CHAT);
+
+				if (pPlayer->m_Authed)
+					Console()->SetAccessLevel(pPlayer->m_Authed == CServer::AUTHED_ADMIN ? IConsole::ACCESS_LEVEL_ADMIN : IConsole::ACCESS_LEVEL_MOD);
+				else
+					Console()->SetAccessLevel(IConsole::ACCESS_LEVEL_USER);
+				Console()->SetPrintOutputLevel(m_ChatPrintCBIndex, 0);
+
+				Console()->ExecuteLine(pMsg->m_pMessage + 1, ClientID);
+				char aBuf[256];
+				str_format(aBuf, sizeof(aBuf), "%d used %s", ClientID, pMsg->m_pMessage);
+				Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "chat-command", aBuf);
+
+				Console()->SetAccessLevel(IConsole::ACCESS_LEVEL_ADMIN);
+				Console()->SetFlagMask(CFGFLAG_SERVER);
+				m_ChatResponseTargetID = -1;
+				Server()->RestrictRconOutput(-1);
+			}
 		}
 		else
 			SendChat(ClientID, Team, pMsg->m_pMessage, ClientID);
@@ -971,7 +1006,8 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				return;
 			}
 
-			if(GetPlayerChar(ClientID) && GetPlayerChar(KickID) && GetDDRaceTeam(ClientID) != GetDDRaceTeam(KickID))
+			// Don't allow kicking if a player has no character
+			if(!GetPlayerChar(ClientID) || !GetPlayerChar(KickID) || GetDDRaceTeam(ClientID) != GetDDRaceTeam(KickID))
 			{
 				SendChatTarget(ClientID, "You can kick only your team member");
 				m_apPlayers[ClientID]->m_Last_KickVote = time_get();
@@ -1011,6 +1047,12 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 				return;
 			}
 
+			if(!GetPlayerChar(ClientID) || !GetPlayerChar(SpectateID) || GetDDRaceTeam(ClientID) != GetDDRaceTeam(SpectateID))
+			{
+				SendChatTarget(ClientID, "You can only move your team member to specators");
+				return;
+			}
+
 			if(g_Config.m_SvPauseable && g_Config.m_SvVotePause)
 			{
 				str_format(aChatmsg, sizeof(aChatmsg), "'%s' called for vote to pause '%s' for %d seconds (%s)", Server()->ClientName(ClientID), Server()->ClientName(SpectateID), g_Config.m_SvVotePauseTime, pReason);
@@ -1025,7 +1067,7 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 			}
 		}
 
-		if(aCmd[0])
+		if(aCmd[0] && str_comp(aCmd,"info"))
 		{
 			SendChat(-1, CGameContext::CHAT_ALL, aChatmsg);
 			StartVote(aDesc, aCmd, pReason);
@@ -1154,7 +1196,7 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 		CNetMsg_Cl_SetSpectatorMode *pMsg = (CNetMsg_Cl_SetSpectatorMode *)pRawMsg;
 
 		if((pPlayer->GetTeam() != TEAM_SPECTATORS && !pPlayer->m_Paused) || pPlayer->m_SpectatorID == pMsg->m_SpectatorID || ClientID == pMsg->m_SpectatorID ||
-			(g_Config.m_SvSpamprotection && pPlayer->m_LastSetSpectatorMode && pPlayer->m_LastSetSpectatorMode+Server()->TickSpeed()*3 > Server()->Tick()))
+			(g_Config.m_SvSpamprotection && pPlayer->m_LastSetSpectatorMode && pPlayer->m_LastSetSpectatorMode+Server()->TickSpeed() > Server()->Tick()))
 			return;
 
 		pPlayer->m_LastSetSpectatorMode = Server()->Tick();
@@ -1452,6 +1494,8 @@ void CGameContext::ConSetTeam(IConsole::IResult *pResult, void *pUserData)
 
 	pSelf->m_apPlayers[ClientID]->m_TeamChangeTick = pSelf->Server()->Tick()+pSelf->Server()->TickSpeed()*Delay*60;
 	pSelf->m_apPlayers[ClientID]->SetTeam(Team);
+	if(Team == TEAM_SPECTATORS)
+		pSelf->m_apPlayers[ClientID]->m_Paused = CPlayer::PAUSED_NONE;
 	// (void)pSelf->m_pController->CheckTeamBalance();
 }
 
@@ -1857,6 +1901,8 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 		g_Config.m_SvOldLaser = 0;
 	}
 
+	Console()->ExecuteFile(g_Config.m_SvResetFile);
+
 	char buf[512];
 	str_format(buf, sizeof(buf), "data/maps/%s.cfg", g_Config.m_SvMap);
 	Console()->ExecuteFile(buf);
@@ -1985,6 +2031,8 @@ void CGameContext::OnInit(/*class IKernel *pKernel*/)
 			if(pSwitch)
 			{
 				Index = pSwitch[y*pTileMap->m_Width + x].m_Type;
+				// TODO: Add off by default door here
+				// if (Index == TILE_DOOR_OFF)
 				if(Index >= ENTITY_OFFSET)
 				{
 					vec2 Pos(x*32.0f+16.0f, y*32.0f+16.0f);
@@ -2197,4 +2245,120 @@ void CGameContext::ResetTuning()
 	Tuning()->Set("shotgun_speeddiff", 0);
 	Tuning()->Set("shotgun_curvature", 0);
 	SendTuningParams(-1);
+}
+
+bool CheckClientID2(int ClientID)
+{
+	dbg_assert(ClientID >= 0 || ClientID < MAX_CLIENTS,
+			"The Client ID is wrong");
+	if (ClientID < 0 || ClientID >= MAX_CLIENTS)
+		return false;
+	return true;
+}
+
+void CGameContext::Whisper(int ClientID, char *pStr)
+{
+	char *pName;
+	char *pMessage;
+	int Error = 0;
+
+	if(ProcessSpamProtection(ClientID))
+		return;
+
+	pStr = str_skip_whitespaces(pStr);
+
+	int Victim;
+
+	// add token
+	if(*pStr == '"')
+	{
+		pStr++;
+
+		pName = pStr; // we might have to process escape data
+		while(1)
+		{
+			if(pStr[0] == '"')
+				break;
+			else if(pStr[0] == '\\')
+			{
+				if(pStr[1] == '\\')
+					pStr++; // skip due to escape
+				else if(pStr[1] == '"')
+					pStr++; // skip due to escape
+			}
+			else if(pStr[0] == 0)
+				Error = 1;
+
+			pStr++;
+		}
+
+		// write null termination
+		*pStr = 0;
+		pStr++;
+
+		for(Victim = 0; Victim < MAX_CLIENTS; Victim++)
+			if (str_comp(pName, Server()->ClientName(Victim)) == 0)
+				break;
+
+	}
+	else
+	{
+		pName = pStr;
+		while(1)
+		{
+			if(pStr[0] == 0)
+			{
+				Error = 1;
+				break;
+			}
+			if(pStr[0] == ' ')
+			{
+				pStr[0] = 0;
+				for(Victim = 0; Victim < MAX_CLIENTS; Victim++)
+					if (str_comp(pName, Server()->ClientName(Victim)) == 0)
+						break;
+
+				pStr[0] = ' ';
+
+				if (Victim < MAX_CLIENTS)
+					break;
+			}
+			pStr++;
+		}
+	}
+
+	if(pStr[0] != ' ')
+	{
+		Error = 1;
+	}
+
+	*pStr = 0;
+	pStr++;
+
+	pMessage = pStr;
+
+	if (!CheckClientID2(ClientID))
+		return;
+
+	char aBuf[256];
+
+	if (Error)
+	{
+		str_format(aBuf, sizeof(aBuf), "Invalid whisper");
+		SendChatTarget(ClientID, aBuf);
+		return;
+	}
+
+	if (Victim >= MAX_CLIENTS || !CheckClientID2(Victim))
+	{
+		str_format(aBuf, sizeof(aBuf), "No player with name \"%s\" found", pName);
+		SendChatTarget(ClientID, aBuf);
+		return;
+	}
+
+	str_format(aBuf, sizeof(aBuf), "[← %s] %s", Server()->ClientName(ClientID), pMessage);
+	SendChatTarget(Victim, aBuf);
+
+	str_format(aBuf, sizeof(aBuf), "[→ %s] %s", Server()->ClientName(Victim), pMessage);
+	SendChatTarget(ClientID, aBuf);
 }

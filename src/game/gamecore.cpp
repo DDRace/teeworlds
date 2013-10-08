@@ -3,7 +3,7 @@
 #include "gamecore.h"
 
 #include <engine/shared/config.h>
-
+#include <engine/server/server.h>
 const char *CTuningParams::m_apNames[] =
 {
 	#define MACRO_TUNING_PARAM(Name,ScriptName,Value) #ScriptName,
@@ -64,19 +64,42 @@ void CCharacterCore::Init(CWorldCore *pWorld, CCollision *pCollision, CTeamsCore
 
 	m_pTeams = pTeams;
 	m_Id = -1;
+	m_Hook = true;
+	m_Collision = true;
+	m_JumpedTotal = 0;
+	m_Jumps = 2;
+}
+
+void CCharacterCore::Init(CWorldCore *pWorld, CCollision *pCollision, CTeamsCore* pTeams, std::map<int, std::vector<vec2> > pTeleOuts)
+{
+	m_pWorld = pWorld;
+	m_pCollision = pCollision;
+	m_pTeleOuts = pTeleOuts;
+
+	m_pTeams = pTeams;
+	m_Id = -1;
+	m_Hook = true;
+	m_Collision = true;
+	m_JumpedTotal = 0;
+	m_Jumps = 2;
 }
 
 void CCharacterCore::Reset()
 {
 	m_Pos = vec2(0,0);
 	m_Vel = vec2(0,0);
+	m_NewHook = false;
 	m_HookPos = vec2(0,0);
 	m_HookDir = vec2(0,0);
 	m_HookTick = 0;
 	m_HookState = HOOK_IDLE;
 	m_HookedPlayer = -1;
 	m_Jumped = 0;
+	m_JumpedTotal = 0;
+	m_Jumps = 2;
 	m_TriggeredEvents = 0;
+	m_Hook = true;
+	m_Collision = true;
 }
 
 void CCharacterCore::Tick(bool UseInput)
@@ -162,12 +185,14 @@ void CCharacterCore::Tick(bool UseInput)
 					m_TriggeredEvents |= COREEVENT_GROUND_JUMP;
 					m_Vel.y = -m_pWorld->m_Tuning.m_GroundJumpImpulse;
 					m_Jumped |= 1;
+					m_JumpedTotal = 1;
 				}
 				else if(!(m_Jumped&2))
 				{
 					m_TriggeredEvents |= COREEVENT_AIR_JUMP;
 					m_Vel.y = -m_pWorld->m_Tuning.m_AirJumpImpulse;
 					m_Jumped |= 3;
+					m_JumpedTotal++;
 				}
 			}
 		}
@@ -207,7 +232,10 @@ void CCharacterCore::Tick(bool UseInput)
 	// 1 bit = to keep track if a jump has been made on this input
 	// 2 bit = to keep track if a air-jump has been made
 	if(Grounded)
+	{
 		m_Jumped &= ~2;
+		m_JumpedTotal = 0;
+	}
 
 	// do hook
 	if(m_HookState == HOOK_IDLE)
@@ -229,7 +257,8 @@ void CCharacterCore::Tick(bool UseInput)
 	else if(m_HookState == HOOK_FLYING)
 	{
 		vec2 NewPos = m_HookPos+m_HookDir*m_pWorld->m_Tuning.m_HookFireSpeed;
-		if(distance(m_Pos, NewPos) > m_pWorld->m_Tuning.m_HookLength)
+		if((!m_NewHook && distance(m_Pos, NewPos) > m_pWorld->m_Tuning.m_HookLength)
+		|| (m_NewHook && distance(m_HookTeleBase, NewPos) > m_pWorld->m_Tuning.m_HookLength))
 		{
 			m_HookState = HOOK_RETRACT_START;
 			NewPos = m_Pos + normalize(NewPos-m_Pos) * m_pWorld->m_Tuning.m_HookLength;
@@ -239,18 +268,25 @@ void CCharacterCore::Tick(bool UseInput)
 		// make sure that the hook doesn't go though the ground
 		bool GoingToHitGround = false;
 		bool GoingToRetract = false;
-		int Hit = m_pCollision->IntersectLine(m_HookPos, NewPos, &NewPos, 0, true);
+		bool GoingThroughTele = false;
+		int teleNr = 0;
+		int Hit = m_pCollision->IntersectLineTeleHook(m_HookPos, NewPos, &NewPos, 0, &teleNr, true);
+
+		//m_NewHook = false;
+
 		if(Hit)
 		{
 			if(Hit&CCollision::COLFLAG_NOHOOK)
 				GoingToRetract = true;
+			else if (Hit&CCollision::COLFLAG_TELE)
+				GoingThroughTele = true;
 			else
 				GoingToHitGround = true;
 			m_pReset = true;
 		}
 
 		// Check against other players first
-		if(m_pWorld && m_pWorld->m_Tuning.m_PlayerHooking)
+		if(this->m_Hook && m_pWorld && m_pWorld->m_Tuning.m_PlayerHooking)
 		{
 			float Distance = 0.0f;
 			for(int i = 0; i < MAX_CLIENTS; i++)
@@ -287,7 +323,21 @@ void CCharacterCore::Tick(bool UseInput)
 				m_HookState = HOOK_RETRACT_START;
 			}
 
-			m_HookPos = NewPos;
+			if(GoingThroughTele && m_pTeleOuts[teleNr-1].size())
+			{
+				m_TriggeredEvents = 0;
+				m_HookedPlayer = -1;
+
+				m_NewHook = true;
+				int Num = m_pTeleOuts[teleNr-1].size();
+				m_HookPos = m_pTeleOuts[teleNr-1][(!Num)?Num:rand() % Num]+TargetDirection*PhysSize*1.5f;
+				m_HookDir = TargetDirection;
+        m_HookTeleBase = m_HookPos;
+			}
+			else
+			{
+				m_HookPos = NewPos;
+			}
 		}
 	}
 
@@ -362,7 +412,7 @@ void CCharacterCore::Tick(bool UseInput)
 			// handle player <-> player collision
 			float Distance = distance(m_Pos, pCharCore->m_Pos);
 			vec2 Dir = normalize(m_Pos - pCharCore->m_Pos);
-			if(m_pWorld->m_Tuning.m_PlayerCollision && Distance < PhysSize*1.25f && Distance > 0.0f)
+			if(pCharCore->m_Collision && this->m_Collision && m_pWorld->m_Tuning.m_PlayerCollision && Distance < PhysSize*1.25f && Distance > 0.0f)
 			{
 				float a = (PhysSize*1.45f - Distance);
 				float Velocity = 0.5f;
@@ -377,7 +427,7 @@ void CCharacterCore::Tick(bool UseInput)
 			}
 
 			// handle hook influence
-			if(m_HookedPlayer == i && m_pWorld->m_Tuning.m_PlayerHooking)
+			if(m_Hook && m_HookedPlayer == i && m_pWorld->m_Tuning.m_PlayerHooking)
 			{
 				if(Distance > PhysSize*1.50f) // TODO: fix tweakable variable
 				{
@@ -413,6 +463,11 @@ void CCharacterCore::Tick(bool UseInput)
 				}
 			}
 		}
+
+		if (m_HookState != HOOK_FLYING)
+		{
+			m_NewHook = false;
+		}
 	}
 
 	// clamp the velocity to something sane
@@ -431,7 +486,7 @@ void CCharacterCore::Move()
 
 	m_Vel.x = m_Vel.x*(1.0f/RampValue);
 
-	if(m_pWorld && m_pWorld->m_Tuning.m_PlayerCollision)
+	if(m_pWorld && m_pWorld->m_Tuning.m_PlayerCollision && this->m_Collision)
 	{
 		// check player collision
 		float Distance = distance(m_Pos, NewPos);
@@ -444,7 +499,7 @@ void CCharacterCore::Move()
 			for(int p = 0; p < MAX_CLIENTS; p++)
 			{
 				CCharacterCore *pCharCore = m_pWorld->m_apCharacters[p];
-				if(!pCharCore || pCharCore == this || (m_Id != -1 && !m_pTeams->CanCollide(m_Id, p)))
+				if(!pCharCore || pCharCore == this || (m_Id != -1 && !m_pTeams->CanCollide(m_Id, p)) || !pCharCore->m_Collision)
 					continue;
 				float D = distance(Pos, pCharCore->m_Pos);
 				if(D < 28.0f && D > 0.0f)

@@ -2,6 +2,7 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include <game/generated/protocol.h>
 #include <game/server/gamecontext.h>
+#include <game/server/gamemodes/DDRace.h>
 #include "projectile.h"
 
 #include <engine/shared/config.h>
@@ -153,6 +154,19 @@ void CProjectile::Tick()
 	if(m_LifeSpan == -1)
 	{
 		GameServer()->m_World.DestroyEntity(this);
+	}
+
+	int x = GameServer()->Collision()->GetIndex(PrevPos, CurPos);
+	int z;
+	if (g_Config.m_SvOldTeleportWeapons)
+		z = GameServer()->Collision()->IsTeleport(x);
+	else
+		z = GameServer()->Collision()->IsTeleportWeapon(x);
+	if (z && ((CGameControllerDDRace*)GameServer()->m_pController)->m_TeleOuts[z-1].size())
+	{
+		int Num = ((CGameControllerDDRace*)GameServer()->m_pController)->m_TeleOuts[z-1].size();
+		m_Pos = ((CGameControllerDDRace*)GameServer()->m_pController)->m_TeleOuts[z-1][(!Num)?Num:rand() % Num];
+		m_StartTick = Server()->Tick();
 	}
 }
 

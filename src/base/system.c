@@ -703,12 +703,13 @@ int net_host_lookup(const char *hostname, NETADDR *addr, int types)
 		hints.ai_family = AF_INET6;
 
 	e = getaddrinfo(host, NULL, &hints, &result);
-	if(e != 0 || !result)
+
+	if(!result || e != 0)
 		return -1;
 
 	sockaddr_to_netaddr(result->ai_addr, addr);
-	freeaddrinfo(result);
 	addr->port = port;
+	freeaddrinfo(result);
 	return 0;
 }
 
@@ -1567,21 +1568,23 @@ int str_length(const char *str)
 	return (int)strlen(str);
 }
 
-void str_format(char *buffer, int buffer_size, const char *format, ...)
+int str_format(char *buffer, int buffer_size, const char *format, ...)
 {
+	int ret;
 #if defined(CONF_FAMILY_WINDOWS)
 	va_list ap;
 	va_start(ap, format);
-	_vsnprintf(buffer, buffer_size, format, ap);
+	ret = _vsnprintf(buffer, buffer_size, format, ap);
 	va_end(ap);
 #else
 	va_list ap;
 	va_start(ap, format);
-	vsnprintf(buffer, buffer_size, format, ap);
+	ret = vsnprintf(buffer, buffer_size, format, ap);
 	va_end(ap);
 #endif
 
 	buffer[buffer_size-1] = 0; /* assure null termination */
+	return ret;
 }
 
 

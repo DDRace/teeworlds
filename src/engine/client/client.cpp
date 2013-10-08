@@ -6,8 +6,11 @@
 #include <stdarg.h>
 
 #include <base/math.h>
+#include <base/vmath.h>
 #include <base/system.h>
 #include <base/tl/threading.h>
+
+#include <game/client/gameclient.h>
 
 #include <engine/client.h>
 #include <engine/config.h>
@@ -767,14 +770,24 @@ const char *CClient::ErrorString()
 
 void CClient::Render()
 {
-	// if(g_Config.m_GfxClear)
 	if(g_Config.m_ClShowEntities && g_Config.m_ClDDRaceCheats)
-		Graphics()->Clear(0.3f,0.3f,0.6f);
+	{
+		vec3 bg = HslToRgb(vec3(g_Config.m_ClBackgroundEntitiesHue/255.0f, g_Config.m_ClBackgroundEntitiesSat/255.0f, g_Config.m_ClBackgroundEntitiesLht/255.0f));
+		Graphics()->Clear(bg.r, bg.g, bg.b);
+	}
 	else if(g_Config.m_GfxClear)
-		Graphics()->Clear(1,1,0);
+	{
+		vec3 bg = HslToRgb(vec3(g_Config.m_ClBackgroundHue/255.0f, g_Config.m_ClBackgroundSat/255.0f, g_Config.m_ClBackgroundLht/255.0f));
+		Graphics()->Clear(bg.r, bg.g, bg.b);
+	}
 
 	GameClient()->OnRender();
 	DebugRender();
+}
+
+vec3 CClient::GetColorV3(int v)
+{
+	return HslToRgb(vec3(((v>>16)&0xff)/255.0f, ((v>>8)&0xff)/255.0f, 0.5f+(v&0xff)/255.0f*0.5f));
 }
 
 const char *CClient::LoadMap(const char *pName, const char *pFilename, unsigned WantedCrc)
@@ -935,7 +948,7 @@ void CClient::ProcessConnlessPacket(CNetChunk *pPacket)
 		{
 			NETADDR Addr;
 
-			static char IPV4Mapping[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF };
+			static unsigned char IPV4Mapping[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF };
 
 			// copy address
 			if(!mem_comp(IPV4Mapping, pAddrs[i].m_aIp, sizeof(IPV4Mapping)))

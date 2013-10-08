@@ -62,6 +62,8 @@ public:
 	int m_LastChangeInfo;
 	int m_LastEmote;
 	int m_LastKill;
+	int m_LastCommands[4];
+	int m_LastCommandPos;
 
 	// TODO: clean this up
 	struct
@@ -131,10 +133,12 @@ public:
 	int m_Authed;
 	bool m_IsUsingDDRaceClient;
 	bool m_ShowOthers;
+	bool m_Afk;
 
 	int m_ChatScore;
 
 	bool AfkTimer(int new_target_x, int new_target_y); //returns true if kicked
+	void AfkVoteTimer(int new_target_x, int new_target_y);
 	int64 m_LastPlaytime;
 	int64 m_LastEyeEmote;
 	int m_LastTarget_x;

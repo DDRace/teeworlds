@@ -2,6 +2,7 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include <game/generated/protocol.h>
 #include <game/server/gamecontext.h>
+#include <game/server/gamemodes/DDRace.h>
 #include "laser.h"
 
 #include <engine/shared/config.h>
@@ -16,6 +17,8 @@ CLaser::CLaser(CGameWorld *pGameWorld, vec2 Pos, vec2 Direction, float StartEner
 	m_Dir = Direction;
 	m_Bounces = 0;
 	m_EvalTick = 0;
+	m_TelePos = vec2(0,0);
+	m_WasTele = false;
 	m_Type = Type;
 	GameWorld()->InsertEntity(this);
 	DoBounce();
@@ -28,11 +31,12 @@ bool CLaser::HitCharacter(vec2 From, vec2 To)
 	vec2 At;
 	CCharacter *pOwnerChar = GameServer()->GetPlayerChar(m_Owner);
 	CCharacter *pHit;
+	bool pDontHitSelf = g_Config.m_SvOldLaser || (m_Bounces == 0 && !m_WasTele);
 
 	if(pOwnerChar ? (!(pOwnerChar->m_Hit&CCharacter::DISABLE_HIT_RIFLE) && m_Type == WEAPON_RIFLE) || (!(pOwnerChar->m_Hit&CCharacter::DISABLE_HIT_SHOTGUN) && m_Type == WEAPON_SHOTGUN) : g_Config.m_SvHit)
-		pHit = GameServer()->m_World.IntersectCharacter(m_Pos, To, 0.f, At, g_Config.m_SvOldLaser || m_Bounces == 0 ? pOwnerChar : 0, m_Owner);
+		pHit = GameServer()->m_World.IntersectCharacter(m_Pos, To, 0.f, At, pDontHitSelf ? pOwnerChar : 0, m_Owner);
 	else
-		pHit = GameServer()->m_World.IntersectCharacter(m_Pos, To, 0.f, At, g_Config.m_SvOldLaser || m_Bounces == 0 ? pOwnerChar : 0, m_Owner, pOwnerChar);
+		pHit = GameServer()->m_World.IntersectCharacter(m_Pos, To, 0.f, At, pDontHitSelf ? pOwnerChar : 0, m_Owner, pOwnerChar);
 
 	if(!pHit || (pHit == pOwnerChar && g_Config.m_SvOldLaser) || (pHit != pOwnerChar && pOwnerChar ? (pOwnerChar->m_Hit&CCharacter::DISABLE_HIT_RIFLE  && m_Type == WEAPON_RIFLE) || (pOwnerChar->m_Hit&CCharacter::DISABLE_HIT_SHOTGUN && m_Type == WEAPON_SHOTGUN) : !g_Config.m_SvHit))
 		return false;
@@ -73,11 +77,21 @@ void CLaser::DoBounce()
 		return;
 	}
 	m_PrevPos = m_Pos;
-	vec2 To = m_Pos + m_Dir * m_Energy;
 	vec2 Coltile;
 
 	int Res;
-	Res = GameServer()->Collision()->IntersectLine(m_Pos, To, &Coltile, &To,false);
+	int z;
+
+	if (m_WasTele)
+	{
+		m_PrevPos = m_TelePos;
+		m_Pos = m_TelePos;
+		m_TelePos = vec2(0,0);
+	}
+
+	vec2 To = m_Pos + m_Dir * m_Energy;
+
+	Res = GameServer()->Collision()->IntersectLineTeleWeapon(m_Pos, To, &Coltile, &To, &z, false);
 
 	if(Res)
 	{
@@ -105,7 +119,18 @@ void CLaser::DoBounce()
 			m_Dir = normalize(TempDir);
 
 			m_Energy -= distance(m_From, m_Pos) + GameServer()->Tuning()->m_LaserBounceCost;
-			m_Bounces++;
+
+			if (Res&CCollision::COLFLAG_TELE && ((CGameControllerDDRace*)GameServer()->m_pController)->m_TeleOuts[z-1].size())
+			{
+				int Num = ((CGameControllerDDRace*)GameServer()->m_pController)->m_TeleOuts[z-1].size();
+				m_TelePos = ((CGameControllerDDRace*)GameServer()->m_pController)->m_TeleOuts[z-1][(!Num)?Num:rand() % Num];
+				m_WasTele = true;
+			}
+			else
+			{
+				m_Bounces++;
+				m_WasTele = false;
+			}
 
 			if(m_Bounces > GameServer()->Tuning()->m_LaserBounceNum)
 				m_Energy = -1;

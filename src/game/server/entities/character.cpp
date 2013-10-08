@@ -71,7 +71,7 @@ bool CCharacter::Spawn(CPlayer *pPlayer, vec2 Pos)
 	m_Pos = Pos;
 
 	m_Core.Reset();
-	m_Core.Init(&GameServer()->m_World.m_Core, GameServer()->Collision(), &((CGameControllerDDRace*)GameServer()->m_pController)->m_Teams.m_Core);
+	m_Core.Init(&GameServer()->m_World.m_Core, GameServer()->Collision(), &((CGameControllerDDRace*)GameServer()->m_pController)->m_Teams.m_Core, ((CGameControllerDDRace*)GameServer()->m_pController)->m_TeleOuts);
 	m_Core.m_Pos = m_Pos;
 	GameServer()->m_World.m_Core.m_apCharacters[m_pPlayer->GetCID()] = &m_Core;
 
@@ -165,10 +165,22 @@ void CCharacter::HandleNinja()
 			vec2 Center = OldPos + Dir * 0.5f;
 			int Num = GameServer()->m_World.FindEntities(Center, Radius, (CEntity**)aEnts, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
 
+			// check that we're not in solo part
+			if (Teams()->m_Core.GetSolo(m_pPlayer->GetCID()))
+				return;
+
 			for (int i = 0; i < Num; ++i)
 			{
 				if (aEnts[i] == this)
 					continue;
+
+				// Don't hit players in other teams
+				if (Team() != aEnts[i]->Team())
+					continue;
+
+				// Don't hit players in solo parts
+				if (Teams()->m_Core.GetSolo(aEnts[i]->m_pPlayer->GetCID()))
+					return;
 
 				// make sure we haven't Hit this object before
 				bool bAlreadyHit = false;
@@ -651,7 +663,7 @@ void CCharacter::TickDefered()
 	// advance the dummy
 	{
 		CWorldCore TempWorld;
-		m_ReckoningCore.Init(&TempWorld, GameServer()->Collision(), &((CGameControllerDDRace*)GameServer()->m_pController)->m_Teams.m_Core);
+		m_ReckoningCore.Init(&TempWorld, GameServer()->Collision(), &((CGameControllerDDRace*)GameServer()->m_pController)->m_Teams.m_Core, ((CGameControllerDDRace*)GameServer()->m_pController)->m_TeleOuts);
 		m_ReckoningCore.m_Id = m_pPlayer->GetCID();
 		m_ReckoningCore.Tick(false);
 		m_ReckoningCore.Move();
@@ -781,6 +793,16 @@ void CCharacter::Die(int Killer, int Weapon)
 	Msg.m_Weapon = Weapon;
 	Msg.m_ModeSpecial = ModeSpecial;
 	Server()->SendPackMsg(&Msg, MSGFLAG_VITAL, -1);
+
+	// reset switches if we are the last player in team to prevent door opening cheat:
+	// https://github.com/DDRace/teeworlds/issues/190
+	if (Team() > TEAM_FLOCK && Team() < TEAM_SUPER && Teams()->Count(Team()) == 1 && GameServer()->Collision()->m_NumSwitchers > 0) {
+		for (int i = 0; i < GameServer()->Collision()->m_NumSwitchers+1; ++i) {
+			GameServer()->Collision()->m_pSwitchers[i].m_Status[Team()] = true;
+			GameServer()->Collision()->m_pSwitchers[i].m_EndTick[Team()] = 0;
+			GameServer()->Collision()->m_pSwitchers[i].m_Type[Team()] = TILE_SWITCHOPEN;
+		}
+	}
 
 	// a nice sound
 	GameServer()->CreateSound(m_Pos, SOUND_PLAYER_DIE, Teams()->TeamMask(Team(), -1, m_pPlayer->GetCID()));
@@ -1270,7 +1292,9 @@ void CCharacter::HandleTiles(int Index)
 
 		}
 
+
 	}
+
 	if(((m_TileIndex == TILE_END) || (m_TileFIndex == TILE_END) || FTile1 == TILE_END || FTile2 == TILE_END || FTile3 == TILE_END || FTile4 == TILE_END || Tile1 == TILE_END || Tile2 == TILE_END || Tile3 == TILE_END || Tile4 == TILE_END) && m_DDRaceState == DDRACE_STARTED)
 		Controller->m_Teams.OnCharacterFinish(m_pPlayer->GetCID());
 	if(((m_TileIndex == TILE_FREEZE) || (m_TileFIndex == TILE_FREEZE)) && !m_Super && !m_DeepFreeze)
@@ -1296,10 +1320,40 @@ void CCharacter::HandleTiles(int Index)
 		GameServer()->SendChatTarget(GetPlayer()->GetCID(), "You can hit others");
 		m_Hit = HIT_ALL;
 	}
+	else if(((m_TileIndex == TILE_NPC_START) || (m_TileFIndex == TILE_NPC_START)) && !m_Core.m_Collision)
+	{
+		GameServer()->SendChatTarget(GetPlayer()->GetCID(),"You can collide with others");
+		m_Core.m_Collision = true;
+	}
+	else if(((m_TileIndex == TILE_SUPER_START) || (m_TileFIndex == TILE_SUPER_START)) && !m_SuperJump)
+	{
+		GameServer()->SendChatTarget(GetPlayer()->GetCID(),"You have infinite air jumps");
+		m_SuperJump = true;
+	}
+	else if(((m_TileIndex == TILE_NPH_START) || (m_TileFIndex == TILE_NPH_START)) && !m_Core.m_Hook)
+	{
+		GameServer()->SendChatTarget(GetPlayer()->GetCID(),"You can hook others");
+		m_Core.m_Hook = true;
+	}
 	else if(((m_TileIndex == TILE_HIT_END) || (m_TileFIndex == TILE_HIT_END)) && m_Hit != (DISABLE_HIT_GRENADE|DISABLE_HIT_HAMMER|DISABLE_HIT_RIFLE|DISABLE_HIT_SHOTGUN))
 	{
 		GameServer()->SendChatTarget(GetPlayer()->GetCID(), "You can't hit others");
 		m_Hit = DISABLE_HIT_GRENADE|DISABLE_HIT_HAMMER|DISABLE_HIT_RIFLE|DISABLE_HIT_SHOTGUN;
+	}
+	else if(((m_TileIndex == TILE_NPC_END) || (m_TileFIndex == TILE_NPC_END)) && m_Core.m_Collision)
+	{
+		GameServer()->SendChatTarget(GetPlayer()->GetCID(), "You can't collide with others");
+		m_Core.m_Collision = false;
+	}
+	else if(((m_TileIndex == TILE_SUPER_END) || (m_TileFIndex == TILE_SUPER_END)) && m_SuperJump)
+	{
+		GameServer()->SendChatTarget(GetPlayer()->GetCID(), "You don't have infinite air jumps");
+		m_SuperJump = false;
+	}
+	else if(((m_TileIndex == TILE_NPH_END) || (m_TileFIndex == TILE_NPH_END)) && m_Core.m_Hook)
+	{
+		GameServer()->SendChatTarget(GetPlayer()->GetCID(), "You can't hook others");
+		m_Core.m_Hook = false;
 	}
 	if(((m_TileIndex == TILE_SOLO_START) || (m_TileFIndex == TILE_SOLO_START)) && !Teams()->m_Core.GetSolo(m_pPlayer->GetCID()))
 	{
@@ -1313,7 +1367,7 @@ void CCharacter::HandleTiles(int Index)
 	}
 	if(((m_TileIndex == TILE_STOP && m_TileFlags == ROTATION_270) || (m_TileIndexL == TILE_STOP && m_TileFlagsL == ROTATION_270) || (m_TileIndexL == TILE_STOPS && (m_TileFlagsL == ROTATION_90 || m_TileFlagsL ==ROTATION_270)) || (m_TileIndexL == TILE_STOPA) || (m_TileFIndex == TILE_STOP && m_TileFFlags == ROTATION_270) || (m_TileFIndexL == TILE_STOP && m_TileFFlagsL == ROTATION_270) || (m_TileFIndexL == TILE_STOPS && (m_TileFFlagsL == ROTATION_90 || m_TileFFlagsL == ROTATION_270)) || (m_TileFIndexL == TILE_STOPA) || (m_TileSIndex == TILE_STOP && m_TileSFlags == ROTATION_270) || (m_TileSIndexL == TILE_STOP && m_TileSFlagsL == ROTATION_270) || (m_TileSIndexL == TILE_STOPS && (m_TileSFlagsL == ROTATION_90 || m_TileSFlagsL == ROTATION_270)) || (m_TileSIndexL == TILE_STOPA)) && m_Core.m_Vel.x > 0)
 	{
-		if((int)GameServer()->Collision()->GetPos(MapIndexL).x)
+		
 			if((int)GameServer()->Collision()->GetPos(MapIndexL).x < (int)m_Core.m_Pos.x)
 				m_Core.m_Pos = m_PrevPos;
 		m_Core.m_Vel.x = 0;
@@ -1340,7 +1394,9 @@ void CCharacter::HandleTiles(int Index)
 				m_Core.m_Pos = m_PrevPos;
 		m_Core.m_Vel.y = 0;
 		m_Core.m_Jumped = 0;
+		m_Core.m_JumpedTotal = 0;
 	}
+
 	// handle switch tiles
 	if(GameServer()->Collision()->IsSwitch(MapIndex) == TILE_SWITCHOPEN && Team() != TEAM_SUPER)
 	{
@@ -1418,8 +1474,21 @@ void CCharacter::HandleTiles(int Index)
 		GameServer()->SendChatTarget(GetPlayer()->GetCID(),"You can't shoot others with rifle");
 		m_Hit |= DISABLE_HIT_RIFLE;
 	}
+	else if(GameServer()->Collision()->IsSwitch(MapIndex) == TILE_JUMP)
+	{
+		int newJumps = GameServer()->Collision()->GetSwitchDelay(MapIndex);
+
+		if (newJumps != m_Core.m_Jumps)
+		{
+			char aBuf[256];
+			str_format(aBuf, sizeof(aBuf), "You can jump %d times", newJumps);
+			GameServer()->SendChatTarget(GetPlayer()->GetCID(),aBuf);
+			m_Core.m_Jumps = newJumps;
+		}
+	}
+
 	int z = GameServer()->Collision()->IsTeleport(MapIndex);
-	if(z && Controller->m_TeleOuts[z-1].size())
+	if(!g_Config.m_SvOldTeleportHook && !g_Config.m_SvOldTeleportWeapons && z && Controller->m_TeleOuts[z-1].size())
 	{
 		m_Core.m_HookedPlayer = -1;
 		m_Core.m_HookState = HOOK_RETRACTED;
@@ -1433,15 +1502,18 @@ void CCharacter::HandleTiles(int Index)
 	int evilz = GameServer()->Collision()->IsEvilTeleport(MapIndex);
 	if(evilz && !m_Super && Controller->m_TeleOuts[evilz-1].size())
 	{
-		m_Core.m_HookedPlayer = -1;
-		m_Core.m_HookState = HOOK_RETRACTED;
-		m_Core.m_TriggeredEvents |= COREEVENT_HOOK_RETRACT;
-		m_Core.m_HookState = HOOK_RETRACTED;
-		GameWorld()->ReleaseHooked(GetPlayer()->GetCID());
 		int Num = Controller->m_TeleOuts[evilz-1].size();
 		m_Core.m_Pos = Controller->m_TeleOuts[evilz-1][(!Num)?Num:rand() % Num];
-		m_Core.m_HookPos = m_Core.m_Pos;
-		m_Core.m_Vel = vec2(0,0);
+		if (!g_Config.m_SvOldTeleportHook && !g_Config.m_SvOldTeleportWeapons)
+		{
+			m_Core.m_HookedPlayer = -1;
+			m_Core.m_HookState = HOOK_RETRACTED;
+			m_Core.m_TriggeredEvents |= COREEVENT_HOOK_RETRACT;
+			m_Core.m_HookState = HOOK_RETRACTED;
+			GameWorld()->ReleaseHooked(GetPlayer()->GetCID());
+			m_Core.m_Vel = vec2(0,0);
+			m_Core.m_HookPos = m_Core.m_Pos;
+		}
 		return;
 	}
 	if(GameServer()->Collision()->IsCheckTeleport(MapIndex))
@@ -1520,7 +1592,14 @@ void CCharacter::DDRacePostCoreTick()
 		if (m_DeepFreeze && !m_Super)
 			Freeze();
 
-		if (m_Super && m_Core.m_Jumped > 1)
+		if (m_Core.m_Jumps == 0 && !m_Super)
+			m_Core.m_Jumped = 3;
+		else if (m_Core.m_Jumps == 1 && m_Core.m_Jumped > 0)
+			m_Core.m_Jumped = 3;
+		else if (m_Core.m_JumpedTotal < m_Core.m_Jumps - 1 && m_Core.m_Jumped > 1)
+			m_Core.m_Jumped = 1;
+
+		if ((m_Super || m_SuperJump) && m_Core.m_Jumped > 1)
 			m_Core.m_Jumped = 1;
 
 		int CurrentIndex = GameServer()->Collision()->GetMapIndex(m_Pos);
@@ -1630,4 +1709,6 @@ void CCharacter::DDRaceInit()
 	m_TeleCheckpoint = 0;
 	m_EndlessHook = g_Config.m_SvEndlessDrag;
 	m_Hit = g_Config.m_SvHit ? HIT_ALL : DISABLE_HIT_GRENADE|DISABLE_HIT_HAMMER|DISABLE_HIT_RIFLE|DISABLE_HIT_SHOTGUN;
+	m_SuperJump = false;
+	m_Core.m_Jumps = 2;
 }

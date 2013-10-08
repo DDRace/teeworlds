@@ -118,6 +118,9 @@ public:
 		int m_Latency;
 		int m_SnapRate;
 
+		float m_Traffic;
+		int64 m_TrafficSince;
+
 		int m_LastAckedSnapshot;
 		int m_LastInputTick;
 		CSnapshotStorage m_Snapshots;
@@ -168,6 +171,8 @@ public:
 	CDemoRecorder m_DemoRecorder;
 	CRegister m_Register;
 	CMapChecker m_MapChecker;
+
+	int m_RconRestrict;
 
 	CServer();
 
@@ -229,6 +234,7 @@ public:
 	void InitRegister(CNetServer *pNetServer, IEngineMasterServer *pMasterServer, IConsole *pConsole);
 	int Run();
 
+	static void ConTestingCommands(IConsole::IResult *pResult, void *pUser);
 	static void ConKick(IConsole::IResult *pResult, void *pUser);
 	static void ConStatus(IConsole::IResult *pResult, void *pUser);
 	static void ConShutdown(IConsole::IResult *pResult, void *pUser);
@@ -255,6 +261,7 @@ public:
 	int m_aPrevStates[MAX_CLIENTS];
 	char *GetAnnouncementLine(char const *FileName);
 	unsigned m_AnnouncementLastLine;
+	void RestrictRconOutput(int ClientID) { m_RconRestrict = ClientID; }
 };
 
 #endif

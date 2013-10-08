@@ -26,8 +26,8 @@ void CGameTeams::OnCharacterStart(int ClientID)
 	CCharacter* pStartingChar = Character(ClientID);
 	if (!pStartingChar)
 		return;
-	if (pStartingChar->m_DDRaceState == DDRACE_FINISHED)
-		pStartingChar->m_DDRaceState = DDRACE_NONE;
+	if (m_Core.Team(ClientID) != TEAM_FLOCK && pStartingChar->m_DDRaceState == DDRACE_FINISHED)
+		return;
 	if (m_Core.Team(ClientID) == TEAM_FLOCK
 			|| m_Core.Team(ClientID) == TEAM_SUPER)
 	{
@@ -110,6 +110,10 @@ void CGameTeams::OnCharacterFinish(int ClientID)
 		{
 			ChangeTeamState(m_Core.Team(ClientID), TEAMSTATE_FINISHED); //TODO: Make it better
 			//ChangeTeamState(m_Core.Team(ClientID), TEAMSTATE_OPEN);
+
+			CPlayer *TeamPlayers[MAX_CLIENTS];
+			unsigned int PlayersCount = 0;
+
 			for (int i = 0; i < MAX_CLIENTS; ++i)
 			{
 				if (m_Core.Team(ClientID) == m_Core.Team(i))
@@ -119,9 +123,13 @@ void CGameTeams::OnCharacterFinish(int ClientID)
 					{
 						OnFinish(pPlayer);
 						m_TeeFinished[i] = false;
+
+						TeamPlayers[PlayersCount++] = pPlayer;
 					}
 				}
 			}
+
+			OnTeamFinish(TeamPlayers, PlayersCount);
 
 		}
 	}
@@ -143,14 +151,9 @@ bool CGameTeams::SetCharacterTeam(int ClientID, int Team)
 	if (Team == TEAM_SUPER && !Character(ClientID)->m_Super)
 		return false;
 	//if you begin race
-	if (Character(ClientID)->m_DDRaceState != DDRACE_NONE)
-	{
-		//you will be killed if you try to join FLOCK
-		if (Team == TEAM_FLOCK && m_Core.Team(ClientID) != TEAM_FLOCK)
-			GetPlayer(ClientID)->KillCharacter(WEAPON_GAME);
-		else if (Team != TEAM_SUPER)
-			return false;
-	}
+	if (Character(ClientID)->m_DDRaceState != DDRACE_NONE && Team != TEAM_SUPER)
+		return false;
+
 	SetForceCharacterTeam(ClientID, Team);
 
 	//GameServer()->CreatePlayerSpawn(Character(id)->m_Core.m_Pos, TeamMask());
@@ -329,6 +332,30 @@ float *CGameTeams::GetCpCurrent(CPlayer* Player)
 	if (pChar)
 		return pChar->m_CpCurrent;
 	return NULL;
+}
+
+void CGameTeams::OnTeamFinish(CPlayer** Players, unsigned int Size)
+{
+	float time = (float) (Server()->Tick() - GetStartTime(Players[0]))
+			/ ((float) Server()->TickSpeed());
+	if (time < 0.000001f)
+		return;
+
+	bool CallSaveScore = false;
+
+#if defined(CONF_SQL)
+	CallSaveScore = g_Config.m_SvUseSQL;
+#endif
+
+	int PlayerCIDs[MAX_CLIENTS];
+
+	for(unsigned int i = 0; i < Size; i++)
+	{
+		PlayerCIDs[i] = Players[i]->GetCID();
+	}
+
+	if (CallSaveScore)
+		GameServer()->Score()->SaveTeamScore(PlayerCIDs, Size, time);
 }
 
 void CGameTeams::OnFinish(CPlayer* Player)

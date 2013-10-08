@@ -693,6 +693,10 @@ int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int Storag
 									((CLayerTiles*)pTiles)->m_pTiles[i].m_Index = TILE_TELECHECKIN;
 								else if(((CLayerTele*)pTiles)->m_pTeleTile[i].m_Type == TILE_TELECHECKOUT)
 									((CLayerTiles*)pTiles)->m_pTiles[i].m_Index = TILE_TELECHECKOUT;
+								else if(((CLayerTele*)pTiles)->m_pTeleTile[i].m_Type == TILE_TELEINWEAPON)
+									((CLayerTiles*)pTiles)->m_pTiles[i].m_Index = TILE_TELEINWEAPON;
+								else if(((CLayerTele*)pTiles)->m_pTeleTile[i].m_Type == TILE_TELEINHOOK)
+									((CLayerTiles*)pTiles)->m_pTiles[i].m_Index = TILE_TELEINHOOK;
 								else
 									((CLayerTiles*)pTiles)->m_pTiles[i].m_Index = 0;
 							}
@@ -777,6 +781,11 @@ int CEditorMap::Load(class IStorage *pStorage, const char *pFileName, int Storag
 								else if(((CLayerSwitch*)pTiles)->m_pSwitchTile[i].m_Type == TILE_HIT_END)
 								{
 									((CLayerTiles*)pTiles)->m_pTiles[i].m_Index = TILE_HIT_END;
+									((CLayerTiles*)pTiles)->m_pTiles[i].m_Flags = ((CLayerSwitch*)pTiles)->m_pSwitchTile[i].m_Flags;
+								}
+								else if(((CLayerSwitch*)pTiles)->m_pSwitchTile[i].m_Type == TILE_JUMP)
+								{
+									((CLayerTiles*)pTiles)->m_pTiles[i].m_Index = TILE_JUMP;
 									((CLayerTiles*)pTiles)->m_pTiles[i].m_Flags = ((CLayerSwitch*)pTiles)->m_pSwitchTile[i].m_Flags;
 								}
 							}

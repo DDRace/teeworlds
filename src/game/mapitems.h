@@ -93,11 +93,14 @@ enum
 	TILE_NOHOOK,
 	TILE_NOLASER,
 	TILE_THROUGH = 6,
+	TILE_JUMP,
 	TILE_FREEZE = 9,
 	TILE_TELEINEVIL,
 	TILE_UNFREEZE,
 	TILE_DFREEZE,
 	TILE_DUNFREEZE,
+	TILE_TELEINWEAPON,
+	TILE_TELEINHOOK,
 	TILE_EHOOK_START = 17,
 	TILE_EHOOK_END,
 	TILE_HIT_START,
@@ -126,7 +129,13 @@ enum
 	TILE_NPC,
 	TILE_EHOOK,
 	TILE_NOHIT,
-	TILE_NPH,//Remember to change this in collision.cpp if you add anymore tiles
+	TILE_NPH,
+	TILE_NPC_END = 88,
+	TILE_SUPER_END,
+	TILE_NPH_END = 91,
+	TILE_NPC_START = 104,
+	TILE_SUPER_START,
+	TILE_NPH_START = 107,//Remember to change this in collision.cpp if you add anymore tiles
 	//End of higher tiles
 	//Layers
 	LAYER_GAME=0,

@@ -144,6 +144,11 @@ function build(settings)
 	--settings.objdir = Path("objs")
 	settings.cc.Output = Intermediate_Output
 
+	--settings.cc.flags:Add("-m32")
+	--settings.link.flags:Add("-m32")
+	settings.link.flags:Add("-static-libgcc")
+	settings.link.flags:Add("-static-libstdc++")
+
 	cflags = os.getenv("CFLAGS")
 	if cflags then
 		settings.cc.flags:Add(cflags)
@@ -179,8 +184,11 @@ function build(settings)
 		if platform == "macosx" then
 			settings.link.frameworks:Add("Carbon")
 			settings.link.frameworks:Add("AppKit")
+			settings.link.libs:Add("dl")
 		else
 			settings.link.libs:Add("pthread")
+			settings.link.libs:Add("dl")
+			settings.link.libs:Add("rt")
 		end
 		
 		if platform == "solaris" then

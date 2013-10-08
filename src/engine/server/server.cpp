@@ -34,6 +34,7 @@
 
 #include "register.h"
 #include "server.h"
+#include "fifoconsole.h"
 
 #if defined(CONF_FAMILY_WINDOWS)
 	#define _WIN32_WINNT 0x0501
@@ -312,6 +313,8 @@ CServer::CServer() : m_DemoRecorder(&m_SnapshotDelta)
 	m_RconClientID = IServer::RCON_CID_SERV;
 	m_RconAuthLevel = AUTHED_ADMIN;
 
+	m_RconRestrict = -1;
+
 	Init();
 }
 
@@ -443,6 +446,8 @@ int CServer::Init()
 		m_aClients[i].m_aClan[0] = 0;
 		m_aClients[i].m_Country = -1;
 		m_aClients[i].m_Snapshots.Init();
+		m_aClients[i].m_Traffic = 0;
+		m_aClients[i].m_TrafficSince = 0;
 	}
 
 	m_CurrentGameTick = 0;
@@ -553,7 +558,7 @@ int CServer::SendMsgEx(CMsgPacker *pMsg, int Flags, int ClientID, bool System)
 		Packet.m_Flags |= NETSENDFLAG_FLUSH;
 
 	// write message to demo recorder
-	if(!(Flags&MSGFLAG_NORECORD))
+	if(m_DemoRecorder.IsRecording() && !(Flags&MSGFLAG_NORECORD))
 		m_DemoRecorder.RecordMessage(pMsg->Data(), pMsg->Size());
 
 	if(!(Flags&MSGFLAG_NOSEND))
@@ -718,6 +723,8 @@ int CServer::NewClientCallback(int ClientID, void *pUser)
 	pThis->m_aClients[ClientID].m_Authed = AUTHED_NO;
 	pThis->m_aClients[ClientID].m_AuthTries = 0;
 	pThis->m_aClients[ClientID].m_pRconCmdToSend = 0;
+	pThis->m_aClients[ClientID].m_Traffic = 0;
+	pThis->m_aClients[ClientID].m_TrafficSince = 0;
 	pThis->m_aClients[ClientID].Reset();
 	return 0;
 }
@@ -743,6 +750,8 @@ int CServer::DelClientCallback(int ClientID, const char *pReason, void *pUser)
 	pThis->m_aClients[ClientID].m_Authed = AUTHED_NO;
 	pThis->m_aClients[ClientID].m_AuthTries = 0;
 	pThis->m_aClients[ClientID].m_pRconCmdToSend = 0;
+	pThis->m_aClients[ClientID].m_Traffic = 0;
+	pThis->m_aClients[ClientID].m_TrafficSince = 0;
 	pThis->m_aPrevStates[ClientID] = CClient::STATE_EMPTY;
 	pThis->m_aClients[ClientID].m_Snapshots.PurgeAll();
 	return 0;
@@ -788,7 +797,7 @@ void CServer::SendRconLineAuthed(const char *pLine, void *pUser)
 
 	for(i = 0; i < MAX_CLIENTS; i++)
 	{
-		if(pThis->m_aClients[i].m_State != CClient::STATE_EMPTY && pThis->m_aClients[i].m_Authed >= pThis->m_RconAuthLevel)
+		if(pThis->m_aClients[i].m_State != CClient::STATE_EMPTY && pThis->m_aClients[i].m_Authed >= pThis->m_RconAuthLevel && (pThis->m_RconRestrict == -1 || pThis->m_RconRestrict == i))
 			pThis->SendRconLine(i, pLine);
 	}
 
@@ -839,6 +848,25 @@ void CServer::ProcessClientPacket(CNetChunk *pPacket)
 
 	if(Unpacker.Error())
 		return;
+
+	if(g_Config.m_SvNetlimit && Msg != NETMSG_REQUEST_MAP_DATA)
+	{
+		int64 Now = time_get();
+		int64 Diff = Now - m_aClients[ClientID].m_TrafficSince;
+		float Alpha = g_Config.m_SvNetlimitAlpha / 100.0;
+		float Limit = (float) g_Config.m_SvNetlimit * 1024 / time_freq();
+
+		if (m_aClients[ClientID].m_Traffic > Limit)
+		{
+			m_NetServer.NetBan()->BanAddr(&pPacket->m_Address, 60, "Stressing network");
+			return;
+		}
+		if (Diff > 100)
+		{
+			m_aClients[ClientID].m_Traffic = (Alpha * ((float) pPacket->m_DataSize / Diff)) + (1.0 - Alpha) * m_aClients[ClientID].m_Traffic;
+			m_aClients[ClientID].m_TrafficSince = Now;
+		}
+	}
 
 	if(Sys)
 	{
@@ -1532,6 +1560,13 @@ int CServer::Run()
 	return 0;
 }
 
+void CServer::ConTestingCommands(CConsole::IResult *pResult, void *pUser)
+{
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), "Value: %d", g_Config.m_SvTestingCommands);
+	((CConsole*)pUser)->Print(CConsole::OUTPUT_LEVEL_STANDARD, "Console", aBuf);
+}
+
 void CServer::ConKick(IConsole::IResult *pResult, void *pUser)
 {
 	if(pResult->NumArguments() > 1)
@@ -1810,16 +1845,25 @@ int main(int argc, const char **argv) // ignore_convention
 	if(argc > 1) // ignore_convention
 		pConsole->ParseArguments(argc-1, &argv[1]); // ignore_convention
 
+	pConsole->Register("sv_test_cmds", "", CFGFLAG_SERVER|CFGFLAG_CLIENT, CServer::ConTestingCommands, pConsole, "Turns testing commands aka cheats on/off");
+
 	// restore empty config strings to their defaults
 	pConfig->RestoreStrings();
 
 	pEngine->InitLogfile();
+
+#if defined(CONF_FAMILY_UNIX)
+	FifoConsole *fifoConsole = new FifoConsole(pConsole);
+#endif
 
 	// run the server
 	dbg_msg("server", "starting...");
 	pServer->Run();
 
 	// free
+#if defined(CONF_FAMILY_UNIX)
+	delete fifoConsole;
+#endif
 	delete pServer;
 	delete pKernel;
 	delete pEngineMap;
