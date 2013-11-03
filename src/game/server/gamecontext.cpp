@@ -804,6 +804,13 @@ void CGameContext::OnMessage(int MsgID, CUnpacker *pUnpacker, int ClientID)
 		}
 		if(pMsg->m_pMessage[0]=='/')
 		{
+			if(ProcessSpamProtection(ClientID))
+			{
+				SendChatTarget(ClientID, "Muted text:");
+				SendChatTarget(ClientID, pMsg->m_pMessage);
+				return;
+			}
+
 			m_ChatResponseTargetID = ClientID;
 			Console()->SetFlagMask(CFGFLAG_CHAT);
 
