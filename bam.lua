@@ -8,6 +8,8 @@ Import("other/freetype/freetype.lua")
 config = NewConfig()
 config:Add(OptCCompiler("compiler"))
 config:Add(OptTestCompileC("stackprotector", "int main(){return 0;}", "-fstack-protector -fstack-protector-all"))
+config:Add(OptTestCompileC("minmacosxsdk", "int main(){return 0;}", "-mmacosx-version-min=10.5 -isysroot /Developer/SDKs/MacOSX10.5.sdk"))
+config:Add(OptTestCompileC("macosxppc", "int main(){return 0;}", "-arch ppc"))
 config:Add(OptLibrary("zlib", "zlib.h", false))
 config:Add(SDL.OptFind("sdl", true))
 config:Add(FreeType.OptFind("freetype", true))
@@ -144,6 +146,11 @@ function build(settings)
 	--settings.objdir = Path("objs")
 	settings.cc.Output = Intermediate_Output
 
+	--settings.cc.flags:Add("-m32")
+	--settings.link.flags:Add("-m32")
+	settings.link.flags:Add("-static-libgcc")
+	settings.link.flags:Add("-static-libstdc++")
+
 	cflags = os.getenv("CFLAGS")
 	if cflags then
 		settings.cc.flags:Add(cflags)
@@ -155,8 +162,6 @@ function build(settings)
 
 	if config.compiler.driver == "cl" then
 		settings.cc.flags:Add("/wd4244")
-		settings.cc.flags:Add("/wd4291")
-		settings.cc.flags:Add("/EHsc")
 	else
 		settings.cc.flags:Add("-Wall")
 		if family == "windows" then
@@ -165,6 +170,10 @@ function build(settings)
 		elseif platform == "macosx" then
 			settings.cc.flags:Add("-mmacosx-version-min=10.5")
 			settings.link.flags:Add("-mmacosx-version-min=10.5")
+			if config.minmacosxsdk.value == 1 then
+				settings.cc.flags:Add("-isysroot /Developer/SDKs/MacOSX10.5.sdk")
+				settings.link.flags:Add("-isysroot /Developer/SDKs/MacOSX10.5.sdk")
+			end
 		elseif config.stackprotector.value == 1 then
 			settings.cc.flags:Add("-fstack-protector", "-fstack-protector-all")
 			settings.link.flags:Add("-fstack-protector", "-fstack-protector-all")
@@ -179,8 +188,11 @@ function build(settings)
 		if platform == "macosx" then
 			settings.link.frameworks:Add("Carbon")
 			settings.link.frameworks:Add("AppKit")
+			settings.link.libs:Add("dl")
 		else
 			settings.link.libs:Add("pthread")
+			settings.link.libs:Add("dl")
+			settings.link.libs:Add("rt")
 		end
 		
 		if platform == "solaris" then
@@ -221,6 +233,7 @@ function build(settings)
 		if string.find(settings.config_name, "sql") then
 			server_settings.link.libs:Add("mysqlcppconn-static")
 			server_settings.link.libs:Add("mysqlclient")
+			server_settings.link.libs:Add("dl")
 		end
 		
 		if platform == "macosx" then
@@ -271,7 +284,7 @@ function build(settings)
 	versionserver = Compile(settings, Collect("src/versionsrv/*.cpp"))
 	masterserver = Compile(settings, Collect("src/mastersrv/*.cpp"))
 	game_shared = Compile(settings, Collect("src/game/*.cpp"), nethash, network_source)
-	game_client = Compile(settings, CollectRecursive("src/game/client/*.cpp"), client_content_source)
+	game_client = Compile(client_settings, CollectRecursive("src/game/client/*.cpp"), client_content_source)
 	game_server = Compile(settings, CollectRecursive("src/game/server/*.cpp"), server_content_source)
 	game_editor = Compile(settings, Collect("src/game/editor/*.cpp"))
 
@@ -292,11 +305,11 @@ function build(settings)
 	end
 
 	-- build client, server, version server and master server
-	client_exe = Link(client_settings, "DDRace", game_shared, game_client,
+	client_exe = Link(client_settings, "DDNet", game_shared, game_client,
 		engine, client, game_editor, zlib, pnglite, wavpack,
 		client_link_other, client_osxlaunch)
 
-	server_exe = Link(server_settings, "DDRace-Server", engine, server,
+	server_exe = Link(server_settings, "DDNet-Server", engine, server,
 		game_shared, game_server, zlib, server_link_other)
 
 	serverlaunch = {}
@@ -454,47 +467,74 @@ if platform == "macosx" then
 		release_sql_settings_x86_64.link.flags:Add("-arch x86_64")
 		release_sql_settings_x86_64.cc.defines:Add("CONF_RELEASE", "CONF_SQL")
 
-		x86_d = build(debug_settings_x86_64)
-		sql_x86_d = build(debug_sql_settings_x86_64)
-		x86_r = build(release_settings_x86_64)
-		sql_x86_r = build(release_sql_settings_x86_64)
-	end
-	DefaultTarget("game_debug_x86")
-	if arch == "ia32" then
-		PseudoTarget("release", ppc_r, x86_r)
-		PseudoTarget("debug", ppc_d, x86_d)
-		PseudoTarget("server_release", "server_release_x86", "server_release_ppc")
-		PseudoTarget("server_debug", "server_debug_x86", "server_debug_ppc")
-		PseudoTarget("client_release", "client_release_x86", "client_release_ppc")
-		PseudoTarget("client_debug", "client_debug_x86", "client_debug_ppc")
-		PseudoTarget("sql_release", sql_ppc_r, sql_x86_r)
-		PseudoTarget("sql_debug", sql_ppc_d, sql_x86_d)
-		PseudoTarget("server_sql_release", "server_sql_release_x86", "server_sql_release_ppc")
-		PseudoTarget("server_sql_debug", "server_sql_debug_x86", "server_sql_debug_ppc")
-	elseif arch == "amd64" then
-		PseudoTarget("release", ppc_r, x86_r, x86_64_r)
-		PseudoTarget("debug", ppc_d, x86_d, x86_64_d)
-		PseudoTarget("server_release", "server_release_x86", "server_release_x86_64", "server_release_ppc")
-		PseudoTarget("server_debug", "server_debug_x86", "server_release_x86_64", "server_debug_ppc")
-		PseudoTarget("client_release", "client_release_x86", "server_release_x86_64", "client_release_ppc")
-		PseudoTarget("client_debug", "client_debug_x86", "server_release_x86_64", "client_debug_ppc")
-		PseudoTarget("sql_release", sql_ppc_r, sql_x86_r, sql_x86_64_r)
-		PseudoTarget("sql_debug", sql_ppc_d, sql_x86_d, sql_x86_64_r)
-		PseudoTarget("server_sql_release", "server_sql_release_x86", "server_sql_release_x86_64", "server_sql_release_ppc")
-		PseudoTarget("server_sql_debug", "server_sql_debug_x86", "server_sql_debug_x86_64", "server_sql_debug_ppc")
-	else
-		PseudoTarget("release", ppc_r)
-		PseudoTarget("debug", ppc_d)
-		PseudoTarget("server_release", "server_release_ppc")
-		PseudoTarget("server_debug", "server_debug_ppc")
-		PseudoTarget("client_release", "client_release_ppc")
-		PseudoTarget("client_debug", "client_debug_ppc")
-		PseudoTarget("sql_release", sql_ppc_r)
-		PseudoTarget("sql_debug", sql_ppc_d)
-		PseudoTarget("server_sql_release", "server_sql_release_ppc")
-		PseudoTarget("server_sql_debug", "server_sql_debug_ppc")
+		x86_64_d = build(debug_settings_x86_64)
+		sql_x86_64_d = build(debug_sql_settings_x86_64)
+		x86_64_r = build(release_settings_x86_64)
+		sql_x86_64_r = build(release_sql_settings_x86_64)
 	end
 
+	DefaultTarget("game_debug_x86")
+	
+	if config.macosxppc.value == 1 then
+		if arch == "ia32" then
+			PseudoTarget("release", ppc_r, x86_r)
+			PseudoTarget("debug", ppc_d, x86_d)
+			PseudoTarget("server_release", "server_release_ppc", "server_release_x86")
+			PseudoTarget("server_debug", "server_debug_ppc", "server_debug_x86")
+			PseudoTarget("client_release", "client_release_ppc", "client_release_x86")
+			PseudoTarget("client_debug", "client_debug_ppc", "client_debug_x86")
+			PseudoTarget("sql_release", sql_ppc_r, sql_x86_r)
+			PseudoTarget("sql_debug", sql_ppc_d, sql_x86_d)
+			PseudoTarget("server_sql_release", "server_sql_release_ppc", "server_sql_release_x86")
+			PseudoTarget("server_sql_debug", "server_sql_debug_ppc", "server_sql_debug_x86")
+		elseif arch == "amd64" then
+			PseudoTarget("release", ppc_r, x86_r, x86_64_r)
+			PseudoTarget("debug", ppc_d, x86_d, x86_64_d)
+			PseudoTarget("server_release", "server_release_ppc", "server_release_x86", "server_release_x86_64")
+			PseudoTarget("server_debug", "server_debug_ppc", "server_debug_x86", "server_debug_x86_64")
+			PseudoTarget("client_release", "client_release_ppc", "client_release_x86", "client_release_x86_64")
+			PseudoTarget("client_debug", "client_debug_ppc", "client_debug_x86", "client_debug_x86_64")
+			PseudoTarget("sql_release", sql_ppc_r, sql_x86_r, sql_x86_64_r)
+			PseudoTarget("sql_debug", sql_ppc_d, sql_x86_d, sql_x86_64_d)
+			PseudoTarget("server_sql_release", "server_sql_release_ppc", "server_sql_release_x86", "server_sql_release_x86_64")
+			PseudoTarget("server_sql_debug", "server_sql_debug_ppc", "server_sql_debug_x86", "server_sql_debug_x86_64")
+		else
+			PseudoTarget("release", ppc_r)
+			PseudoTarget("debug", ppc_d)
+			PseudoTarget("server_release", "server_release_ppc")
+			PseudoTarget("server_debug", "server_debug_ppc")
+			PseudoTarget("client_release", "client_release_ppc")
+			PseudoTarget("client_debug", "client_debug_ppc")
+			PseudoTarget("sql_release", sql_ppc_r)
+			PseudoTarget("sql_debug", sql_ppc_d)
+			PseudoTarget("server_sql_release", "server_sql_release_ppc")
+			PseudoTarget("server_sql_debug", "server_sql_debug_ppc")
+		end
+	else
+		if arch == "ia32" then
+			PseudoTarget("release", x86_r)
+			PseudoTarget("debug", x86_d)
+			PseudoTarget("server_release", "server_release_x86")
+			PseudoTarget("server_debug", "server_debug_x86")
+			PseudoTarget("client_release", "client_release_x86")
+			PseudoTarget("client_debug", "client_debug_x86")
+			PseudoTarget("sql_release", sql_x86_r)
+			PseudoTarget("sql_debug", sql_x86_d)
+			PseudoTarget("server_sql_release", "server_sql_release_x86")
+			PseudoTarget("server_sql_debug", "server_sql_debug_x86")
+		elseif arch == "amd64" then
+			PseudoTarget("release", x86_r, x86_64_r)
+			PseudoTarget("debug", x86_d, x86_64_d)
+			PseudoTarget("server_release", "server_release_x86", "server_release_x86_64")
+			PseudoTarget("server_debug", "server_debug_x86", "server_debug_x86_64")
+			PseudoTarget("client_release", "client_release_x86", "client_release_x86_64")
+			PseudoTarget("client_debug", "client_debug_x86", "client_debug_x86_64")
+			PseudoTarget("sql_release", sql_x86_r, sql_x86_64_r)
+			PseudoTarget("sql_debug", sql_x86_d, sql_x86_64_d)
+			PseudoTarget("server_sql_release", "server_sql_release_x86", "server_sql_release_x86_64")
+			PseudoTarget("server_sql_debug", "server_sql_debug_x86", "server_sql_debug_x86_64")
+		end
+	end
 else
 	build(debug_settings)
 	build(debug_sql_settings)

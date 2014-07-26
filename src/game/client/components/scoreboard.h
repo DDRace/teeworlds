@@ -10,6 +10,7 @@ class CScoreboard : public CComponent
 	void RenderSpectators(float x, float y, float w);
 	void RenderScoreboard(float x, float y, float w, int Team, const char *pTitle);
 	void RenderRecordingNotification(float x);
+	void RenderLocalTime(float x);
 
 	static void ConKeyScoreboard(IConsole::IResult *pResult, void *pUserData);
 
@@ -28,9 +29,12 @@ public:
 
 	// DDRace
 
+	virtual void OnMessage(int MsgType, void *pRawMsg);
+
 private:
 
 	bool m_IsGameTypeRace;
+	float m_ServerRecord;
 };
 
 #endif

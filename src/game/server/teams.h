@@ -10,6 +10,7 @@ class CGameTeams
 	int m_TeamState[MAX_CLIENTS];
 	int m_MembersCount[MAX_CLIENTS];
 	bool m_TeeFinished[MAX_CLIENTS];
+	bool m_TeamLocked[MAX_CLIENTS];
 
 	class CGameContext * m_pGameContext;
 
@@ -45,7 +46,7 @@ public:
 	void OnCharacterStart(int ClientID);
 	void OnCharacterFinish(int ClientID);
 	void OnCharacterSpawn(int ClientID);
-	void OnCharacterDeath(int ClientID);
+	void OnCharacterDeath(int ClientID, int Weapon);
 
 	bool SetCharacterTeam(int ClientID, int Team);
 
@@ -54,16 +55,18 @@ public:
 
 	bool TeamFinished(int Team);
 
-	int TeamMask(int Team, int ExceptID = -1, int Asker = -1);
+	int64_t TeamMask(int Team, int ExceptID = -1, int Asker = -1);
 
 	int Count(int Team) const;
 
 	//need to be very carefull using this method
 	void SetForceCharacterTeam(int id, int Team);
+	void ForceLeaveTeam(int id);
 
 	void Reset();
 
 	void SendTeamsState(int Cid);
+	void SetTeamLock(int Team, bool Lock);
 
 	int m_LastChat[MAX_CLIENTS];
 
@@ -74,7 +77,9 @@ public:
 	void SetStartTime(CPlayer* Player, int StartTime);
 	void SetRefreshTime(CPlayer* Player, int RefreshTime);
 	void SetCpActive(CPlayer* Player, int CpActive);
+	void OnTeamFinish(CPlayer** Players, unsigned int Size);
 	void OnFinish(CPlayer* Player);
+	void KillTeam(int Team);
 	bool TeeFinished(int ClientID)
 	{
 		return m_TeeFinished[ClientID];
@@ -83,6 +88,19 @@ public:
 	int GetTeamState(int Team)
 	{
 		return m_TeamState[Team];
+	}
+	;
+	bool TeamLocked(int Team)
+	{
+		if (Team <= TEAM_FLOCK || Team >= TEAM_SUPER)
+			return false;
+
+		return m_TeamLocked[Team];
+	}
+	;
+	void SetFinished(int ClientID, bool finished)
+	{
+		m_TeeFinished[ClientID] = finished;
 	}
 	;
 };

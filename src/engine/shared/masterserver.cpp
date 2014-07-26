@@ -19,7 +19,7 @@ public:
 		char m_aHostname[128];
 		NETADDR m_Addr;
 		bool m_Valid;
-
+		int m_Count;
 		CHostLookup m_Lookup;
 	};
 
@@ -45,7 +45,7 @@ public:
 
 	virtual int RefreshAddresses(int Nettype)
 	{
-		if(m_State != STATE_INIT)
+		if(m_State != STATE_INIT && m_State != STATE_READY)
 			return -1;
 
 		dbg_msg("engine/mastersrv", "refreshing master server addresses");
@@ -55,6 +55,9 @@ public:
 		{
 			m_pEngine->HostLookup(&m_aMasterServers[i].m_Lookup, m_aMasterServers[i].m_aHostname, Nettype);
 			m_aMasterServers[i].m_Valid = false;
+			m_aMasterServers[i].m_Count = 0;
+			
+			//dbg_msg("MasterServer", "Lookup id: %d, name: %s, nettype: %d", i, m_aMasterServers[i].m_aHostname, Nettype);
 		}
 
 		m_State = STATE_UPDATE;
@@ -79,9 +82,15 @@ public:
 					m_aMasterServers[i].m_Addr = m_aMasterServers[i].m_Lookup.m_Addr;
 					m_aMasterServers[i].m_Addr.port = 8300;
 					m_aMasterServers[i].m_Valid = true;
+					
+						//dbg_msg("MasterServer", "Set server %d, name: %s with addr-port: %d addr-ip %s addr-type %d", i, m_aMasterServers[i].m_aHostname, m_aMasterServers[i].m_Addr.port, m_aMasterServers[i].m_Addr.ip, m_aMasterServers[i].m_Addr.type);
 				}
 				else
+				{
 					m_aMasterServers[i].m_Valid = false;
+					
+					//	dbg_msg("MasterServer", "Dropped %d, name: %s with addr-port: %d addr-ip %s addr-type %d", i, m_aMasterServers[i].m_aHostname);
+				}
 			}
 		}
 
@@ -101,7 +110,17 @@ public:
 	{
 		return m_aMasterServers[Index].m_Addr;
 	}
-
+	
+	virtual void SetCount(int Index, int Count)
+	{
+		m_aMasterServers[Index].m_Count = Count;
+	}
+	
+	virtual int GetCount(int Index)
+	{
+		return m_aMasterServers[Index].m_Count;
+	}
+	
 	virtual const char *GetName(int Index)
 	{
 		return m_aMasterServers[Index].m_aHostname;

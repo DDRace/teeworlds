@@ -71,6 +71,9 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 		{COL_PLAYERS,	IServerBrowser::SORT_NUMPLAYERS,	"Players",	1, 60.0f, 0, {0}, {0}},
 		{-1,			-1,						" ",		1, 10.0f, 0, {0}, {0}},
 		{COL_PING,		IServerBrowser::SORT_PING,		"Ping",		1, 40.0f, FIXED, {0}, {0}},
+#if defined(__ANDROID__)
+		{-1,			-1,						" ",		1, 50.0f, 0, {0}, {0}}, // Scrollbar
+#endif
 	};
 	// This is just for scripts/update_localization.py to work correctly (all other strings are already Localize()'d somewhere else). Don't remove!
 	// Localize("Type");
@@ -126,7 +129,11 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 	RenderTools()->DrawUIRect(&View, vec4(0,0,0,0.15f), 0, 0);
 
 	CUIRect Scroll;
+#if defined(__ANDROID__)
+	View.VSplitRight(50, &View, &Scroll);
+#else
 	View.VSplitRight(15, &View, &Scroll);
+#endif
 
 	int NumServers = ServerBrowser()->NumSortedServers();
 
@@ -214,6 +221,9 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 	View.y -= s_ScrollValue*ScrollNum*s_aCols[0].m_Rect.h;
 
 	int NewSelected = -1;
+#if defined(__ANDROID__)
+	int DoubleClicked = 0;
+#endif
 	int NumPlayers = 0;
 
 	m_SelectedIndex = -1;
@@ -225,13 +235,13 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 	{
 		int ItemIndex = i;
 		const CServerInfo *pItem = ServerBrowser()->SortedGet(ItemIndex);
-		NumPlayers += pItem->m_NumPlayers;
+		NumPlayers += g_Config.m_BrFilterSpectators ? pItem->m_NumPlayers : pItem->m_NumClients;
 		CUIRect Row;
 		CUIRect SelectHitBox;
 
 		int Selected = str_comp(pItem->m_aAddress, g_Config.m_UiServerAddress) == 0; //selected_index==ItemIndex;
 
-		View.HSplitTop(17.0f, &Row, &View);
+		View.HSplitTop(ms_ListheaderHeight, &Row, &View);
 		SelectHitBox = Row;
 
 		if(Selected)
@@ -282,6 +292,11 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 			if(UI()->DoButtonLogic(pItem, "", Selected, &SelectHitBox))
 			{
 				NewSelected = ItemIndex;
+#if defined(__ANDROID__)
+				if(NewSelected == m_DoubleClickIndex)
+					DoubleClicked = 1;
+#endif
+				m_DoubleClickIndex = NewSelected;
 			}
 		}
 		else
@@ -307,11 +322,19 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 
 			if(ID == COL_FLAG_LOCK)
 			{
+#if defined(__ANDROID__)
+				Button.h = Button.w;
+				Button.y += ms_ListitemAdditionalHeight / 2;
+#endif
 				if(pItem->m_Flags & SERVER_FLAG_PASSWORD)
 					DoButton_Icon(IMAGE_BROWSEICONS, SPRITE_BROWSE_LOCK, &Button);
 			}
 			else if(ID == COL_FLAG_PURE)
 			{
+#if defined(__ANDROID__)
+				Button.h = Button.w;
+				Button.y += ms_ListitemAdditionalHeight / 2;
+#endif
 				if(	str_comp(pItem->m_aGameType, "DM") == 0 ||
 					str_comp(pItem->m_aGameType, "TDM") == 0 ||
 					str_comp(pItem->m_aGameType, "CTF") == 0)
@@ -326,13 +349,21 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 			}
 			else if(ID == COL_FLAG_FAV)
 			{
+#if defined(__ANDROID__)
+				Button.h = Button.w;
+				Button.y += ms_ListitemAdditionalHeight / 2;
+#endif
 				if(pItem->m_Favorite)
 					DoButton_Icon(IMAGE_BROWSEICONS, SPRITE_BROWSE_HEART, &Button);
 			}
 			else if(ID == COL_NAME)
 			{
 				CTextCursor Cursor;
+#if defined(__ANDROID__)
+				TextRender()->SetCursor(&Cursor, Button.x, Button.y + ms_ListitemAdditionalHeight / 2, 12.0f * UI()->Scale(), TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
+#else
 				TextRender()->SetCursor(&Cursor, Button.x, Button.y, 12.0f * UI()->Scale(), TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
+#endif
 				Cursor.m_LineWidth = Button.w;
 
 				if(g_Config.m_BrFilterString[0] && (pItem->m_QuickSearchHit&IServerBrowser::QUICK_SERVERNAME))
@@ -356,7 +387,11 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 			else if(ID == COL_MAP)
 			{
 				CTextCursor Cursor;
+#if defined(__ANDROID__)
+				TextRender()->SetCursor(&Cursor, Button.x, Button.y + ms_ListitemAdditionalHeight / 2, 12.0f * UI()->Scale(), TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
+#else
 				TextRender()->SetCursor(&Cursor, Button.x, Button.y, 12.0f * UI()->Scale(), TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
+#endif
 				Cursor.m_LineWidth = Button.w;
 
 				if(g_Config.m_BrFilterString[0] && (pItem->m_QuickSearchHit&IServerBrowser::QUICK_MAPNAME))
@@ -379,6 +414,10 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 			}
 			else if(ID == COL_PLAYERS)
 			{
+#if defined(__ANDROID__)
+				Button.h -= ms_ListitemAdditionalHeight;
+				Button.y += ms_ListitemAdditionalHeight / 2;
+#endif
 				CUIRect Icon;
 				Button.VMargin(4.0f, &Button);
 				if(pItem->m_FriendState != IFriends::FRIEND_NO)
@@ -399,22 +438,72 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 			}
 			else if(ID == COL_PING)
 			{
+#if defined(__ANDROID__)
+				Button.h -= ms_ListitemAdditionalHeight;
+				Button.y += ms_ListitemAdditionalHeight / 2;
+#endif
 				str_format(aTemp, sizeof(aTemp), "%i", pItem->m_Latency);
+				if (g_Config.m_UiColorizePing)
+				{
+					vec3 rgb = HslToRgb(vec3((300.0f - clamp(pItem->m_Latency, 0, 300)) / 1000.0f, 1.0f, 0.5f));
+					TextRender()->TextColor(rgb.r, rgb.g, rgb.b, 1.0f);
+				}
+
 				UI()->DoLabelScaled(&Button, aTemp, 12.0f, 1);
+				TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
 			}
 			else if(ID == COL_VERSION)
 			{
+#if defined(__ANDROID__)
+				Button.h -= ms_ListitemAdditionalHeight;
+				Button.y += ms_ListitemAdditionalHeight / 2;
+#endif
 				const char *pVersion = pItem->m_aVersion;
 				UI()->DoLabelScaled(&Button, pVersion, 12.0f, 1);
 			}
 			else if(ID == COL_GAMETYPE)
 			{
 				CTextCursor Cursor;
+#if defined(__ANDROID__)
+				TextRender()->SetCursor(&Cursor, Button.x, Button.y + ms_ListitemAdditionalHeight / 2, 12.0f*UI()->Scale(), TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
+#else
 				TextRender()->SetCursor(&Cursor, Button.x, Button.y, 12.0f*UI()->Scale(), TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
+#endif
 				Cursor.m_LineWidth = Button.w;
-				TextRender()->TextEx(&Cursor, pItem->m_aGameType, -1);
-			}
 
+				if (g_Config.m_UiColorizeGametype)
+				{
+					vec3 hsl = vec3(1.0f, 1.0f, 1.0f);
+
+					if (!str_comp(pItem->m_aGameType, "DM")
+							|| !str_comp(pItem->m_aGameType, "TDM")
+							|| !str_comp(pItem->m_aGameType, "CTF"))
+						hsl = vec3(0.33f, 1.0f, 0.75f); // Vanilla
+					else if (str_find_nocase(pItem->m_aGameType, "catch"))
+						hsl = vec3(0.17f, 1.0f, 0.75f); // Catch
+					else if (str_find_nocase(pItem->m_aGameType, "idm")
+							|| str_find_nocase(pItem->m_aGameType, "itdm")
+							|| str_find_nocase(pItem->m_aGameType, "ictf"))
+						hsl = vec3(0.00f, 1.0f, 0.75f); // Instagib
+					else if (str_find_nocase(pItem->m_aGameType, "fng"))
+						hsl = vec3(0.83f, 1.0f, 0.75f); // FNG
+					else if (str_find_nocase(pItem->m_aGameType, "ddracenetwo"))
+						hsl = vec3(0.58f, 1.0f, 0.75f); // DDNet
+					else if (str_find_nocase(pItem->m_aGameType, "ddrace")
+							|| str_find_nocase(pItem->m_aGameType, "mkrace"))
+						hsl = vec3(0.75f, 1.0f, 0.75f); // DDRace
+					else if (str_find_nocase(pItem->m_aGameType, "race")
+							|| !str_comp(pItem->m_aGameType, "FastCap"))
+						hsl = vec3(0.46f, 1.0f, 0.75f); // Races
+
+					vec3 rgb = HslToRgb(hsl);
+					TextRender()->TextColor(rgb.r, rgb.g, rgb.b, 1.0f);
+					TextRender()->TextEx(&Cursor, pItem->m_aGameType, -1);
+					TextRender()->TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+				}
+				else
+					TextRender()->TextEx(&Cursor, pItem->m_aGameType, -1);
+			}
 		}
 	}
 
@@ -425,7 +514,11 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 		// select the new server
 		const CServerInfo *pItem = ServerBrowser()->SortedGet(NewSelected);
 		str_copy(g_Config.m_UiServerAddress, pItem->m_aAddress, sizeof(g_Config.m_UiServerAddress));
+#if defined(__ANDROID__)
+		if(DoubleClicked)
+#else
 		if(Input()->MouseDoubleClick())
+#endif
 			Client()->Connect(g_Config.m_UiServerAddress);
 	}
 
@@ -435,7 +528,7 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 	// render quick search
 	CUIRect QuickSearch, Button;
 	Status.VSplitLeft(240.0f, &QuickSearch, &Status);
-	const char *pLabel = Localize("Quick search:");
+	const char *pLabel = Localize("Search:");
 	UI()->DoLabelScaled(&QuickSearch, pLabel, 12.0f, -1);
 	float w = TextRender()->TextWidth(0, 12.0f, pLabel, -1);
 	QuickSearch.VSplitLeft(w, 0, &QuickSearch);
@@ -461,7 +554,13 @@ void CMenus::RenderServerbrowserServerList(CUIRect View)
 	// render status
 	char aBuf[128];
 	if(ServerBrowser()->IsRefreshing())
-		str_format(aBuf, sizeof(aBuf), Localize("%d%% loaded"), ServerBrowser()->LoadingProgression());
+	{
+		char aBuf2[64];
+		char aBuf3[64];
+		str_format(aBuf3, sizeof(aBuf3), Localize("%d%% loaded"), ServerBrowser()->LoadingProgression());
+		str_format(aBuf2, sizeof(aBuf2), Localize("%d of %d servers, %d players"), ServerBrowser()->NumSortedServers(), ServerBrowser()->NumServers(), NumPlayers);
+		str_format(aBuf, sizeof(aBuf), "%s, %s", aBuf3, aBuf2);
+	}
 	else
 		str_format(aBuf, sizeof(aBuf), Localize("%d of %d servers, %d players"), ServerBrowser()->NumSortedServers(), ServerBrowser()->NumServers(), NumPlayers);
 	Status.VSplitRight(TextRender()->TextWidth(0, 14.0f, aBuf, -1), 0, &Status);
@@ -574,6 +673,14 @@ void CMenus::RenderServerbrowserFilters(CUIRect View)
 			m_Popup = POPUP_COUNTRY;
 	}
 
+	ServerFilter.HSplitTop(20.0f, &Button, &ServerFilter);
+	if (DoButton_CheckBox((char *)&g_Config.m_UiColorizeGametype, Localize("Colorize gametype"), g_Config.m_UiColorizeGametype, &Button))
+		g_Config.m_UiColorizeGametype ^= 1;
+
+	ServerFilter.HSplitTop(20.0f, &Button, &ServerFilter);
+	if (DoButton_CheckBox((char *)&g_Config.m_UiColorizePing, Localize("Colorize ping"), g_Config.m_UiColorizePing, &Button))
+		g_Config.m_UiColorizePing ^= 1;
+
 	ServerFilter.HSplitBottom(5.0f, &ServerFilter, 0);
 	ServerFilter.HSplitBottom(ms_ButtonHeight-2.0f, &ServerFilter, &Button);
 	static int s_ClearButton = 0;
@@ -675,19 +782,23 @@ void CMenus::RenderServerbrowserServerDetail(CUIRect View)
 	}
 
 	// server scoreboard
-	ServerScoreBoard.HSplitBottom(20.0f, &ServerScoreBoard, 0x0);
-	ServerScoreBoard.HSplitTop(ms_ListheaderHeight, &ServerHeader, &ServerScoreBoard);
-	RenderTools()->DrawUIRect(&ServerHeader, vec4(1,1,1,0.25f), CUI::CORNER_T, 4.0f);
-	RenderTools()->DrawUIRect(&ServerScoreBoard, vec4(0,0,0,0.15f), CUI::CORNER_B, 4.0f);
-	UI()->DoLabelScaled(&ServerHeader, Localize("Scoreboard"), FontSize+2.0f, 0);
+	//ServerScoreBoard.HSplitBottom(20.0f, &ServerScoreBoard, 0x0);
 
 	if(pSelectedServer)
 	{
-		ServerScoreBoard.Margin(3.0f, &ServerScoreBoard);
+		static int s_VoteList = 0;
+		static float s_ScrollValue = 0;
+		UiDoListboxStart(&s_VoteList, &ServerScoreBoard, 26.0f, Localize("Scoreboard"), "", pSelectedServer->m_NumClients, 1, -1, s_ScrollValue);
+
 		for (int i = 0; i < pSelectedServer->m_NumClients; i++)
 		{
+			CListboxItem Item = UiDoListboxNextItem(&i);
+
+			if(!Item.m_Visible)
+				continue;
+
 			CUIRect Name, Clan, Score, Flag;
-			ServerScoreBoard.HSplitTop(25.0f, &Name, &ServerScoreBoard);
+			Item.m_Rect.HSplitTop(25.0f, &Name, &Item.m_Rect);
 			if(UI()->DoButtonLogic(&pSelectedServer->m_aClients[i], "", 0, &Name))
 			{
 				if(pSelectedServer->m_aClients[i].m_FriendState == IFriends::FRIEND_PLAYER)
@@ -702,20 +813,32 @@ void CMenus::RenderServerbrowserServerDetail(CUIRect View)
 																								vec4(0.5f, 1.0f, 0.5f, 0.15f+(i%2+1)*0.05f);
 			RenderTools()->DrawUIRect(&Name, Colour, CUI::CORNER_ALL, 4.0f);
 			Name.VSplitLeft(5.0f, 0, &Name);
-			Name.VSplitLeft(30.0f, &Score, &Name);
+			Name.VSplitLeft(34.0f, &Score, &Name);
 			Name.VSplitRight(34.0f, &Name, &Flag);
 			Flag.HMargin(4.0f, &Flag);
 			Name.HSplitTop(11.0f, &Name, &Clan);
 
 			// score
-			if(pSelectedServer->m_aClients[i].m_Player)
+			char aTemp[16];
+
+			if(!pSelectedServer->m_aClients[i].m_Player)
+				str_copy(aTemp, "SPEC", sizeof(aTemp));
+			else if(str_find_nocase(pSelectedServer->m_aGameType, "race") || str_find_nocase(pSelectedServer->m_aGameType, "fastcap"))
 			{
-				char aTemp[16];
-				str_format(aTemp, sizeof(aTemp), "%d", pSelectedServer->m_aClients[i].m_Score);
-				TextRender()->SetCursor(&Cursor, Score.x, Score.y+(Score.h-FontSize)/4.0f, FontSize, TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
-				Cursor.m_LineWidth = Score.w;
-				TextRender()->TextEx(&Cursor, aTemp, -1);
+				if(pSelectedServer->m_aClients[i].m_Score == -9999 || pSelectedServer->m_aClients[i].m_Score == 0)
+					aTemp[0] = 0;
+				else
+				{
+					int Time = abs(pSelectedServer->m_aClients[i].m_Score);
+					str_format(aTemp, sizeof(aTemp), "%02d:%02d", Time/60, Time%60);
+				}
 			}
+			else
+				str_format(aTemp, sizeof(aTemp), "%d", pSelectedServer->m_aClients[i].m_Score);
+
+			TextRender()->SetCursor(&Cursor, Score.x, Score.y+(Score.h-FontSize)/4.0f, FontSize, TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
+			Cursor.m_LineWidth = Score.w;
+			TextRender()->TextEx(&Cursor, aTemp, -1);
 
 			// name
 			TextRender()->SetCursor(&Cursor, Name.x, Name.y, FontSize-2, TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
@@ -765,6 +888,8 @@ void CMenus::RenderServerbrowserServerDetail(CUIRect View)
 			vec4 Color(1.0f, 1.0f, 1.0f, 0.5f);
 			m_pClient->m_pCountryFlags->Render(pSelectedServer->m_aClients[i].m_Country, &Color, Flag.x, Flag.y, Flag.w, Flag.h);
 		}
+
+		UiDoListboxEnd(&s_ScrollValue, 0);
 	}
 }
 
@@ -806,7 +931,13 @@ void CMenus::RenderServerbrowserFriends(CUIRect View)
 
 	// friends list(remove friend)
 	static float s_ScrollValue = 0;
+	if(m_FriendlistSelectedIndex >= m_lFriends.size())
+		m_FriendlistSelectedIndex = m_lFriends.size()-1;
+#if defined(__ANDROID__)
+	UiDoListboxStart(&m_lFriends, &List, 50.0f, "", "", m_lFriends.size(), 1, m_FriendlistSelectedIndex, s_ScrollValue);
+#else
 	UiDoListboxStart(&m_lFriends, &List, 30.0f, "", "", m_lFriends.size(), 1, m_FriendlistSelectedIndex, s_ScrollValue);
+#endif
 
 	m_lFriends.sort_range();
 	for(int i = 0; i < m_lFriends.size(); ++i)
@@ -994,7 +1125,7 @@ void CMenus::RenderServerbrowser(CUIRect MainView)
 		char aBuf[64];
 		if(str_comp(Client()->LatestVersion(), "0") != 0)
 		{
-			str_format(aBuf, sizeof(aBuf), Localize("Teeworlds %s is out! Download it at www.teeworlds.com!"), Client()->LatestVersion());
+			str_format(aBuf, sizeof(aBuf), Localize("DDNet %s is out! Download it at ddnet.tw!"), Client()->LatestVersion());
 			TextRender()->TextColor(1.0f, 0.4f, 0.4f, 1.0f);
 		}
 		else
@@ -1018,6 +1149,7 @@ void CMenus::RenderServerbrowser(CUIRect MainView)
 				ServerBrowser()->Refresh(IServerBrowser::TYPE_LAN);
 			else if(g_Config.m_UiPage == PAGE_FAVORITES)
 				ServerBrowser()->Refresh(IServerBrowser::TYPE_FAVORITES);
+			m_DoubleClickIndex = -1;
 		}
 
 		ButtonArea.HSplitTop(5.0f, 0, &ButtonArea);

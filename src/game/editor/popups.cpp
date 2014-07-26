@@ -174,6 +174,23 @@ int CEditor::PopupGroup(CEditor *pEditor, CUIRect View)
 			return 1;
 		}
 	}
+	
+	if(pEditor->GetSelectedGroup()->m_GameGroup && !pEditor->m_Map.m_pTuneLayer)
+		{
+			// new tune layer
+			View.HSplitBottom(10.0f, &View, &Button);
+			View.HSplitBottom(12.0f, &View, &Button);
+			static int s_NewSwitchLayerButton = 0;
+			if(pEditor->DoButton_Editor(&s_NewSwitchLayerButton, "Add Tune Layer", 0, &Button, 0, "Creates a new tuning layer"))
+			{
+				CLayer *l = new CLayerTune(pEditor->m_Map.m_pGameLayer->m_Width, pEditor->m_Map.m_pGameLayer->m_Height);
+				pEditor->m_Map.MakeTuneLayer(l);
+				pEditor->m_Map.m_lGroups[pEditor->m_SelectedGroup]->AddLayer(l);
+				pEditor->m_SelectedLayer = pEditor->m_Map.m_lGroups[pEditor->m_SelectedGroup]->m_lLayers.size()-1;
+				pEditor->m_Brush.Clear();
+				return 1;
+			}
+		}
 
 	if(pEditor->GetSelectedGroup()->m_GameGroup && !pEditor->m_Map.m_pFrontLayer)
 	{
@@ -329,13 +346,15 @@ int CEditor::PopupLayer(CEditor *pEditor, CUIRect View)
 			pEditor->m_Map.m_pSpeedupLayer = 0x0;
 		if(pEditor->GetSelectedLayer(0) == pEditor->m_Map.m_pSwitchLayer)
 			pEditor->m_Map.m_pSwitchLayer = 0x0;
+		if(pEditor->GetSelectedLayer(0) == pEditor->m_Map.m_pTuneLayer)
+			pEditor->m_Map.m_pTuneLayer = 0x0;
 		pEditor->m_Map.m_lGroups[pEditor->m_SelectedGroup]->DeleteLayer(pEditor->m_SelectedLayer);
 		return 1;
 	}
 
 	// layer name
 	// if(pEditor->m_Map.m_pGameLayer != pEditor->GetSelectedLayer(0))
-	if(pEditor->m_Map.m_pGameLayer != pEditor->GetSelectedLayer(0) && pEditor->m_Map.m_pTeleLayer != pEditor->GetSelectedLayer(0) && pEditor->m_Map.m_pSpeedupLayer != pEditor->GetSelectedLayer(0) && pEditor->m_Map.m_pFrontLayer != pEditor->GetSelectedLayer(0) && pEditor->m_Map.m_pSwitchLayer != pEditor->GetSelectedLayer(0))
+	if(pEditor->m_Map.m_pGameLayer != pEditor->GetSelectedLayer(0) && pEditor->m_Map.m_pTeleLayer != pEditor->GetSelectedLayer(0) && pEditor->m_Map.m_pSpeedupLayer != pEditor->GetSelectedLayer(0) && pEditor->m_Map.m_pFrontLayer != pEditor->GetSelectedLayer(0) && pEditor->m_Map.m_pSwitchLayer != pEditor->GetSelectedLayer(0) && pEditor->m_Map.m_pTuneLayer != pEditor->GetSelectedLayer(0))
 	{
 		View.HSplitBottom(5.0f, &View, &Button);
 		View.HSplitBottom(12.0f, &View, &Button);
@@ -367,7 +386,7 @@ int CEditor::PopupLayer(CEditor *pEditor, CUIRect View)
 	};
 
 	// if(pEditor->m_Map.m_pGameLayer == pEditor->GetSelectedLayer(0)) // dont use Group and Detail from the selection if this is the game layer
-	if(pEditor->m_Map.m_pGameLayer == pEditor->GetSelectedLayer(0) || pEditor->m_Map.m_pTeleLayer == pEditor->GetSelectedLayer(0) || pEditor->m_Map.m_pSpeedupLayer == pEditor->GetSelectedLayer(0) || pEditor->m_Map.m_pFrontLayer == pEditor->GetSelectedLayer(0) || pEditor->m_Map.m_pSwitchLayer == pEditor->GetSelectedLayer(0)) // dont use Group and Detail from the selection if this is the game layer
+	if(pEditor->m_Map.m_pGameLayer == pEditor->GetSelectedLayer(0) || pEditor->m_Map.m_pTeleLayer == pEditor->GetSelectedLayer(0) || pEditor->m_Map.m_pSpeedupLayer == pEditor->GetSelectedLayer(0) || pEditor->m_Map.m_pFrontLayer == pEditor->GetSelectedLayer(0) || pEditor->m_Map.m_pSwitchLayer == pEditor->GetSelectedLayer(0) || pEditor->m_Map.m_pTuneLayer == pEditor->GetSelectedLayer(0)) // dont use Group and Detail from the selection if this is the game layer
 	{
 		aProps[0].m_Type = PROPTYPE_NULL;
 		aProps[2].m_Type = PROPTYPE_NULL;
@@ -632,7 +651,6 @@ int CEditor::PopupPoint(CEditor *pEditor, CUIRect View)
 		{
 			if(pEditor->m_SelectedPoints&(1<<v))
 			{
-				Color = 0;
 				pQuad->m_aColors[v].r = (NewVal>>24)&0xff;
 				pQuad->m_aColors[v].g = (NewVal>>16)&0xff;
 				pQuad->m_aColors[v].b = (NewVal>>8)&0xff;
@@ -857,11 +875,53 @@ int CEditor::PopupSelectImage(CEditor *pEditor, CUIRect View)
 
 	int ShowImage = g_SelectImageCurrent;
 
+	static int s_ScrollBar = 0;
+	static float s_ScrollValue = 0;
+	float ImagesHeight = pEditor->m_Map.m_lImages.size() * 14;
+	float ScrollDifference = ImagesHeight - ButtonBar.h;
+
+	if(pEditor->m_Map.m_lImages.size() > 20) // Do we need a scrollbar?
+	{
+		CUIRect Scroll;
+		ButtonBar.VSplitRight(15.0f, &ButtonBar, &Scroll);
+		ButtonBar.VSplitRight(3.0f, &ButtonBar, 0);	// extra spacing
+		Scroll.HMargin(5.0f, &Scroll);
+		s_ScrollValue = pEditor->UiDoScrollbarV(&s_ScrollBar, &Scroll, s_ScrollValue);
+
+		if(pEditor->UI()->MouseInside(&Scroll) || pEditor->UI()->MouseInside(&ButtonBar))
+		{
+			int ScrollNum = (int)((ImagesHeight-ButtonBar.h)/14.0f)+1;
+			if(ScrollNum > 0)
+			{
+				if(pEditor->Input()->KeyPresses(KEY_MOUSE_WHEEL_UP))
+					s_ScrollValue = clamp(s_ScrollValue - 1.0f/ScrollNum, 0.0f, 1.0f);
+				if(pEditor->Input()->KeyPresses(KEY_MOUSE_WHEEL_DOWN))
+					s_ScrollValue = clamp(s_ScrollValue + 1.0f/ScrollNum, 0.0f, 1.0f);
+			}
+			else
+				ScrollNum = 0;
+		}
+	}
+
+	float ImageStartAt = ScrollDifference * s_ScrollValue;
+	if(ImageStartAt < 0.0f)
+		ImageStartAt = 0.0f;
+
+	float ImageStopAt = ImagesHeight - ScrollDifference * (1 - s_ScrollValue);
+	float ImageCur = 0.0f;
 	for(int i = -1; i < pEditor->m_Map.m_lImages.size(); i++)
 	{
+		if(ImageCur > ImageStopAt)
+			break;
+		if(ImageCur < ImageStartAt)
+		{
+			ImageCur += 14.0f;
+			continue;
+		}
+		ImageCur += 14.0f;
+
 		CUIRect Button;
-		ButtonBar.HSplitTop(12.0f, &Button, &ButtonBar);
-		ButtonBar.HSplitTop(2.0f, 0, &ButtonBar);
+		ButtonBar.HSplitTop(14.0f, &Button, &ButtonBar);
 
 		if(pEditor->UI()->MouseInside(&Button))
 			ShowImage = i;
@@ -922,7 +982,7 @@ static int s_GametileOpSelected = -1;
 
 int CEditor::PopupSelectGametileOp(CEditor *pEditor, CUIRect View)
 {
-	static const char *s_pButtonNames[] = { "Clear", "Collision", "Death", "Unhookable", "Freeze", "Unfreeze", "Deep Freeze", "Deep Unfreeze" };
+	static const char *s_pButtonNames[] = { "Clear", "Collision", "Death", "Unhookable", "Freeze", "Unfreeze", "Deep Freeze", "Deep Unfreeze", "Check-Tele From", "Evil Check-Tele From" };
 	static unsigned s_NumButtons = sizeof(s_pButtonNames) / sizeof(char*);
 	CUIRect Button;
 
@@ -941,7 +1001,7 @@ void CEditor::PopupSelectGametileOpInvoke(float x, float y)
 {
 	static int s_SelectGametileOpPopupId = 0;
 	s_GametileOpSelected = -1;
-	UiInvokePopupMenu(&s_SelectGametileOpPopupId, 0, x, y, 120.0f, 120.0f, PopupSelectGametileOp);
+	UiInvokePopupMenu(&s_SelectGametileOpPopupId, 0, x, y, 120.0f, 150.0f, PopupSelectGametileOp);
 }
 
 int CEditor::PopupSelectGameTileOpResult()
@@ -1014,10 +1074,32 @@ int CEditor::PopupTele(CEditor *pEditor, CUIRect View)
 
 	static int s_aIds[NUM_PROPS] = {0};
 	int NewVal = 0;
-	int Prop = pEditor->DoProperties(&View, aProps, s_aIds, &NewVal);
+	static vec4 s_color = vec4(1,1,1,0.5f);
+
+	int Prop = pEditor->DoProperties(&View, aProps, s_aIds, &NewVal, s_color);
 
 	if(Prop == PROP_TELE)
-		 pEditor->m_TeleNumber = clamp(NewVal, 0, 255);
+	{
+		NewVal = clamp(NewVal, 0, 255);
+
+		CLayerTele *gl = pEditor->m_Map.m_pTeleLayer;
+		for(int y = 0; y < gl->m_Height; ++y)
+		{
+			for(int x = 0; x < gl->m_Width; ++x)
+			{
+				if(gl->m_pTeleTile[y*gl->m_Width+x].m_Number == NewVal)
+				{
+					s_color = vec4(1,0.5f,0.5f,0.5f);
+					goto done;
+				}
+			}
+		}
+
+		s_color = vec4(0.5f,1,0.5f,0.5f);
+
+		done:
+		pEditor->m_TeleNumber = NewVal;
+	}
 
 	return 0;
 }
@@ -1076,12 +1158,59 @@ int CEditor::PopupSwitch(CEditor *pEditor, CUIRect View)
 
 	static int s_aIds[NUM_PROPS] = {0};
 	int NewVal = 0;
-	int Prop = pEditor->DoProperties(&View, aProps, s_aIds, &NewVal);
+	static vec4 s_color = vec4(1,1,1,0.5f);
+	int Prop = pEditor->DoProperties(&View, aProps, s_aIds, &NewVal, s_color);
 
 	if(Prop == PROP_SwitchNumber)
-		 pEditor->m_SwitchNum = clamp(NewVal, 0, 255);
+	{
+		NewVal = clamp(NewVal, 0, 255);
+
+		CLayerSwitch *gl = pEditor->m_Map.m_pSwitchLayer;
+		for(int y = 0; y < gl->m_Height; ++y)
+		{
+			for(int x = 0; x < gl->m_Width; ++x)
+			{
+				if(gl->m_pSwitchTile[y*gl->m_Width+x].m_Number == NewVal)
+				{
+					s_color = vec4(1,0.5f,0.5f,0.5f);
+					goto done;
+				}
+			}
+		}
+
+		s_color = vec4(0.5f,1,0.5f,0.5f);
+
+		done:
+		pEditor->m_SwitchNum = NewVal;
+	}
 	if(Prop == PROP_SwitchDelay)
-		 pEditor->m_SwitchDelay = clamp(NewVal, 0, 255);
+		pEditor->m_SwitchDelay = clamp(NewVal, 0, 255);
+
+	return 0;
+}
+
+int CEditor::PopupTune(CEditor *pEditor, CUIRect View)
+{
+	CUIRect Button;
+	View.HSplitBottom(12.0f, &View, &Button);
+
+	enum
+	{
+		PROP_TUNE=0,
+		NUM_PROPS,
+	};
+
+	CProperty aProps[] = {
+		{"Zone", pEditor->m_TuningNum, PROPTYPE_INT_STEP, 1, 255},
+		{0},
+	};
+
+	static int s_aIds[NUM_PROPS] = {0};
+	int NewVal = 0;
+	int Prop = pEditor->DoProperties(&View, aProps, s_aIds, &NewVal);
+
+	if(Prop == PROP_TUNE)
+		 pEditor->m_TuningNum = clamp(NewVal, 1, 255);
 
 	return 0;
 }

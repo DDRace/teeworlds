@@ -99,9 +99,23 @@ void CBinds::SetDefaults()
 	Bind(KEY_MOUSE_1, "+fire");
 	Bind(KEY_MOUSE_2, "+hook");
 	Bind(KEY_LSHIFT, "+emote");
-	Bind(KEY_RSHIFT, "+spectate");
+#if defined(__ANDROID__)
+	Bind(KEY_RCTRL, "+fire");
+	Bind(KEY_RETURN, "+hook");
+	Bind(KEY_RIGHT, "+right");
+	Bind(KEY_LEFT, "+left");
+	Bind(KEY_UP, "+jump");
+	Bind(KEY_DOWN, "+hook");
+	Bind(KEY_PAGEUP, "+prevweapon");
+	Bind(KEY_PAGEDOWN, "+nextweapon");
+	Bind(KEY_F5, "spectate_previous");
+	Bind(KEY_F6, "spectate_next");
+#else
 	Bind(KEY_RIGHT, "spectate_next");
 	Bind(KEY_LEFT, "spectate_previous");
+	Bind(KEY_RSHIFT, "+spectate");
+#endif
+
 
 	Bind('1', "+weapon1");
 	Bind('2', "+weapon2");
@@ -117,6 +131,9 @@ void CBinds::SetDefaults()
 
 	Bind(KEY_F3, "vote yes");
 	Bind(KEY_F4, "vote no");
+
+	Bind('k', "kill");
+	Bind('p', "say /pause");
 
 	// DDRace
 
@@ -265,12 +282,17 @@ void CBinds::SetDDRaceBinds(bool FreeOnly)
 		Bind('c', "say /rank");
 		Bind('v', "say /info");
 		Bind('b', "say /top5");
+		Bind('p', "say /points");
 		Bind('z', "emote 12");
 		Bind('x', "emote 14");
 		Bind('h', "emote 2");
 		Bind('m', "emote 5");
-		Bind(KEY_PAGEDOWN, "cl_show_entities 0");
-		Bind(KEY_PAGEUP, "cl_show_entities 1");
+		Bind('s', "+showhookcoll");
+		Bind('x', "toggle cl_dummy 0 1");
+#if !defined(__ANDROID__)
+		Bind(KEY_PAGEDOWN, "toggle cl_show_quads 0 1");
+		Bind(KEY_PAGEUP, "toggle cl_overlay_entities 0 100");
+#endif
 		Bind(KEY_KP0, "say /emote normal 999999");
 		Bind(KEY_KP1, "say /emote happy 999999");
 		Bind(KEY_KP2, "say /emote angry 999999");
@@ -307,6 +329,8 @@ void CBinds::SetDDRaceBinds(bool FreeOnly)
 			Bind('v', "say /info");
 		if(!Get('b')[0])
 			Bind('b', "say /top5");
+		if(!Get('p')[0])
+			Bind('p', "say /points");
 		if(!Get('z')[0])
 			Bind('z', "emote 12");
 		if(!Get('x')[0])
@@ -315,6 +339,10 @@ void CBinds::SetDDRaceBinds(bool FreeOnly)
 			Bind('h', "emote 2");
 		if(!Get('m')[0])
 			Bind('m', "emote 5");
+		if(!Get('s')[0])
+			Bind('s', "+showhookcoll");
+		if(!Get('x')[0])
+			Bind('x', "toggle cl_dummy 0 1");
 		if(!Get(KEY_PAGEDOWN)[0])
 			Bind(KEY_PAGEDOWN, "cl_show_entities 0");
 		if(!Get(KEY_PAGEUP)[0])
@@ -338,5 +366,6 @@ void CBinds::SetDDRaceBinds(bool FreeOnly)
 		if(!Get(KEY_EQUALS)[0])
 			Bind(KEY_EQUALS, "spectate_next");
 	}
-		g_Config.m_ClDDRaceBindsSet = 1;
+
+	g_Config.m_ClDDRaceBindsSet = 1;
 }

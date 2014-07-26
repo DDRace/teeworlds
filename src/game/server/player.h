@@ -11,6 +11,8 @@
 class CPlayer
 {
 	MACRO_ALLOC_POOL_ID()
+	
+	friend class CSaveTee;
 
 public:
 	CPlayer(CGameContext *pGameServer, int ClientID, int Team);
@@ -20,6 +22,7 @@ public:
 
 	void TryRespawn();
 	void Respawn();
+	CCharacter* ForceSpawn(vec2 Pos); // required for loading savegames
 	void SetTeam(int Team, bool DoChatMsg=true);
 	int GetTeam() const { return m_Team; };
 	int GetCID() const { return m_ClientID; };
@@ -27,6 +30,7 @@ public:
 	void Tick();
 	void PostTick();
 	void Snap(int SnappingClient);
+	void FakeSnap(int SnappingClient);
 
 	void OnDirectInput(CNetObj_PlayerInput *NewInput);
 	void OnPredictedInput(CNetObj_PlayerInput *NewInput);
@@ -35,9 +39,13 @@ public:
 	void KillCharacter(int Weapon = WEAPON_GAME);
 	CCharacter *GetCharacter();
 
+	void FindDuplicateSkins();
+
 	//---------------------------------------------------------
 	// this is used for snapping so we know how we can clip the view for the player
 	vec2 m_ViewPos;
+	int m_TuneZone;
+	int m_TuneZoneOld;
 
 	// states if the client is chatting, accessing a menu etc.
 	int m_PlayerFlags;
@@ -62,6 +70,9 @@ public:
 	int m_LastChangeInfo;
 	int m_LastEmote;
 	int m_LastKill;
+	int m_LastCommands[4];
+	int m_LastCommandPos;
+	int m_LastWhisperTo;
 
 	// TODO: clean this up
 	struct
@@ -78,6 +89,7 @@ public:
 	int m_ScoreStartTick;
 	bool m_ForceBalanced;
 	int m_LastActionTick;
+	bool m_StolenSkin;
 	int m_TeamChangeTick;
 	struct
 	{
@@ -121,6 +133,7 @@ public:
 	};
 
 	int m_Paused;
+	bool m_DND;
 	int64 m_NextPauseTick;
 
 	void ProcessPause();
@@ -129,16 +142,21 @@ public:
 	int64 m_Last_KickVote;
 	int64 m_Last_Team;
 	int m_Authed;
-	bool m_IsUsingDDRaceClient;
+	int m_ClientVersion;
 	bool m_ShowOthers;
+	bool m_ShowAll;
+	bool m_NinjaJetpack;
+	bool m_Afk;
 
 	int m_ChatScore;
 
 	bool AfkTimer(int new_target_x, int new_target_y); //returns true if kicked
+	void AfkVoteTimer(CNetObj_PlayerInput *NewTarget);
 	int64 m_LastPlaytime;
 	int64 m_LastEyeEmote;
 	int m_LastTarget_x;
 	int m_LastTarget_y;
+	CNetObj_PlayerInput m_LastTarget;
 	int m_Sent1stAfkWarning; // afk timer's 1st warning after 50% of sv_max_afk_time
 	int m_Sent2ndAfkWarning; // afk timer's 2nd warning after 90% of sv_max_afk_time
 	char m_pAfkMsg[160];

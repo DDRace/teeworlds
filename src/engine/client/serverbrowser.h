@@ -13,6 +13,7 @@ public:
 	public:
 		NETADDR m_Addr;
 		int64 m_RequestTime;
+		bool m_Is64;
 		int m_GotInfo;
 		CServerInfo m_Info;
 
@@ -24,7 +25,7 @@ public:
 
 	enum
 	{
-		MAX_FAVORITES=256
+		MAX_FAVORITES=2048
 	};
 
 	CServerBrowser();
@@ -51,6 +52,10 @@ public:
 
 	void SetBaseInfo(class CNetClient *pClient, const char *pNetVersion);
 
+	void RequestImpl64(const NETADDR &Addr, CServerEntry *pEntry) const;
+	void QueueRequest(CServerEntry *pEntry);
+	CServerEntry *Find(const NETADDR &Addr);
+
 private:
 	CNetClient *m_pNetClient;
 	IMasterServer *m_pMasterServer;
@@ -70,7 +75,13 @@ private:
 	CServerEntry *m_pFirstReqServer; // request list
 	CServerEntry *m_pLastReqServer;
 	int m_NumRequests;
-
+	int m_MasterServerCount;
+	
+	//used instead of g_Config.br_max_requests to get more servers
+	int m_CurrentMaxRequests;
+	
+	int m_LastPacketTick;
+	
 	int m_NeedRefresh;
 
 	int m_NumSortedServers;
@@ -81,7 +92,7 @@ private:
 	int m_Sorthash;
 	char m_aFilterString[64];
 	char m_aFilterGametypeString[128];
-
+	
 	// the token is to keep server refresh separated from each other
 	int m_CurrentToken;
 
@@ -101,11 +112,9 @@ private:
 	void Sort();
 	int SortHash() const;
 
-	CServerEntry *Find(const NETADDR &Addr);
 	CServerEntry *Add(const NETADDR &Addr);
 
 	void RemoveRequest(CServerEntry *pEntry);
-	void QueueRequest(CServerEntry *pEntry);
 
 	void RequestImpl(const NETADDR &Addr, CServerEntry *pEntry) const;
 

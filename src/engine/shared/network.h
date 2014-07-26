@@ -48,7 +48,7 @@ enum
 	NET_MAX_PAYLOAD = NET_MAX_PACKETSIZE-6,
 	NET_MAX_CHUNKHEADERSIZE = 5,
 	NET_PACKETHEADERSIZE = 3,
-	NET_MAX_CLIENTS = 16,
+	NET_MAX_CLIENTS = 64,
 	NET_MAX_CONSOLE_CLIENTS = 4,
 	NET_MAX_SEQUENCE = 1<<10,
 	NET_SEQUENCE_MASK = NET_MAX_SEQUENCE-1,
@@ -140,6 +140,7 @@ private:
 
 	int m_Token;
 	int m_RemoteClosed;
+	bool m_BlockCloseMsg;
 
 	TStaticRingBuffer<CNetChunkResend, NET_CONN_BUFFERSIZE> m_Buffer;
 
@@ -167,7 +168,7 @@ private:
 	void Resend();
 
 public:
-	void Init(NETSOCKET Socket);
+	void Init(NETSOCKET Socket, bool BlockCloseMsg);
 	int Connect(NETADDR *pAddr);
 	void Disconnect(const char *pReason);
 
@@ -187,6 +188,7 @@ public:
 
 	// Needed for GotProblems in NetClient
 	int64 LastRecvTime() const { return m_LastRecvTime; }
+	int64 ConnectTime() const { return m_LastUpdateTime; }
 
 	int AckSequence() const { return m_Ack; }
 };
@@ -332,8 +334,8 @@ class CNetClient
 	NETADDR m_ServerAddr;
 	CNetConnection m_Connection;
 	CNetRecvUnpacker m_RecvUnpacker;
-	NETSOCKET m_Socket;
 public:
+	NETSOCKET m_Socket;
 	// openness
 	bool Open(NETADDR BindAddr, int Flags);
 	int Close();
@@ -353,7 +355,7 @@ public:
 	int ResetErrorString();
 
 	// error and state
-	int NetType() { return m_Socket.type; }
+	int NetType() const { return m_Socket.type; }
 	int State();
 	int GotProblems();
 	const char *ErrorString();

@@ -48,7 +48,7 @@ void CPickup::Tick()
 	}*/
 	// Check if a player intersected us
 	CCharacter *apEnts[MAX_CLIENTS];
-	int Num = GameWorld()->FindEntities(m_Pos, 20.0f, (CEntity**)apEnts, 64, CGameWorld::ENTTYPE_CHARACTER);
+	int Num = GameWorld()->FindEntities(m_Pos, 20.0f, (CEntity**)apEnts, MAX_CLIENTS, CGameWorld::ENTTYPE_CHARACTER);
 	for(int i = 0; i < Num; ++i) {
 		CCharacter * pChr = apEnts[i];
 		if(pChr && pChr->IsAlive())
@@ -84,7 +84,8 @@ void CPickup::Tick()
 						pChr->SetLastWeapon(WEAPON_GUN);
 						GameServer()->CreateSound(m_Pos, SOUND_PICKUP_ARMOR, pChr->Teams()->TeamMask(pChr->Team()));
 					}
-					if(!pChr->m_FreezeTime) pChr->SetActiveWeapon(WEAPON_HAMMER);
+					if(!pChr->m_FreezeTime && pChr->GetActiveWeapon() >= WEAPON_SHOTGUN)
+						pChr->SetActiveWeapon(WEAPON_HAMMER);
 					break;
 
 				case POWERUP_WEAPON:
@@ -150,11 +151,17 @@ void CPickup::Snap(int SnappingClient)
 	/*if(m_SpawnTick != -1 || NetworkClipped(SnappingClient))
 		return;*/
 
-	CCharacter * SnapChar = GameServer()->GetPlayerChar(SnappingClient);
+	CCharacter *Char = GameServer()->GetPlayerChar(SnappingClient);
+
+	if((GameServer()->m_apPlayers[SnappingClient]->GetTeam() == -1
+				|| GameServer()->m_apPlayers[SnappingClient]->m_Paused)
+			&& GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID != SPEC_FREEVIEW)
+		Char = GameServer()->GetPlayerChar(GameServer()->m_apPlayers[SnappingClient]->m_SpectatorID);
+
 	int Tick = (Server()->Tick()%Server()->TickSpeed())%11;
-	if (SnapChar && SnapChar->IsAlive() &&
+	if (Char && Char->IsAlive() &&
 			(m_Layer == LAYER_SWITCH &&
-					!GameServer()->Collision()->m_pSwitchers[m_Number].m_Status[SnapChar->Team()])
+					!GameServer()->Collision()->m_pSwitchers[m_Number].m_Status[Char->Team()])
 					&& (!Tick))
 		return;
 

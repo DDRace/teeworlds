@@ -195,13 +195,14 @@ int CSnapshotDelta::CreateDelta(CSnapshot *pFrom, CSnapshot *pTo, void *pDstData
 
 	// fetch previous indices
 	// we do this as a separate pass because it helps the cache
-	for(i = 0; i < pTo->NumItems(); i++)
+	const int NumItems = pTo->NumItems();
+	for(i = 0; i < NumItems; i++)
 	{
 		pCurItem = pTo->GetItem(i); // O(1) .. O(n)
 		aPastIndecies[i] = GetItemIndexHashed(pCurItem->Key(), Hashlist); // O(n) .. O(n^n)
 	}
 
-	for(i = 0; i < pTo->NumItems(); i++)
+	for(i = 0; i < NumItems; i++)
 	{
 		// do delta
 		ItemSize = pTo->GetItemSize(i); // O(1) .. O(n)
@@ -330,7 +331,7 @@ int CSnapshotDelta::UnpackDelta(CSnapshot *pFrom, CSnapshot *pTo, void *pSrcData
 
 		Type = *pData++;
 		ID = *pData++;
-		if(m_aItemSizes[Type])
+		if ((unsigned int) Type < sizeof(m_aItemSizes) && m_aItemSizes[Type])
 			ItemSize = m_aItemSizes[Type];
 		else
 		{
@@ -474,7 +475,7 @@ int CSnapshotStorage::Get(int Tick, int64 *pTagtime, CSnapshot **ppData, CSnapsh
 			if(ppData)
 				*ppData = pHolder->m_pSnap;
 			if(ppAltData)
-				*ppData = pHolder->m_pAltSnap;
+				*ppAltData = pHolder->m_pAltSnap;
 			return pHolder->m_SnapSize;
 		}
 

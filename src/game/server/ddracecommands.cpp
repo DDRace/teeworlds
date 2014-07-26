@@ -128,6 +128,26 @@ void CGameContext::ConUnSuper(IConsole::IResult *pResult, void *pUserData)
 	}
 }
 
+void CGameContext::ConUnSolo(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *) pUserData;
+	if (!CheckClientID(pResult->m_ClientID))
+		return;
+	CCharacter* pChr = pSelf->GetPlayerChar(pResult->m_ClientID);
+	if (pChr)
+		pChr->Teams()->m_Core.SetSolo(pResult->m_ClientID, false);
+}
+
+void CGameContext::ConUnDeep(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *) pUserData;
+	if (!CheckClientID(pResult->m_ClientID))
+		return;
+	CCharacter* pChr = pSelf->GetPlayerChar(pResult->m_ClientID);
+	if (pChr)
+		pChr->m_DeepFreeze = false;
+}
+
 void CGameContext::ConShotgun(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *) pUserData;
@@ -248,18 +268,62 @@ void CGameContext::ModifyWeapons(IConsole::IResult *pResult, void *pUserData,
 	pChr->m_DDRaceState = DDRACE_CHEAT;
 }
 
-void CGameContext::ConTeleport(IConsole::IResult *pResult, void *pUserData)
+void CGameContext::ConToTeleporter(IConsole::IResult *pResult, void *pUserData)
 {
 	CGameContext *pSelf = (CGameContext *) pUserData;
-	if (!CheckClientID(pResult->GetVictim()))
-		return;
-	int TeleTo = pResult->GetVictim();
-	if (pSelf->m_apPlayers[TeleTo])
+	unsigned int TeleTo = pResult->GetInteger(0);
+
+	if (((CGameControllerDDRace*)pSelf->m_pController)->m_TeleOuts[TeleTo-1].size())
 	{
+		int Num = ((CGameControllerDDRace*)pSelf->m_pController)->m_TeleOuts[TeleTo-1].size();
+		vec2 TelePos = ((CGameControllerDDRace*)pSelf->m_pController)->m_TeleOuts[TeleTo-1][(!Num)?Num:rand() % Num];
 		CCharacter* pChr = pSelf->GetPlayerChar(pResult->m_ClientID);
 		if (pChr)
 		{
+			pChr->Core()->m_Pos = TelePos;
+			pChr->m_Pos = TelePos;
+			pChr->m_PrevPos = TelePos;
+			pChr->m_DDRaceState = DDRACE_CHEAT;
+		}
+	}
+}
+
+void CGameContext::ConToCheckTeleporter(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *) pUserData;
+	unsigned int TeleTo = pResult->GetInteger(0);
+
+	if (((CGameControllerDDRace*)pSelf->m_pController)->m_TeleCheckOuts[TeleTo-1].size())
+	{
+		int Num = ((CGameControllerDDRace*)pSelf->m_pController)->m_TeleCheckOuts[TeleTo-1].size();
+		vec2 TelePos = ((CGameControllerDDRace*)pSelf->m_pController)->m_TeleCheckOuts[TeleTo-1][(!Num)?Num:rand() % Num];
+		CCharacter* pChr = pSelf->GetPlayerChar(pResult->m_ClientID);
+		if (pChr)
+		{
+			pChr->Core()->m_Pos = TelePos;
+			pChr->m_Pos = TelePos;
+			pChr->m_PrevPos = TelePos;
+			pChr->m_DDRaceState = DDRACE_CHEAT;
+		}
+	}
+}
+
+void CGameContext::ConTeleport(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *) pUserData;
+	int TeleTo = pResult->GetInteger(0);
+	int Tele = pResult->m_ClientID;
+	if (pResult->NumArguments() > 0)
+		Tele = pResult->GetVictim();
+
+	if (pSelf->m_apPlayers[TeleTo])
+	{
+		CCharacter* pChr = pSelf->GetPlayerChar(Tele);
+		if (pChr && pSelf->GetPlayerChar(TeleTo))
+		{
 			pChr->Core()->m_Pos = pSelf->m_apPlayers[TeleTo]->m_ViewPos;
+			pChr->m_Pos = pSelf->m_apPlayers[TeleTo]->m_ViewPos;
+			pChr->m_PrevPos = pSelf->m_apPlayers[TeleTo]->m_ViewPos;
 			pChr->m_DDRaceState = DDRACE_CHEAT;
 		}
 	}
@@ -415,4 +479,53 @@ void CGameContext::ConMutes(IConsole::IResult *pResult, void *pUserData)
 				/ pSelf->Server()->TickSpeed());
 		pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD, "mutes", aBuf);
 	}
+}
+
+void CGameContext::ConList(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	int ClientID = pResult->m_ClientID;
+	if(!CheckClientID(ClientID)) return;
+
+	char zerochar = 0;
+	if(pResult->NumArguments() > 0)
+		pSelf->List(ClientID, pResult->GetString(0));
+	else
+		pSelf->List(ClientID, &zerochar);
+}
+
+void CGameContext::ConFreezeHammer(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *) pUserData;
+	int Victim = pResult->GetVictim();
+
+	CCharacter* pChr = pSelf->GetPlayerChar(Victim);
+
+	if (!pChr)
+		return;
+
+	char aBuf[128];
+	str_format(aBuf, sizeof aBuf, "'%s' got freeze hammer!",
+			pSelf->Server()->ClientName(Victim));
+	pSelf->SendChat(-1, CHAT_ALL, aBuf);
+
+	pChr->m_FreezeHammer = true;
+}
+
+void CGameContext::ConUnFreezeHammer(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *) pUserData;
+	int Victim = pResult->GetVictim();
+
+	CCharacter* pChr = pSelf->GetPlayerChar(Victim);
+
+	if (!pChr)
+		return;
+
+	char aBuf[128];
+	str_format(aBuf, sizeof aBuf, "'%s' lost freeze hammer!",
+			pSelf->Server()->ClientName(Victim));
+	pSelf->SendChat(-1, CHAT_ALL, aBuf);
+
+	pChr->m_FreezeHammer = false;
 }

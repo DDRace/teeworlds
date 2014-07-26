@@ -307,7 +307,6 @@ void CRenderTools::MapscreenToWorld(float CenterX, float CenterY, float Parallax
 
 void CRenderTools::RenderTilemapGenerateSkip(class CLayers *pLayers)
 {
-
 	for(int g = 0; g < pLayers->NumGroups(); g++)
 	{
 		CMapItemGroup *pGroup = pLayers->GetGroup(g);
@@ -322,7 +321,7 @@ void CRenderTools::RenderTilemapGenerateSkip(class CLayers *pLayers)
 				CTile *pTiles = (CTile *)pLayers->Map()->GetData(pTmap->m_Data);
 				for(int y = 0; y < pTmap->m_Height; y++)
 				{
-					for(int x = 1; x < pTmap->m_Width; x++)
+					for(int x = 1; x < pTmap->m_Width;)
 					{
 						int sx;
 						for(sx = 1; x+sx < pTmap->m_Width && sx < 255; sx++)
@@ -332,6 +331,7 @@ void CRenderTools::RenderTilemapGenerateSkip(class CLayers *pLayers)
 						}
 
 						pTiles[y*pTmap->m_Width+x].m_Skip = sx-1;
+						x += sx;
 					}
 				}
 			}

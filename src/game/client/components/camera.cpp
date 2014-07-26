@@ -31,30 +31,32 @@ void CCamera::OnRender()
 	{
 		if(m_CamType != CAMTYPE_SPEC)
 		{
-			m_pClient->m_pControls->m_MousePos = m_PrevCenter;
+			m_LastPos[g_Config.m_ClDummy] = m_pClient->m_pControls->m_MousePos[g_Config.m_ClDummy];
+			m_pClient->m_pControls->m_MousePos[g_Config.m_ClDummy] = m_PrevCenter;
 			m_pClient->m_pControls->ClampMousePos();
 			m_CamType = CAMTYPE_SPEC;
 		}
-		m_Center = m_pClient->m_pControls->m_MousePos;
+		m_Center = m_pClient->m_pControls->m_MousePos[g_Config.m_ClDummy];
 	}
 	else
 	{
 		if(m_CamType != CAMTYPE_PLAYER)
 		{
+			m_pClient->m_pControls->m_MousePos[g_Config.m_ClDummy] = m_LastPos[g_Config.m_ClDummy];
 			m_pClient->m_pControls->ClampMousePos();
 			m_CamType = CAMTYPE_PLAYER;
 		}
 
 		vec2 CameraOffset(0, 0);
 
-		float l = length(m_pClient->m_pControls->m_MousePos);
+		float l = length(m_pClient->m_pControls->m_MousePos[g_Config.m_ClDummy]);
 		if(l > 0.0001f) // make sure that this isn't 0
 		{
 			float DeadZone = g_Config.m_ClMouseDeadzone;
 			float FollowFactor = g_Config.m_ClMouseFollowfactor/100.0f;
 			float OffsetAmount = max(l-DeadZone, 0.0f) * FollowFactor;
 
-			CameraOffset = normalize(m_pClient->m_pControls->m_MousePos)*OffsetAmount;
+			CameraOffset = normalize(m_pClient->m_pControls->m_MousePos[g_Config.m_ClDummy])*OffsetAmount;
 		}
 
 		if(m_pClient->m_Snap.m_SpecInfo.m_Active)
@@ -78,13 +80,13 @@ void CCamera::OnReset()
 	m_Zoom = 1.0f;
 }
 
-const float ZoomStep = 0.75f;
+const float ZoomStep = 0.866025f;
 void CCamera::ConZoomPlus(IConsole::IResult *pResult, void *pUserData)
 {
 	CCamera *pSelf = (CCamera *)pUserData;
 	CServerInfo Info;
 	pSelf->Client()->GetServerInfo(&Info);
-	if(g_Config.m_ClDDRaceCheats == 1 && str_find_nocase(Info.m_aGameType, "race"))
+	if(pSelf->m_pClient->m_Snap.m_SpecInfo.m_Active || (str_find_nocase(Info.m_aGameType, "race") || str_find_nocase(Info.m_aGameType, "fastcap")) || pSelf->Client()->State() == IClient::STATE_DEMOPLAYBACK)
 		((CCamera *)pUserData)->m_Zoom *= ZoomStep;
 }
 void CCamera::ConZoomMinus(IConsole::IResult *pResult, void *pUserData)
@@ -92,7 +94,7 @@ void CCamera::ConZoomMinus(IConsole::IResult *pResult, void *pUserData)
 	CCamera *pSelf = (CCamera *)pUserData;
 	CServerInfo Info;
 	pSelf->Client()->GetServerInfo(&Info);
-	if(g_Config.m_ClDDRaceCheats == 1 && str_find_nocase(Info.m_aGameType, "race"))
+	if(pSelf->m_pClient->m_Snap.m_SpecInfo.m_Active || (str_find_nocase(Info.m_aGameType, "race") || str_find_nocase(Info.m_aGameType, "fastcap")) || pSelf->Client()->State() == IClient::STATE_DEMOPLAYBACK)
 		((CCamera *)pUserData)->m_Zoom *= 1/ZoomStep;
 }
 void CCamera::ConZoomReset(IConsole::IResult *pResult, void *pUserData)

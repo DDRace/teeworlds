@@ -12,6 +12,16 @@
 
 #include <game/teamscore.h>
 
+#define MIN3(x,y,z)  ((y) <= (z) ? \
+	((x) <= (y) ? (x) : (y)) \
+	: \
+	((x) <= (z) ? (x) : (z)))
+
+#define MAX3(x,y,z)  ((y) >= (z) ? \
+	((x) >= (y) ? (x) : (y)) \
+	: \
+	((x) >= (z) ? (x) : (z)))
+
 class CGameClient : public IGameClient
 {
 	class CStack
@@ -44,6 +54,9 @@ class CGameClient : public IGameClient
 	class IDemoPlayer *m_pDemoPlayer;
 	class IDemoRecorder *m_pDemoRecorder;
 	class IServerBrowser *m_pServerBrowser;
+#if !defined(CONF_PLATFORM_MACOSX) && !defined(__ANDROID__)
+	class IAutoUpdate *m_pAutoUpdate;
+#endif
 	class IEditor *m_pEditor;
 	class IFriends *m_pFriends;
 
@@ -56,7 +69,7 @@ class CGameClient : public IGameClient
 	void UpdatePositions();
 
 	int m_PredictedTick;
-	int m_LastNewPredictedTick;
+	int m_LastNewPredictedTick[2];
 
 	int64 m_LastSendInfo;
 
@@ -64,6 +77,8 @@ class CGameClient : public IGameClient
 	static void ConKill(IConsole::IResult *pResult, void *pUserData);
 
 	static void ConchainSpecialInfoupdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
+	static void ConchainSpecialDummyInfoupdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
+	static void ConchainSpecialDummy(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData);
 
 public:
 	IKernel *Kernel() { return IInterface::Kernel(); }
@@ -79,6 +94,9 @@ public:
 	class IDemoPlayer *DemoPlayer() const { return m_pDemoPlayer; }
 	class IDemoRecorder *DemoRecorder() const { return m_pDemoRecorder; }
 	class IServerBrowser *ServerBrowser() const { return m_pServerBrowser; }
+#if !defined(CONF_PLATFORM_MACOSX) && !defined(__ANDROID__)
+	class IAutoUpdate *AutoUpdate() const { return m_pAutoUpdate; }
+#endif
 	class CRenderTools *RenderTools() { return &m_RenderTools; }
 	class CLayers *Layers() { return &m_Layers; };
 	class CCollision *Collision() { return &m_Collision; };
@@ -94,7 +112,7 @@ public:
 	int m_FlagDropTick[2];
 
 	// TODO: move this
-	CTuningParams m_Tuning;
+	CTuningParams m_Tuning[2];
 
 	enum
 	{
@@ -127,7 +145,9 @@ public:
 
 		const CNetObj_PlayerInfo *m_paPlayerInfos[MAX_CLIENTS];
 		const CNetObj_PlayerInfo *m_paInfoByScore[MAX_CLIENTS];
+		const CNetObj_PlayerInfo *m_paInfoByName[MAX_CLIENTS];
 		const CNetObj_PlayerInfo *m_paInfoByTeam[MAX_CLIENTS];
+		const CNetObj_PlayerInfo *m_paInfoByDDTeam[MAX_CLIENTS];
 
 		int m_LocalClientID;
 		int m_NumPlayers;
@@ -177,6 +197,7 @@ public:
 		int m_Emoticon;
 		int m_EmoticonStart;
 		CCharacterCore m_Predicted;
+		CCharacterCore m_PrevPredicted;
 
 		CTeeRenderInfo m_SkinInfo; // this is what the server reports
 		CTeeRenderInfo m_RenderInfo; // this is what we use
@@ -203,11 +224,12 @@ public:
 	// hooks
 	virtual void OnConnected();
 	virtual void OnRender();
+	virtual void OnDummyDisconnect();
 	virtual void OnRelease();
 	virtual void OnInit();
 	virtual void OnConsoleInit();
 	virtual void OnStateChange(int NewState, int OldState);
-	virtual void OnMessage(int MsgId, CUnpacker *pUnpacker);
+	virtual void OnMessage(int MsgId, CUnpacker *pUnpacker, bool IsDummy = 0);
 	virtual void OnNewSnapshot();
 	virtual void OnPredict();
 	virtual void OnActivateEditor();
@@ -218,6 +240,7 @@ public:
 	virtual void OnGameOver();
 	virtual void OnStartGame();
 
+	virtual void ResetDummyInput();
 	virtual const char *GetItemName(int Type);
 	virtual const char *Version();
 	virtual const char *NetVersion();
@@ -227,6 +250,7 @@ public:
 	// TODO: move these
 	void SendSwitchTeam(int Team);
 	void SendInfo(bool Start);
+	virtual void SendDummyInfo(bool Start);
 	void SendKill(int ClientID);
 
 	// pointers to all systems
@@ -255,12 +279,14 @@ public:
 
 	class CRaceDemo *m_pRaceDemo;
 	class CGhost *m_pGhost;
+	class CTeamsCore m_Teams;
+
+	int IntersectCharacter(vec2 Pos0, vec2 Pos1, vec2& NewPos, int ownID);
 
 private:
 
-	class CTeamsCore m_Teams;
-	bool m_DDRaceMsgSent;
-	int m_ShowOthers;
+	bool m_DDRaceMsgSent[2];
+	int m_ShowOthers[2];
 };
 
 
@@ -285,6 +311,39 @@ inline vec3 HslToRgb(vec3 HSL)
 
 		return vec3(HueToRgb(v1, v2, HSL.h + (1.0f/3.0f)), HueToRgb(v1, v2, HSL.h), HueToRgb(v1, v2, HSL.h - (1.0f/3.0f)));
 	}
+}
+
+inline vec3 RgbToHsl(vec3 RGB)
+{
+	vec3 HSL;
+	float maxColor = MAX3(RGB.r, RGB.g, RGB.b);
+	float minColor = MIN3(RGB.r, RGB.g, RGB.b);
+	if (minColor == maxColor)
+		return vec3(0.0f, 0.0f, RGB.g * 255.0f);
+	else
+	{
+		HSL.l = (minColor + maxColor) / 2;
+
+		if (HSL.l < 0.5)
+			HSL.s = (maxColor - minColor) / (maxColor + minColor);
+		else 
+			HSL.s = (maxColor - minColor) / (2.0 - maxColor - minColor);
+
+		if (RGB.r == maxColor)
+			HSL.h = (RGB.g - RGB.b) / (maxColor - minColor);
+		else if (RGB.g == maxColor)
+			HSL.h = 2.0 + (RGB.b - RGB.r) / (maxColor - minColor);
+		else 
+			HSL.h = 4.0 + (RGB.r - RGB.g) / (maxColor - minColor);
+
+		HSL.h /= 6; //to bring it to a number between 0 and 1
+		if (HSL.h < 0) HSL.h++;
+	}
+	HSL.h = int(HSL.h * 255.0);
+	HSL.s = int(HSL.s * 255.0);
+	HSL.l = int(HSL.l * 255.0);
+	return HSL;
+
 }
 
 

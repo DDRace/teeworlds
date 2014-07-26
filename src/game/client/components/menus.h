@@ -92,42 +92,6 @@ class CMenus : public CComponent
 	//static void demolist_listdir_callback(const char *name, int is_dir, void *user);
 	//static void demolist_list_callback(const CUIRect *rect, int index, void *user);
 
-	enum
-	{
-		POPUP_NONE=0,
-		POPUP_FIRST_LAUNCH,
-		POPUP_CONNECTING,
-		POPUP_MESSAGE,
-		POPUP_DISCONNECTED,
-		POPUP_PURE,
-		POPUP_LANGUAGE,
-		POPUP_COUNTRY,
-		POPUP_DELETE_DEMO,
-		POPUP_RENAME_DEMO,
-		POPUP_REMOVE_FRIEND,
-		POPUP_SOUNDERROR,
-		POPUP_PASSWORD,
-		POPUP_QUIT,
-	};
-
-	enum
-	{
-		PAGE_NEWS=1,
-		PAGE_GAME,
-		PAGE_PLAYERS,
-		PAGE_SERVER_INFO,
-		PAGE_CALLVOTE,
-		PAGE_INTERNET,
-		PAGE_LAN,
-		PAGE_FAVORITES,
-		PAGE_DEMOS,
-		PAGE_SETTINGS,
-		PAGE_SYSTEM,
-		PAGE_DDRace,
-		PAGE_BROWSER,
-		PAGE_GHOST
-	};
-
 	int m_GamePage;
 	int m_Popup;
 	int m_ActivePage;
@@ -156,12 +120,14 @@ class CMenus : public CComponent
 	// some settings
 	static float ms_ButtonHeight;
 	static float ms_ListheaderHeight;
+	static float ms_ListitemAdditionalHeight;
 	static float ms_FontmodHeight;
 
 	// for settings
 	bool m_NeedRestartGraphics;
 	bool m_NeedRestartSound;
 	bool m_NeedSendinfo;
+	bool m_NeedSendDummyinfo;
 	int m_SettingPlayerPage;
 
 	//
@@ -256,6 +222,7 @@ class CMenus : public CComponent
 
 	// found in menus_browser.cpp
 	int m_SelectedIndex;
+	int m_DoubleClickIndex;
 	int m_ScrollOffset;
 	void RenderServerbrowserServerList(CUIRect View);
 	void RenderServerbrowserServerDetail(CUIRect View);
@@ -269,6 +236,7 @@ class CMenus : public CComponent
 	void RenderLanguageSelection(CUIRect MainView);
 	void RenderSettingsGeneral(CUIRect MainView);
 	void RenderSettingsPlayer(CUIRect MainView);
+	void RenderSettingsDummyPlayer(CUIRect MainView);
 	void RenderSettingsTee(CUIRect MainView);
 	void RenderSettingsControls(CUIRect MainView);
 	void RenderSettingsGraphics(CUIRect MainView);
@@ -286,6 +254,7 @@ public:
 	CMenus();
 
 	void RenderLoading();
+	void RenderUpdating(const char *pCaption, int current=0, int total=0);
 
 	bool IsActive() const { return m_MenuActive; }
 
@@ -297,8 +266,26 @@ public:
 	virtual bool OnInput(IInput::CEvent Event);
 	virtual bool OnMouseMove(float x, float y);
 
-	// DDRace
+	enum
+	{
+		PAGE_NEWS=1,
+		PAGE_GAME,
+		PAGE_PLAYERS,
+		PAGE_SERVER_INFO,
+		PAGE_CALLVOTE,
+		PAGE_INTERNET,
+		PAGE_LAN,
+		PAGE_FAVORITES,
+		PAGE_DEMOS,
+		PAGE_SETTINGS,
+		PAGE_SYSTEM,
+		PAGE_DDRace,
+		PAGE_BROWSER,
+		PAGE_GHOST
+	};
 
+	// DDRace
+	int64 _my_rtime; // reconnect time
 	int DoButton_CheckBox_DontCare(const void *pID, const char *pText, int Checked, const CUIRect *pRect);
 	sorted_array<CDemoItem> m_lDemos;
 	void DemolistPopulate();
@@ -322,6 +309,27 @@ public:
 	CGhostItem *m_OwnGhost;
 	int m_DDRacePage;
 	void GhostlistPopulate();
+	void setPopup(int Popup) { m_Popup = Popup; }
+
+	enum
+	{
+		POPUP_NONE=0,
+		POPUP_FIRST_LAUNCH,
+		POPUP_CONNECTING,
+		POPUP_MESSAGE,
+		POPUP_DISCONNECTED,
+		POPUP_PURE,
+		POPUP_LANGUAGE,
+		POPUP_COUNTRY,
+		POPUP_DELETE_DEMO,
+		POPUP_RENAME_DEMO,
+		POPUP_REMOVE_FRIEND,
+		POPUP_SOUNDERROR,
+		POPUP_PASSWORD,
+		POPUP_QUIT,
+		POPUP_AUTOUPDATE,
+		POPUP_DISCONNECT
+	};
 
 private:
 
@@ -334,5 +342,6 @@ private:
 
 	// found in menus_settings.cpp
 	void RenderSettingsDDRace(CUIRect MainView);
+	void RenderSettingsHUD(CUIRect MainView);
 };
 #endif

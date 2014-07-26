@@ -4,6 +4,7 @@
 #include <engine/demo.h>
 #include <game/generated/protocol.h>
 #include <game/generated/client_data.h>
+#include <engine/shared/config.h>
 
 #include <game/gamecore.h> // get_angle
 #include <game/client/gameclient.h>
@@ -14,7 +15,7 @@
 #include <game/client/components/effects.h>
 
 #include "items.h"
-
+#include <stdio.h>
 void CItems::OnReset()
 {
 	m_NumExtraProjectiles = 0;
@@ -27,18 +28,18 @@ void CItems::RenderProjectile(const CNetObj_Projectile *pCurrent, int ItemID)
 	float Speed = 0;
 	if(pCurrent->m_Type == WEAPON_GRENADE)
 	{
-		Curvature = m_pClient->m_Tuning.m_GrenadeCurvature;
-		Speed = m_pClient->m_Tuning.m_GrenadeSpeed;
+		Curvature = m_pClient->m_Tuning[g_Config.m_ClDummy].m_GrenadeCurvature;
+		Speed = m_pClient->m_Tuning[g_Config.m_ClDummy].m_GrenadeSpeed;
 	}
 	else if(pCurrent->m_Type == WEAPON_SHOTGUN)
 	{
-		Curvature = m_pClient->m_Tuning.m_ShotgunCurvature;
-		Speed = m_pClient->m_Tuning.m_ShotgunSpeed;
+		Curvature = m_pClient->m_Tuning[g_Config.m_ClDummy].m_ShotgunCurvature;
+		Speed = m_pClient->m_Tuning[g_Config.m_ClDummy].m_ShotgunSpeed;
 	}
 	else if(pCurrent->m_Type == WEAPON_GUN)
 	{
-		Curvature = m_pClient->m_Tuning.m_GunCurvature;
-		Speed = m_pClient->m_Tuning.m_GunSpeed;
+		Curvature = m_pClient->m_Tuning[g_Config.m_ClDummy].m_GunCurvature;
+		Speed = m_pClient->m_Tuning[g_Config.m_ClDummy].m_GunSpeed;
 	}
 
 	static float s_LastGameTickTime = Client()->GameTickTime();
@@ -96,7 +97,32 @@ void CItems::RenderProjectile(const CNetObj_Projectile *pCurrent, int ItemID)
 	}
 
 	IGraphics::CQuadItem QuadItem(Pos.x, Pos.y, 32, 32);
-	Graphics()->QuadsDraw(&QuadItem, 1);
+
+	bool LocalPlayerInGame = false;
+
+	if(m_pClient->m_Snap.m_pLocalInfo)
+		LocalPlayerInGame = m_pClient->m_aClients[m_pClient->m_Snap.m_pLocalInfo->m_ClientID].m_Team != -1;
+
+	if (g_Config.m_ClAntiPingGrenade && LocalPlayerInGame && !(Client()->State() == IClient::STATE_DEMOPLAYBACK))
+	{
+		// Draw shadows of grenades
+		static int Offset = 0;
+		Offset = (int)(0.8f * (float)Offset + 0.2f * (float)(Client()->PredGameTick() - Client()->GameTick()));
+
+		int PredictedTick = Client()->PrevGameTick() + Offset;
+		float PredictedCt = (PredictedTick - pCurrent->m_StartTick)/(float)SERVER_TICK_SPEED + Client()->GameTickTime();
+
+		int shadow_type = pCurrent->m_Type;
+		RenderTools()->SelectSprite(g_pData->m_Weapons.m_aId[clamp(shadow_type, 0, NUM_WEAPONS-1)].m_pSpriteProj);
+
+		vec2 PredictedPos = CalcPos(StartPos, StartVel, Curvature, Speed, PredictedCt);
+
+		IGraphics::CQuadItem QuadItem(PredictedPos.x, PredictedPos.y, 32, 32);
+		Graphics()->QuadsDraw(&QuadItem, 1);
+	}
+	else
+		Graphics()->QuadsDraw(&QuadItem, 1);
+
 	Graphics()->QuadsSetRotation(0);
 	Graphics()->QuadsEnd();
 }
@@ -196,13 +222,14 @@ void CItems::RenderFlag(const CNetObj_Flag *pPrev, const CNetObj_Flag *pCurrent,
 
 void CItems::RenderLaser(const struct CNetObj_Laser *pCurrent)
 {
+	vec3 RGB;
 	vec2 Pos = vec2(pCurrent->m_X, pCurrent->m_Y);
 	vec2 From = vec2(pCurrent->m_FromX, pCurrent->m_FromY);
 	vec2 Dir = normalize(Pos-From);
 
 	float Ticks = Client()->GameTick() + Client()->IntraGameTick() - pCurrent->m_StartTick;
 	float Ms = (Ticks/50.0f) * 1000.0f;
-	float a = Ms / m_pClient->m_Tuning.m_LaserBounceDelay;
+	float a = Ms / m_pClient->m_Tuning[g_Config.m_ClDummy].m_LaserBounceDelay;
 	a = clamp(a, 0.0f, 1.0f);
 	float Ia = 1-a;
 
@@ -216,7 +243,8 @@ void CItems::RenderLaser(const struct CNetObj_Laser *pCurrent)
 	//vec4 outer_color(0.65f,0.85f,1.0f,1.0f);
 
 	// do outline
-	vec4 OuterColor(0.075f, 0.075f, 0.25f, 1.0f);
+	RGB = HslToRgb(vec3(g_Config.m_ClLaserOutlineHue / 255.0f, g_Config.m_ClLaserOutlineSat / 255.0f, g_Config.m_ClLaserOutlineLht / 255.0f));
+	vec4 OuterColor(RGB.r, RGB.g, RGB.b, 1.0f);
 	Graphics()->SetColor(OuterColor.r, OuterColor.g, OuterColor.b, 1.0f);
 	Out = vec2(Dir.y, -Dir.x) * (7.0f*Ia);
 
@@ -228,7 +256,8 @@ void CItems::RenderLaser(const struct CNetObj_Laser *pCurrent)
 	Graphics()->QuadsDrawFreeform(&Freeform, 1);
 
 	// do inner
-	vec4 InnerColor(0.5f, 0.5f, 1.0f, 1.0f);
+	RGB = HslToRgb(vec3(g_Config.m_ClLaserInnerHue / 255.0f, g_Config.m_ClLaserInnerSat / 255.0f, g_Config.m_ClLaserInnerLht / 255.0f));
+	vec4 InnerColor(RGB.r, RGB.g, RGB.b, 1.0f);
 	Out = vec2(Dir.y, -Dir.x) * (5.0f*Ia);
 	Graphics()->SetColor(InnerColor.r, InnerColor.g, InnerColor.b, 1.0f); // center
 

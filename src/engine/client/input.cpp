@@ -41,6 +41,8 @@ CInput::CInput()
 	m_ReleaseDelta = -1;
 
 	m_NumEvents = 0;
+
+	m_VideoRestartNeeded = 0;
 }
 
 void CInput::Init()
@@ -52,6 +54,12 @@ void CInput::Init()
 
 void CInput::MouseRelative(float *x, float *y)
 {
+#if defined(__ANDROID__) // No relative mouse on Android
+	int nx = 0, ny = 0;
+	SDL_GetMouseState(&nx, &ny);
+	*x = nx;
+	*y = ny;
+#else
 	int nx = 0, ny = 0;
 	float Sens = g_Config.m_InpMousesens/100.0f;
 
@@ -69,6 +77,7 @@ void CInput::MouseRelative(float *x, float *y)
 
 	*x = nx*Sens;
 	*y = ny*Sens;
+#endif
 }
 
 void CInput::MouseModeAbsolute()
@@ -144,6 +153,7 @@ int CInput::Update()
 	if(i&SDL_BUTTON(6)) m_aInputState[m_InputCurrent][KEY_MOUSE_6] = 1;
 	if(i&SDL_BUTTON(7)) m_aInputState[m_InputCurrent][KEY_MOUSE_7] = 1;
 	if(i&SDL_BUTTON(8)) m_aInputState[m_InputCurrent][KEY_MOUSE_8] = 1;
+	if(i&SDL_BUTTON(9)) m_aInputState[m_InputCurrent][KEY_MOUSE_9] = 1;
 
 	{
 		SDL_Event Event;
@@ -186,11 +196,18 @@ int CInput::Update()
 					if(Event.button.button == 6) Key = KEY_MOUSE_6; // ignore_convention
 					if(Event.button.button == 7) Key = KEY_MOUSE_7; // ignore_convention
 					if(Event.button.button == 8) Key = KEY_MOUSE_8; // ignore_convention
+					if(Event.button.button == 9) Key = KEY_MOUSE_9; // ignore_convention
 					break;
 
 				// other messages
 				case SDL_QUIT:
 					return 1;
+
+#if defined(__ANDROID__)
+				case SDL_VIDEORESIZE:
+					m_VideoRestartNeeded = 1;
+					break;
+#endif
 			}
 
 			//
@@ -208,5 +225,14 @@ int CInput::Update()
 	return 0;
 }
 
+int CInput::VideoRestartNeeded()
+{
+	if( m_VideoRestartNeeded )
+	{
+		m_VideoRestartNeeded = 0;
+		return 1;
+	}
+	return 0;
+}
 
 IEngineInput *CreateEngineInput() { return new CInput; }

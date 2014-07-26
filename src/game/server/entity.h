@@ -62,8 +62,8 @@ class CEntity
 	CEntity *m_pPrevTypeEntity;
 	CEntity *m_pNextTypeEntity;
 
-	class CGameWorld *m_pGameWorld;
 protected:
+	class CGameWorld *m_pGameWorld;
 	bool m_MarkedForDestroy;
 	int m_ID;
 	int m_ObjType;
@@ -138,8 +138,8 @@ public:
 		Returns:
 			Non-zero if the entity doesn't have to be in the snapshot.
 	*/
-	int NetworkClipped(int SnappingClient);
-	int NetworkClipped(int SnappingClient, vec2 CheckPos);
+	virtual int NetworkClipped(int SnappingClient);
+	virtual int NetworkClipped(int SnappingClient, vec2 CheckPos);
 
 	bool GameLayerClipped(vec2 CheckPos);
 

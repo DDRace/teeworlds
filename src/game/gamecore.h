@@ -6,6 +6,9 @@
 #include <base/system.h>
 #include <base/math.h>
 
+#include <map>
+#include <vector>
+
 #include <math.h>
 #include "collision.h"
 #include <engine/shared/protocol.h>
@@ -161,6 +164,7 @@ enum
 	COREEVENT_HOOK_ATTACH_GROUND=0x10,
 	COREEVENT_HOOK_HIT_NOHOOK=0x20,
 	COREEVENT_HOOK_RETRACT=0x40,
+	//COREEVENT_HOOK_TELE=0x80,
 };
 
 class CWorldCore
@@ -171,25 +175,37 @@ public:
 		mem_zero(m_apCharacters, sizeof(m_apCharacters));
 	}
 
-	CTuningParams m_Tuning;
+	CTuningParams m_Tuning[2];
 	class CCharacterCore *m_apCharacters[MAX_CLIENTS];
 };
 
 class CCharacterCore
 {
+	friend class CCharacter;
 	CWorldCore *m_pWorld;
 	CCollision *m_pCollision;
+	std::map<int, std::vector<vec2> > *m_pTeleOuts;
 public:
 	vec2 m_Pos;
 	vec2 m_Vel;
+	bool m_Hook;
+	bool m_Collision;
 
 	vec2 m_HookPos;
 	vec2 m_HookDir;
+	vec2 m_HookTeleBase;
 	int m_HookTick;
 	int m_HookState;
 	int m_HookedPlayer;
+	int m_ActiveWeapon;
+
+	bool m_NewHook;
+	vec2 m_NewHookPos;
+	vec2 m_NewHookDir;
 
 	int m_Jumped;
+	int m_JumpedTotal;
+	int m_Jumps;
 
 	int m_Direction;
 	int m_Angle;
@@ -198,8 +214,9 @@ public:
 	int m_TriggeredEvents;
 
 	void Init(CWorldCore *pWorld, CCollision *pCollision, CTeamsCore* pTeams);
+	void Init(CWorldCore *pWorld, CCollision *pCollision, CTeamsCore* pTeams, std::map<int, std::vector<vec2> > *pTeleOuts);
 	void Reset();
-	void Tick(bool UseInput);
+	void Tick(bool UseInput, bool IsClient);
 	void Move();
 
 	void Read(const CNetObj_CharacterCore *pObjCore);
@@ -211,6 +228,10 @@ public:
 	int m_Id;
 	bool m_pReset;
 	class CCollision *Collision() { return m_pCollision; }
+
+	vec2 m_LastVel;
+	int m_Colliding;
+	bool m_LeftWall;
 
 private:
 

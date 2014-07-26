@@ -18,10 +18,22 @@ enum
 	WEAPON_WORLD = -1, // death tiles etc
 };
 
+enum
+{
+	FAKETUNE_FREEZE = 1,
+	FAKETUNE_SOLO = 2,
+	FAKETUNE_NOJUMP = 4,
+	FAKETUNE_NOCOLL = 8,
+	FAKETUNE_NOHOOK = 16,
+	FAKETUNE_JETPACK = 32,
+};
+
 class CCharacter : public CEntity
 {
 	MACRO_ALLOC_POOL_ID()
 
+	friend class CSaveTee; // need to use core
+	
 public:
 	//character's size
 	static const int ms_PhysSize = 28;
@@ -34,6 +46,8 @@ public:
 	virtual void TickDefered();
 	virtual void TickPaused();
 	virtual void Snap(int SnappingClient);
+	virtual int NetworkClipped(int SnappingClient);
+	virtual int NetworkClipped(int SnappingClient, vec2 CheckPos);
 
 	bool IsGrounded();
 
@@ -43,6 +57,7 @@ public:
 
 	void HandleWeapons();
 	void HandleNinja();
+	void HandleJetpack();
 
 	void OnPredictedInput(CNetObj_PlayerInput *pNewInput);
 	void OnDirectInput(CNetObj_PlayerInput *pNewInput);
@@ -63,6 +78,7 @@ public:
 
 	void SetEmote(int Emote, int Tick);
 
+	int NeededFaketuning() {return m_NeededFaketuning;}
 	bool IsAlive() const { return m_Alive; }
 	bool IsPaused() const { return m_Paused; }
 	class CPlayer *GetPlayer() { return m_pPlayer; }
@@ -73,6 +89,7 @@ private:
 
 	bool m_Alive;
 	bool m_Paused;
+	int m_NeededFaketuning;
 
 	// weapon info
 	CEntity *m_apHitObjects[10];
@@ -87,7 +104,6 @@ private:
 
 	} m_aWeapons[NUM_WEAPONS];
 
-	int m_ActiveWeapon;
 	int m_LastWeapon;
 	int m_QueuedWeapon;
 
@@ -101,6 +117,7 @@ private:
 
 	// last tick that the player took any action ie some input
 	int m_LastAction;
+	int m_LastNoAmmoSound;
 
 	// these are non-heldback inputs
 	CNetObj_PlayerInput m_LatestPrevInput;
@@ -145,6 +162,8 @@ private:
 	void DDRaceTick();
 	void DDRacePostCoreTick();
 	void HandleBroadcast();
+	void HandleTuneLayer();
+	void SendZoneMsgs();
 public:
 	CGameTeams* Teams();
 	void Pause(bool Pause);
@@ -157,11 +176,15 @@ public:
 	bool CanCollide(int ClientID);
 	bool SameTeam(int ClientID);
 	bool m_Super;
+	bool m_SuperJump;
+	bool m_Jetpack;
+	bool m_NinjaJetpack;
 	int m_TeamBeforeSuper;
 	int m_FreezeTime;
 	int m_FreezeTick;
 	bool m_DeepFreeze;
 	bool m_EndlessHook;
+	bool m_FreezeHammer;
 	enum
 	{
 		HIT_ALL=0,
@@ -171,6 +194,10 @@ public:
 		DISABLE_HIT_RIFLE=8
 	};
 	int m_Hit;
+	int m_Collision;
+	int m_TuneZone;
+	int m_TuneZoneOld;
+	int m_Hook;
 	int m_PainSoundTimer;
 	int m_LastMove;
 	int m_StartTime;
@@ -212,11 +239,13 @@ public:
 	int m_TileSFlagsB;
 	vec2 m_Intersection;
 	int64 m_LastStartWarning;
+	bool m_LastPenalty;
+
 	// Setters/Getters because i don't want to modify vanilla vars access modifiers
 	int GetLastWeapon() { return m_LastWeapon; };
 	void SetLastWeapon(int LastWeap) {m_LastWeapon = LastWeap; };
-	int GetActiveWeapon() { return m_ActiveWeapon; };
-	void SetActiveWeapon(int ActiveWeap) {m_ActiveWeapon = ActiveWeap; };
+	int GetActiveWeapon() { return m_Core.m_ActiveWeapon; };
+	void SetActiveWeapon(int ActiveWeap) {m_Core.m_ActiveWeapon = ActiveWeap; };
 	void SetLastAction(int LastAction) {m_LastAction = LastAction; };
 	int GetArmor() { return m_Armor; };
 	void SetArmor(int Armor) {m_Armor = Armor; };

@@ -30,6 +30,10 @@
 	#if defined(CONF_PLATFORM_MACOSX)
 		#include <Carbon/Carbon.h>
 	#endif
+	
+	#if defined(__ANDROID__)
+		#include <android/log.h>
+	#endif
 
 #elif defined(CONF_FAMILY_WINDOWS)
 	#define WIN32_LEAN_AND_MEAN
@@ -80,7 +84,7 @@ void dbg_assert_imp(const char *filename, int line, int test, const char *msg)
 
 void dbg_break()
 {
-	*((unsigned*)0) = 0x0;
+	*((volatile unsigned*)0) = 0x0;
 }
 
 void dbg_msg(const char *sys, const char *fmt, ...)
@@ -120,6 +124,9 @@ static void logger_stdout(const char *line)
 {
 	printf("%s\n", line);
 	fflush(stdout);
+#if defined(__ANDROID__)
+	__android_log_print(ANDROID_LOG_INFO, "DDNet", "%s", line);
+#endif
 }
 
 static void logger_debugger(const char *line)
@@ -176,6 +183,8 @@ void *mem_alloc_debug(const char *filename, int line, unsigned size, unsigned al
 	MEMTAIL *tail;
 	MEMHEADER *header = (struct MEMHEADER *)malloc(size+sizeof(MEMHEADER)+sizeof(MEMTAIL));
 	dbg_assert(header != 0, "mem_alloc failure");
+	if(!header)
+		return NULL;
 	tail = (struct MEMTAIL *)(((char*)(header+1))+size);
 	header->size = size;
 	header->filename = filename;
@@ -487,7 +496,7 @@ int lock_try(LOCK lock)
 #if defined(CONF_FAMILY_UNIX)
 	return pthread_mutex_trylock((LOCKINTERNAL *)lock);
 #elif defined(CONF_FAMILY_WINDOWS)
-	return TryEnterCriticalSection((LPCRITICAL_SECTION)lock);
+	return !TryEnterCriticalSection((LPCRITICAL_SECTION)lock);
 #else
 	#error not implemented on this platform
 #endif
@@ -515,18 +524,20 @@ void lock_release(LOCK lock)
 #endif
 }
 
-#if defined(CONF_FAMILY_UNIX)
-void semaphore_init(SEMAPHORE *sem) { sem_init(sem, 0, 0); }
-void semaphore_wait(SEMAPHORE *sem) { sem_wait(sem); }
-void semaphore_signal(SEMAPHORE *sem) { sem_post(sem); }
-void semaphore_destroy(SEMAPHORE *sem) { sem_destroy(sem); }
-#elif defined(CONF_FAMILY_WINDOWS)
-void semaphore_init(SEMAPHORE *sem) { *sem = CreateSemaphore(0, 0, 10000, 0); }
-void semaphore_wait(SEMAPHORE *sem) { WaitForSingleObject((HANDLE)*sem, 0L); }
-void semaphore_signal(SEMAPHORE *sem) { ReleaseSemaphore((HANDLE)*sem, 1, NULL); }
-void semaphore_destroy(SEMAPHORE *sem) { CloseHandle((HANDLE)*sem); }
-#else
-	#error not implemented on this platform
+#if !defined(CONF_PLATFORM_MACOSX)
+	#if defined(CONF_FAMILY_UNIX)
+	void semaphore_init(SEMAPHORE *sem) { sem_init(sem, 0, 0); }
+	void semaphore_wait(SEMAPHORE *sem) { sem_wait(sem); }
+	void semaphore_signal(SEMAPHORE *sem) { sem_post(sem); }
+	void semaphore_destroy(SEMAPHORE *sem) { sem_destroy(sem); }
+	#elif defined(CONF_FAMILY_WINDOWS)
+	void semaphore_init(SEMAPHORE *sem) { *sem = CreateSemaphore(0, 0, 10000, 0); }
+	void semaphore_wait(SEMAPHORE *sem) { WaitForSingleObject((HANDLE)*sem, INFINITE); }
+	void semaphore_signal(SEMAPHORE *sem) { ReleaseSemaphore((HANDLE)*sem, 1, NULL); }
+	void semaphore_destroy(SEMAPHORE *sem) { CloseHandle((HANDLE)*sem); }
+	#else
+		#error not implemented on this platform
+	#endif
 #endif
 
 
@@ -689,9 +700,9 @@ int net_host_lookup(const char *hostname, NETADDR *addr, int types)
 
 	if(priv_net_extract(hostname, host, sizeof(host), &port))
 		return -1;
-	/*
+	
 	dbg_msg("host lookup", "host='%s' port=%d %d", host, port, types);
-	*/
+	
 
 	mem_zero(&hints, sizeof(hints));
 
@@ -703,12 +714,13 @@ int net_host_lookup(const char *hostname, NETADDR *addr, int types)
 		hints.ai_family = AF_INET6;
 
 	e = getaddrinfo(host, NULL, &hints, &result);
-	if(e != 0 || !result)
+
+	if(!result || e != 0)
 		return -1;
 
 	sockaddr_to_netaddr(result->ai_addr, addr);
-	freeaddrinfo(result);
 	addr->port = port;
+	freeaddrinfo(result);
 	return 0;
 }
 
@@ -913,6 +925,7 @@ NETSOCKET net_udp_create(NETADDR bindaddr)
 	NETSOCKET sock = invalid_socket;
 	NETADDR tmpbindaddr = bindaddr;
 	int broadcast = 1;
+	int recvsize = 65536;
 
 	if(bindaddr.type&NETTYPE_IPV4)
 	{
@@ -927,13 +940,13 @@ NETSOCKET net_udp_create(NETADDR bindaddr)
 		{
 			sock.type |= NETTYPE_IPV4;
 			sock.ipv4sock = socket;
+
+			/* set boardcast */
+			setsockopt(socket, SOL_SOCKET, SO_BROADCAST, (const char*)&broadcast, sizeof(broadcast));
+
+			/* set receive buffer size */
+			setsockopt(socket, SOL_SOCKET, SO_RCVBUF, (char*)&recvsize, sizeof(recvsize));
 		}
-
-		/* set non-blocking */
-		net_set_non_blocking(sock);
-
-		/* set boardcast */
-		setsockopt(socket, SOL_SOCKET, SO_BROADCAST, (const char*)&broadcast, sizeof(broadcast));
 	}
 
 	if(bindaddr.type&NETTYPE_IPV6)
@@ -949,14 +962,17 @@ NETSOCKET net_udp_create(NETADDR bindaddr)
 		{
 			sock.type |= NETTYPE_IPV6;
 			sock.ipv6sock = socket;
+
+			/* set boardcast */
+			setsockopt(socket, SOL_SOCKET, SO_BROADCAST, (const char*)&broadcast, sizeof(broadcast));
+
+			/* set receive buffer size */
+			setsockopt(socket, SOL_SOCKET, SO_RCVBUF, (char*)&recvsize, sizeof(recvsize));
 		}
-
-		/* set non-blocking */
-		net_set_non_blocking(sock);
-
-		/* set boardcast */
-		setsockopt(socket, SOL_SOCKET, SO_BROADCAST, (const char*)&broadcast, sizeof(broadcast));
 	}
+
+	/* set non-blocking */
+	net_set_non_blocking(sock);
 
 	/* return */
 	return sock;
@@ -1506,8 +1522,8 @@ int net_socket_read_wait(NETSOCKET sock, int time)
 	fd_set readfds;
 	int sockid;
 
-	tv.tv_sec = 0;
-	tv.tv_usec = 1000*time;
+	tv.tv_sec = time / 1000;
+	tv.tv_usec = 1000 * (time % 1000);
 	sockid = 0;
 
 	FD_ZERO(&readfds);
@@ -1524,7 +1540,10 @@ int net_socket_read_wait(NETSOCKET sock, int time)
 	}
 
 	/* don't care about writefds and exceptfds */
-	select(sockid+1, &readfds, NULL, NULL, &tv);
+	if(time < 0)
+		select(sockid+1, &readfds, NULL, NULL, NULL);
+	else
+		select(sockid+1, &readfds, NULL, NULL, &tv);
 
 	if(sock.ipv4sock >= 0 && FD_ISSET(sock.ipv4sock, &readfds))
 		return 1;
@@ -1567,21 +1586,23 @@ int str_length(const char *str)
 	return (int)strlen(str);
 }
 
-void str_format(char *buffer, int buffer_size, const char *format, ...)
+int str_format(char *buffer, int buffer_size, const char *format, ...)
 {
+	int ret;
 #if defined(CONF_FAMILY_WINDOWS)
 	va_list ap;
 	va_start(ap, format);
-	_vsnprintf(buffer, buffer_size, format, ap);
+	ret = _vsnprintf(buffer, buffer_size, format, ap);
 	va_end(ap);
 #else
 	va_list ap;
 	va_start(ap, format);
-	vsnprintf(buffer, buffer_size, format, ap);
+	ret = vsnprintf(buffer, buffer_size, format, ap);
 	va_end(ap);
 #endif
 
 	buffer[buffer_size-1] = 0; /* assure null termination */
+	return ret;
 }
 
 
@@ -1831,6 +1852,27 @@ int str_toint(const char *str) { return atoi(str); }
 float str_tofloat(const char *str) { return atof(str); }
 
 
+const char *str_utf8_skip_whitespaces(const char *str)
+{
+	const char *str_old;
+	int code;
+
+	while(*str)
+	{
+		str_old = str;
+		code = str_utf8_decode(&str);
+
+		// check if unicode is not empty
+		if(code > 0x20 && code != 0xA0 && code != 0x034F && (code < 0x2000 || code > 0x200F) && (code < 0x2028 || code > 0x202F) &&
+			(code < 0x205F || code > 0x2064) && (code < 0x206A || code > 0x206F) && (code < 0xFE00 || code > 0xFE0F) &&
+			code != 0xFEFF && (code < 0xFFF9 || code > 0xFFFC))
+		{
+			return str_old;
+		}
+	}
+
+	return str;
+}
 
 static int str_utf8_isstart(char c)
 {

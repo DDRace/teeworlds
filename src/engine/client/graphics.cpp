@@ -6,7 +6,15 @@
 #include <base/tl/threading.h>
 
 #include "SDL.h"
-#include "SDL_opengl.h"
+#if defined(__ANDROID__)
+	#define GL_GLEXT_PROTOTYPES
+	#include <GLES/gl.h>
+	#include <GLES/glext.h>
+	#include <GL/glu.h>
+	#define glOrtho glOrthof
+#else
+	#include "SDL_opengl.h"
+#endif
 
 #include <base/system.h>
 #include <engine/external/pnglite/pnglite.h>
@@ -20,6 +28,20 @@
 #include <math.h> // cosf, sinf
 
 #include "graphics.h"
+
+
+#if defined(CONF_PLATFORM_MACOSX)
+
+	class semaphore
+	{
+		SDL_sem *sem;
+	public:
+		semaphore() { sem = SDL_CreateSemaphore(0); }
+		~semaphore() { SDL_DestroySemaphore(sem); }
+		void wait() { SDL_SemWait(sem); }
+		void signal() { SDL_SemPost(sem); }
+	};
+#endif
 
 
 static CVideoMode g_aFakeModes[] = {
@@ -70,7 +92,12 @@ void CGraphics_OpenGL::Flush()
 	if(m_RenderEnable)
 	{
 		if(m_Drawing == DRAWING_QUADS)
+#if defined(__ANDROID__)
+			for( unsigned i = 0, j = m_NumVertices; i < j; i += 4 )
+				glDrawArrays(GL_TRIANGLE_FAN, i, 4);
+#else
 			glDrawArrays(GL_QUADS, 0, m_NumVertices);
+#endif
 		else if(m_Drawing == DRAWING_LINES)
 			glDrawArrays(GL_LINES, 0, m_NumVertices);
 	}
@@ -342,6 +369,9 @@ int CGraphics_OpenGL::LoadTextureRaw(int Width, int Height, int Format, const vo
 		Oglformat = GL_ALPHA;
 
 	// upload texture
+#if defined(__ANDROID__)
+	StoreOglformat = Oglformat;
+#else
 	if(g_Config.m_GfxTextureCompression)
 	{
 		StoreOglformat = GL_COMPRESSED_RGBA_ARB;
@@ -358,6 +388,7 @@ int CGraphics_OpenGL::LoadTextureRaw(int Width, int Height, int Format, const vo
 		else if(StoreFormat == CImageInfo::FORMAT_ALPHA)
 			StoreOglformat = GL_ALPHA;
 	}
+#endif
 
 	glGenTextures(1, &m_aTextures[Tex].m_Tex);
 	glBindTexture(GL_TEXTURE_2D, m_aTextures[Tex].m_Tex);
@@ -686,12 +717,9 @@ void CGraphics_OpenGL::QuadsDrawFreeform(const CFreeformItem *pArray, int Num)
 	AddVertices(4*Num);
 }
 
-void CGraphics_OpenGL::QuadsText(float x, float y, float Size, float r, float g, float b, float a, const char *pText)
+void CGraphics_OpenGL::QuadsText(float x, float y, float Size, const char *pText)
 {
 	float StartX = x;
-
-	QuadsBegin();
-	SetColor(r,g,b,a);
 
 	while(*pText)
 	{
@@ -716,8 +744,6 @@ void CGraphics_OpenGL::QuadsText(float x, float y, float Size, float r, float g,
 			x += Size/2;
 		}
 	}
-
-	QuadsEnd();
 }
 
 int CGraphics_OpenGL::Init()
@@ -761,11 +787,20 @@ int CGraphics_OpenGL::Init()
 
 int CGraphics_SDL::TryInit()
 {
-	m_ScreenWidth = g_Config.m_GfxScreenWidth;
-	m_ScreenHeight = g_Config.m_GfxScreenHeight;
-
 	const SDL_VideoInfo *pInfo = SDL_GetVideoInfo();
 	SDL_EventState(SDL_MOUSEMOTION, SDL_IGNORE); // prevent stuck mouse cursor sdl-bug when loosing fullscreen focus in windows
+
+	// use current resolution as default
+#ifndef __ANDROID__
+	if(g_Config.m_GfxScreenWidth == 0 || g_Config.m_GfxScreenHeight == 0)
+#endif
+	{
+		g_Config.m_GfxScreenWidth = pInfo->current_w;
+		g_Config.m_GfxScreenHeight = pInfo->current_h;
+	}
+
+	m_ScreenWidth = g_Config.m_GfxScreenWidth;
+	m_ScreenHeight = g_Config.m_GfxScreenHeight;
 
 	// set flags
 	int Flags = SDL_OPENGL;
@@ -780,7 +815,15 @@ int CGraphics_SDL::TryInit()
 	if(pInfo->blit_hw) // ignore_convention
 		Flags |= SDL_HWACCEL;
 
-	if(g_Config.m_GfxFullscreen)
+	if(g_Config.m_GfxBorderless && g_Config.m_GfxFullscreen)
+	{
+		dbg_msg("gfx", "both borderless and fullscreen activated, disabling borderless");
+		g_Config.m_GfxBorderless = 0;
+	}
+
+	if(g_Config.m_GfxBorderless)
+		Flags |= SDL_NOFRAME;
+	else if(g_Config.m_GfxFullscreen)
 		Flags |= SDL_FULLSCREEN;
 
 	// set gl attributes
@@ -799,7 +842,7 @@ int CGraphics_SDL::TryInit()
 	SDL_GL_SetAttribute(SDL_GL_SWAP_CONTROL, g_Config.m_GfxVsync);
 
 	// set caption
-	SDL_WM_SetCaption("Teeworlds", "Teeworlds");
+	SDL_WM_SetCaption("DDNet Client", "DDNet Client");
 
 	// create window
 	m_pScreenSurface = SDL_SetVideoMode(m_ScreenWidth, m_ScreenHeight, 0, Flags);
@@ -876,7 +919,7 @@ int CGraphics_SDL::Init()
 
 	#ifdef CONF_FAMILY_WINDOWS
 		if(!getenv("SDL_VIDEO_WINDOW_POS") && !getenv("SDL_VIDEO_CENTERED")) // ignore_convention
-			putenv("SDL_VIDEO_WINDOW_POS=8,27"); // ignore_convention
+			putenv("SDL_VIDEO_WINDOW_POS=center"); // ignore_convention
 	#endif
 
 	if(InitWindow() != 0)
@@ -925,11 +968,19 @@ void CGraphics_SDL::TakeScreenshot(const char *pFilename)
 	m_DoScreenshot = true;
 }
 
+void CGraphics_SDL::TakeCustomScreenshot(const char *pFilename)
+{
+	str_copy(m_aScreenshotName, pFilename, sizeof(m_aScreenshotName));
+	m_DoScreenshot = true;
+}
+
+
 void CGraphics_SDL::Swap()
 {
 	if(m_DoScreenshot)
 	{
-		ScreenshotDirect(m_aScreenshotName);
+		if(WindowActive())
+			ScreenshotDirect(m_aScreenshotName);
 		m_DoScreenshot = false;
 	}
 

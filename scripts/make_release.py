@@ -1,10 +1,4 @@
-import shutil, os, re, sys, zipfile
-if sys.version_info[0] == 2:
-	import urllib
-	url_lib = urllib
-elif sys.version_info[0] == 3:
-	import urllib.request
-	url_lib = urllib.request
+import shutil, os, sys, zipfile
 
 #valid_platforms = ["win32", "linux86", "linux86_64", "src"]
 
@@ -13,8 +7,7 @@ if len(sys.argv) != 3:
 	print(sys.argv[0], "VERSION PLATFORM")
 	sys.exit(-1)
 
-name = "DDRace"
-url_languages = "https://github.com/teeworlds/teeworlds-translation/zipball/master"
+name = "DDNet"
 version = sys.argv[1]
 platform = sys.argv[2]
 exe_ext = ""
@@ -38,7 +31,7 @@ if platform == "src":
 #	print(valid_platforms)
 #	sys.exit(-1)
 
-if platform == 'win32':
+if platform == 'win32' or platform == 'win64':
 	exe_ext = ".exe"
 	use_zip = 1
 	use_gz = 0
@@ -46,29 +39,6 @@ if  platform == 'osx':
 	use_dmg = 1
 	use_gz = 0
 	use_bundle = 1
-
-def fetch_file(url):
-	try:
-		print("trying %s" % url)
-		real_url = url_lib.urlopen(url).geturl()
-		local = real_url.split("/")
-		local = local[len(local)-1].split("?")
-		local = local[0]
-		url_lib.urlretrieve(real_url, local)
-		return local
-	except:
-		return False
-
-def unzip(filename, where):
-	try:
-		z = zipfile.ZipFile(filename, "r")
-	except:
-		return False
-	for name in z.namelist():
-                if "/data/languages/" in name:
-                        z.extract(name, where)
-	z.close()
-	return z.namelist()[0]
 
 def copydir(src, dst, excl=[]):
 	for root, dirs, files in os.walk(src, topdown=True):
@@ -80,15 +50,7 @@ def copydir(src, dst, excl=[]):
 		for name in files:
 			if name[0] != '.':
 				shutil.copy(os.path.join(root, name), os.path.join(dst, root, name))
-
-def clean():
-	print("*** cleaning ***")
-	try:
-                shutil.rmtree(package_dir)
-                shutil.rmtree(languages_dir)
-                os.remove(src_package_languages)
-	except: pass
-	
+				
 package = "%s-%s-%s" %(name, version, platform)
 package_dir = package
 
@@ -96,20 +58,11 @@ print("cleaning target")
 shutil.rmtree(package_dir, True)
 os.mkdir(package_dir)
 
-print("download and extract languages")
-src_package_languages = fetch_file(url_languages)
-if not src_package_languages:
-        print("couldn't download languages")
-        sys.exit(-1)
-languages_dir = unzip(src_package_languages, ".")
-if not languages_dir:
-        print("couldn't unzip languages")
-        sys.exit(-1)
-
 print("adding files")
-shutil.copy("readme.txt", package_dir)
+#shutil.copy("readme.txt", package_dir)
 shutil.copy("license.txt", package_dir)
 shutil.copy("storage.cfg", package_dir)
+shutil.copy("autoexec.cfg", package_dir)
 
 # DDRace
 shutil.copy("announcement.txt", package_dir)
@@ -118,23 +71,18 @@ shutil.copy("license_DDRace.txt", package_dir)
 if include_data and not use_bundle:
 	os.mkdir(os.path.join(package_dir, "data"))
 	copydir("data", package_dir)
-	try:
-		os.chdir(languages_dir)
-		copydir("data", "../"+package_dir)
-		os.chdir("..")
-	except:
-		print("couldn't find languages")
 	if platform[:3] == "win":
 		shutil.copy("other/config_directory.bat", package_dir)
 		shutil.copy("SDL.dll", package_dir)
 		shutil.copy("freetype.dll", package_dir)
-		shutil.copy("libmysql.dll", package_dir)
-		shutil.copy("mysqlcppconn.dll", package_dir)
+		#shutil.copy("libmysql.dll", package_dir)
+		#shutil.copy("mysqlcppconn.dll", package_dir)
 
 if include_exe and not use_bundle:
 	shutil.copy(name+exe_ext, package_dir)
 	shutil.copy(name+"-Server"+exe_ext, package_dir)
-	shutil.copy(name+"-Server_sql"+exe_ext, package_dir)
+	shutil.copy("dilate"+exe_ext, package_dir)
+	#shutil.copy(name+"-Server_sql"+exe_ext, package_dir)
 	
 if include_src:
 	for p in ["src", "scripts", "datasrc", "other", "objs"]:
@@ -144,7 +92,7 @@ if include_src:
 	shutil.copy("configure.lua", package_dir)
 
 if use_bundle:
-	bins = [name, name+'-Server', 'serverlaunch']
+	bins = [name, name+'-Server', 'dilate', 'serverlaunch']
 	platforms = ('x86', 'x86_64', 'ppc')
 	for bin in bins:
 		to_lipo = []
@@ -156,24 +104,27 @@ if use_bundle:
 			os.system("lipo -create -output "+bin+" "+" ".join(to_lipo))
 
 	# create Teeworlds appfolder
-	clientbundle_content_dir = os.path.join(package_dir, "DDRace.app/Contents")
+	clientbundle_content_dir = os.path.join(package_dir, "DDNet.app/Contents")
 	clientbundle_bin_dir = os.path.join(clientbundle_content_dir, "MacOS")
 	clientbundle_resource_dir = os.path.join(clientbundle_content_dir, "Resources")
 	clientbundle_framework_dir = os.path.join(clientbundle_content_dir, "Frameworks")
-	os.mkdir(os.path.join(package_dir, "DDRace.app"))
+	binary_path = clientbundle_bin_dir + "/" + name+exe_ext
+	os.mkdir(os.path.join(package_dir, "DDNet.app"))
 	os.mkdir(clientbundle_content_dir)
 	os.mkdir(clientbundle_bin_dir)
 	os.mkdir(clientbundle_resource_dir)
 	os.mkdir(clientbundle_framework_dir)
 	os.mkdir(os.path.join(clientbundle_resource_dir, "data"))
 	copydir("data", clientbundle_resource_dir)
-	os.chdir(languages_dir)
-	copydir("data", "../"+clientbundle_resource_dir)
-	os.chdir("..") # TODO(GreYFoX): make sure this line doesn't change the directory of the icon file copied next, just make sure everything works
-	shutil.copy("other/icons/DDRace.icns", clientbundle_resource_dir)
+
+
+	shutil.copy("other/icons/DDNet.icns", clientbundle_resource_dir)
 	#shutil.copy("other/icons/Teeworlds.icns", clientbundle_resource_dir)
 	shutil.copy(name+exe_ext, clientbundle_bin_dir)
+	os.system("install_name_tool -change /opt/X11/lib/libfreetype.6.dylib @executable_path/../Frameworks/libfreetype.6.dylib " + binary_path)
+	os.system("install_name_tool -change /Library/Frameworks/SDL.framework/SDL @executable_path/../Frameworks/SDL.framework/SDL  " + binary_path)
 	os.system("cp -R /Library/Frameworks/SDL.framework " + clientbundle_framework_dir)
+	os.system("cp /opt/X11/lib/libfreetype.6.dylib " + clientbundle_framework_dir)
 	file(os.path.join(clientbundle_content_dir, "Info.plist"), "w").write("""
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -182,9 +133,9 @@ if use_bundle:
         <key>CFBundleDevelopmentRegion</key>
         <string>English</string>
         <key>CFBundleExecutable</key>
-        <string>DDRace</string>
+        <string>DDNet</string>
         <key>CFBundleIconFile</key>
-        <string>DDRace</string>
+        <string>DDNet</string>
         <key>CFBundleInfoDictionaryVersion</key>
         <string>6.0</string>
         <key>CFBundlePackageType</key>
@@ -199,10 +150,10 @@ if use_bundle:
 	file(os.path.join(clientbundle_content_dir, "PkgInfo"), "w").write("APPL????")
 
 	# create Teeworlds Server appfolder
-	serverbundle_content_dir = os.path.join(package_dir, "DDRace-Server.app/Contents")
+	serverbundle_content_dir = os.path.join(package_dir, "DDNet-Server.app/Contents")
 	serverbundle_bin_dir = os.path.join(serverbundle_content_dir, "MacOS")
 	serverbundle_resource_dir = os.path.join(serverbundle_content_dir, "Resources")
-	os.mkdir(os.path.join(package_dir, "DDRace-Server.app"))
+	os.mkdir(os.path.join(package_dir, "DDNet-Server.app"))
 	os.mkdir(serverbundle_content_dir)
 	os.mkdir(serverbundle_bin_dir)
 	os.mkdir(serverbundle_resource_dir)
@@ -210,7 +161,7 @@ if use_bundle:
 	os.mkdir(os.path.join(serverbundle_resource_dir, "data/maps"))
 	os.mkdir(os.path.join(serverbundle_resource_dir, "data/mapres"))
 	copydir("data/maps", serverbundle_resource_dir)
-	shutil.copy("other/icons/DDRace-Server.icns", serverbundle_resource_dir)
+	shutil.copy("other/icons/DDNet-Server.icns", serverbundle_resource_dir)
 	shutil.copy(name+"-Server"+exe_ext, serverbundle_bin_dir)
 	shutil.copy("serverlaunch"+exe_ext, serverbundle_bin_dir + "/"+name+"_server")
 	file(os.path.join(serverbundle_content_dir, "Info.plist"), "w").write("""
@@ -221,9 +172,9 @@ if use_bundle:
         <key>CFBundleDevelopmentRegion</key>
         <string>English</string>
         <key>CFBundleExecutable</key>
-        <string>DDRace_Server</string>
+        <string>DDNet_server</string>
         <key>CFBundleIconFile</key>
-        <string>DDRace-Server</string>
+        <string>DDNet-Server</string>
         <key>CFBundleInfoDictionaryVersion</key>
         <string>6.0</string>
         <key>CFBundlePackageType</key>
@@ -255,10 +206,8 @@ if use_gz:
 if use_dmg:
 	print("making disk image")
 	os.system("rm -f %s.dmg %s_temp.dmg" % (package, package))
-	os.system("hdiutil create -srcfolder %s -volname DDRace -quiet %s_temp" % (package_dir, package))
+	os.system("hdiutil create -srcfolder %s -volname DDNet -quiet %s_temp" % (package_dir, package))
 	os.system("hdiutil convert %s_temp.dmg -format UDBZ -o %s.dmg -quiet" % (package, package))
 	os.system("rm -f %s_temp.dmg" % package)
-
-clean()
 	
 print("done")

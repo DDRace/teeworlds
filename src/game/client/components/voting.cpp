@@ -113,6 +113,7 @@ void CVoting::AddvoteOption(const char *pDescription, const char *pCommand)
 
 void CVoting::Vote(int v)
 {
+	m_Voted = v;
 	CNetMsg_Cl_Vote Msg = {v};
 	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
 }
@@ -120,7 +121,12 @@ void CVoting::Vote(int v)
 CVoting::CVoting()
 {
 	ClearOptions();
-	OnReset();
+	
+	m_Closetime = 0;
+	m_aDescription[0] = 0;
+	m_aReason[0] = 0;
+	m_Yes = m_No = m_Pass = m_Total = 0;
+	m_Voted = 0;
 }
 
 void CVoting::AddOption(const char *pDescription)

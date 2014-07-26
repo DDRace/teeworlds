@@ -54,8 +54,9 @@ void CAutoMapper::Load(const char* pTileName)
 					// new index
 					int ID = 0;
 					char aFlip[128] = "";
+					char aFlip2[128] = "";
 
-					sscanf(pLine, "Index %d %127s", &ID, aFlip);
+					sscanf(pLine, "Index %d %127s %127s", &ID, aFlip, aFlip2);
 
 					CIndexRule NewIndexRule;
 					NewIndexRule.m_ID = ID;
@@ -66,9 +67,17 @@ void CAutoMapper::Load(const char* pTileName)
 					if(str_length(aFlip) > 0)
 					{
 						if(!str_comp(aFlip, "XFLIP"))
-							NewIndexRule.m_Flag = TILEFLAG_VFLIP;
+							NewIndexRule.m_Flag |= TILEFLAG_VFLIP;
 						else if(!str_comp(aFlip, "YFLIP"))
-							NewIndexRule.m_Flag = TILEFLAG_HFLIP;
+							NewIndexRule.m_Flag |= TILEFLAG_HFLIP;
+					}
+
+					if(str_length(aFlip2) > 0)
+					{
+						if(!str_comp(aFlip2, "XFLIP"))
+							NewIndexRule.m_Flag |= TILEFLAG_VFLIP;
+						else if(!str_comp(aFlip2, "YFLIP"))
+							NewIndexRule.m_Flag |= TILEFLAG_HFLIP;
 					}
 
 					// add the index rule object and make it current
@@ -107,6 +116,29 @@ void CAutoMapper::Load(const char* pTileName)
 		}
 	}
 
+	// add default rule for Pos 0 0 if there is none
+	for (int h = 0; h < m_lConfigs.size(); ++h)
+	{
+		for(int i = 0; i < m_lConfigs[h].m_aIndexRules.size(); ++i)
+		{
+			bool Found = false;
+			for(int j = 0; j < m_lConfigs[h].m_aIndexRules[i].m_aRules.size(); ++j)
+			{
+				CPosRule *pRule = &m_lConfigs[h].m_aIndexRules[i].m_aRules[j];
+				if(pRule && pRule->m_X == 0 && pRule->m_Y == 0)
+				{
+					Found = true;
+					break;
+				}
+			}
+			if(!Found)
+			{
+				CPosRule NewPosRule = {0, 0, CPosRule::FULL, false};
+				m_lConfigs[h].m_aIndexRules[i].m_aRules.add(NewPosRule);
+			}
+		}
+	}
+
 	io_close(RulesFile);
 
 	str_format(aBuf, sizeof(aBuf),"loaded %s", aPath);
@@ -135,6 +167,17 @@ void CAutoMapper::Proceed(CLayerTiles *pLayer, int ConfigID)
 
 	int BaseTile = 1;
 
+	CLayerTiles newLayer(pLayer->m_Width, pLayer->m_Height);
+
+	for(int y = 0; y < pLayer->m_Height; y++)
+		for(int x = 0; x < pLayer->m_Width; x++)
+		{
+			CTile *in = &pLayer->m_pTiles[y*pLayer->m_Width+x];
+			CTile *out = &newLayer.m_pTiles[y*pLayer->m_Width+x];
+			out->m_Index = in->m_Index;
+			out->m_Flags = in->m_Flags;
+		}
+
 	// find base tile if there is one
 	for(int i = 0; i < pConf->m_aIndexRules.size(); ++i)
 	{
@@ -150,11 +193,9 @@ void CAutoMapper::Proceed(CLayerTiles *pLayer, int ConfigID)
 	for(int y = 0; y < pLayer->m_Height; y++)
 		for(int x = 0; x < pLayer->m_Width; x++)
 		{
-			CTile *pTile = &(pLayer->m_pTiles[y*pLayer->m_Width+x]);
-			if(pTile->m_Index == 0)
-				continue;
-
-			pTile->m_Index = BaseTile;
+			CTile *pTile = &(newLayer.m_pTiles[y*pLayer->m_Width+x]);
+			if(pTile->m_Index != 0)
+				pTile->m_Index = BaseTile;
 			m_pEditor->m_Map.m_Modified = true;
 
 			if(y == 0 || y == pLayer->m_Height-1 || x == 0 || x == pLayer->m_Width-1)
@@ -198,5 +239,14 @@ void CAutoMapper::Proceed(CLayerTiles *pLayer, int ConfigID)
 					pTile->m_Flags = pConf->m_aIndexRules[i].m_Flag;
 				}
 			}
+		}
+
+	for(int y = 0; y < pLayer->m_Height; y++)
+		for(int x = 0; x < pLayer->m_Width; x++)
+		{
+			CTile *in = &newLayer.m_pTiles[y*pLayer->m_Width+x];
+			CTile *out = &pLayer->m_pTiles[y*pLayer->m_Width+x];
+			out->m_Index = in->m_Index;
+			out->m_Flags = in->m_Flags;
 		}
 }

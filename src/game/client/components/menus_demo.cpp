@@ -54,10 +54,10 @@ void CMenus::RenderDemoPlayer(CUIRect MainView)
 	const float Margins = 5.0f;
 	float TotalHeight;
 
-	if(m_MenuActive)
-		TotalHeight = SeekBarHeight+ButtonbarHeight+NameBarHeight+Margins*3;
-	else
-		TotalHeight = SeekBarHeight+Margins*2;
+	if(!m_MenuActive)
+		return;
+
+	TotalHeight = SeekBarHeight+ButtonbarHeight+NameBarHeight+Margins*3;
 
 	MainView.HSplitBottom(TotalHeight, 0, &MainView);
 	MainView.VSplitLeft(50.0f, 0, &MainView);
@@ -72,15 +72,10 @@ void CMenus::RenderDemoPlayer(CUIRect MainView)
 	int CurrentTick = pInfo->m_CurrentTick - pInfo->m_FirstTick;
 	int TotalTicks = pInfo->m_LastTick - pInfo->m_FirstTick;
 
-	if(m_MenuActive)
-	{
-		MainView.HSplitTop(SeekBarHeight, &SeekBar, &ButtonBar);
-		ButtonBar.HSplitTop(Margins, 0, &ButtonBar);
-		ButtonBar.HSplitBottom(NameBarHeight, &ButtonBar, &NameBar);
-		NameBar.HSplitTop(4.0f, 0, &NameBar);
-	}
-	else
-		SeekBar = MainView;
+	MainView.HSplitTop(SeekBarHeight, &SeekBar, &ButtonBar);
+	ButtonBar.HSplitTop(Margins, 0, &ButtonBar);
+	ButtonBar.HSplitBottom(NameBarHeight, &ButtonBar, &NameBar);
+	NameBar.HSplitTop(4.0f, 0, &NameBar);
 
 	// do seekbar
 	{
@@ -126,15 +121,34 @@ void CMenus::RenderDemoPlayer(CUIRect MainView)
 			{
 				static float PrevAmount = 0.0f;
 				float Amount = (UI()->MouseX()-SeekBar.x)/(float)SeekBar.w;
-				if(Amount > 0.0f && Amount < 1.0f && absolute(PrevAmount-Amount) >= 0.01f)
+
+				if(Input()->KeyPressed(KEY_LSHIFT) || Input()->KeyPressed(KEY_RSHIFT))
 				{
-					PrevAmount = Amount;
-					m_pClient->OnReset();
-					m_pClient->m_SuppressEvents = true;
-					DemoPlayer()->SetPos(Amount);
-					m_pClient->m_SuppressEvents = false;
-					m_pClient->m_pMapLayersBackGround->EnvelopeUpdate();
-					m_pClient->m_pMapLayersForeGround->EnvelopeUpdate();
+					Amount = PrevAmount + (Amount-PrevAmount) * 0.05f;
+
+					if(Amount > 0.0f && Amount < 1.0f && absolute(PrevAmount-Amount) >= 0.0001f)
+					{
+						//PrevAmount = Amount;
+						m_pClient->OnReset();
+						m_pClient->m_SuppressEvents = true;
+						DemoPlayer()->SetPos(Amount);
+						m_pClient->m_SuppressEvents = false;
+						m_pClient->m_pMapLayersBackGround->EnvelopeUpdate();
+						m_pClient->m_pMapLayersForeGround->EnvelopeUpdate();
+					}
+				}
+				else
+				{
+					if(Amount > 0.0f && Amount < 1.0f && absolute(PrevAmount-Amount) >= 0.001f)
+					{
+						PrevAmount = Amount;
+						m_pClient->OnReset();
+						m_pClient->m_SuppressEvents = true;
+						DemoPlayer()->SetPos(Amount);
+						m_pClient->m_SuppressEvents = false;
+						m_pClient->m_pMapLayersBackGround->EnvelopeUpdate();
+						m_pClient->m_pMapLayersForeGround->EnvelopeUpdate();
+					}
 				}
 			}
 		}
@@ -157,76 +171,73 @@ void CMenus::RenderDemoPlayer(CUIRect MainView)
 
 	bool IncreaseDemoSpeed = false, DecreaseDemoSpeed = false;
 
-	if(m_MenuActive)
+	// do buttons
+	CUIRect Button;
+
+	// combined play and pause button
+	ButtonBar.VSplitLeft(ButtonbarHeight, &Button, &ButtonBar);
+	static int s_PlayPauseButton = 0;
+	if(!pInfo->m_Paused)
 	{
-		// do buttons
-		CUIRect Button;
-
-		// combined play and pause button
-		ButtonBar.VSplitLeft(ButtonbarHeight, &Button, &ButtonBar);
-		static int s_PlayPauseButton = 0;
-		if(!pInfo->m_Paused)
-		{
-			if(DoButton_Sprite(&s_PlayPauseButton, IMAGE_DEMOBUTTONS, SPRITE_DEMOBUTTON_PAUSE, false, &Button, CUI::CORNER_ALL))
-				DemoPlayer()->Pause();
-		}
-		else
-		{
-			if(DoButton_Sprite(&s_PlayPauseButton, IMAGE_DEMOBUTTONS, SPRITE_DEMOBUTTON_PLAY, false, &Button, CUI::CORNER_ALL))
-				DemoPlayer()->Unpause();
-		}
-
-		// stop button
-
-		ButtonBar.VSplitLeft(Margins, 0, &ButtonBar);
-		ButtonBar.VSplitLeft(ButtonbarHeight, &Button, &ButtonBar);
-		static int s_ResetButton = 0;
-		if(DoButton_Sprite(&s_ResetButton, IMAGE_DEMOBUTTONS, SPRITE_DEMOBUTTON_STOP, false, &Button, CUI::CORNER_ALL))
-		{
-			m_pClient->OnReset();
+		if(DoButton_Sprite(&s_PlayPauseButton, IMAGE_DEMOBUTTONS, SPRITE_DEMOBUTTON_PAUSE, false, &Button, CUI::CORNER_ALL))
 			DemoPlayer()->Pause();
-			DemoPlayer()->SetPos(0);
-		}
-
-		// slowdown
-		ButtonBar.VSplitLeft(Margins, 0, &ButtonBar);
-		ButtonBar.VSplitLeft(ButtonbarHeight, &Button, &ButtonBar);
-		static int s_SlowDownButton = 0;
-		if(DoButton_Sprite(&s_SlowDownButton, IMAGE_DEMOBUTTONS, SPRITE_DEMOBUTTON_SLOWER, 0, &Button, CUI::CORNER_ALL) || Input()->KeyPresses(KEY_MOUSE_WHEEL_DOWN))
-			DecreaseDemoSpeed = true;
-
-		// fastforward
-		ButtonBar.VSplitLeft(Margins, 0, &ButtonBar);
-		ButtonBar.VSplitLeft(ButtonbarHeight, &Button, &ButtonBar);
-		static int s_FastForwardButton = 0;
-		if(DoButton_Sprite(&s_FastForwardButton, IMAGE_DEMOBUTTONS, SPRITE_DEMOBUTTON_FASTER, 0, &Button, CUI::CORNER_ALL))
-			IncreaseDemoSpeed = true;
-
-		// speed meter
-		ButtonBar.VSplitLeft(Margins*3, 0, &ButtonBar);
-		char aBuffer[64];
-		if(pInfo->m_Speed >= 1.0f)
-			str_format(aBuffer, sizeof(aBuffer), "x%.0f", pInfo->m_Speed);
-		else
-			str_format(aBuffer, sizeof(aBuffer), "x%.2f", pInfo->m_Speed);
-		UI()->DoLabel(&ButtonBar, aBuffer, Button.h*0.7f, -1);
-
-		// close button
-		ButtonBar.VSplitRight(ButtonbarHeight*3, &ButtonBar, &Button);
-		static int s_ExitButton = 0;
-		if(DoButton_DemoPlayer(&s_ExitButton, Localize("Close"), 0, &Button))
-			Client()->Disconnect();
-
-		// demo name
-		char aDemoName[64] = {0};
-		DemoPlayer()->GetDemoName(aDemoName, sizeof(aDemoName));
-		char aBuf[128];
-		str_format(aBuf, sizeof(aBuf), Localize("Demofile: %s"), aDemoName);
-		CTextCursor Cursor;
-		TextRender()->SetCursor(&Cursor, NameBar.x, NameBar.y, Button.h*0.5f, TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
-		Cursor.m_LineWidth = MainView.w;
-		TextRender()->TextEx(&Cursor, aBuf, -1);
 	}
+	else
+	{
+		if(DoButton_Sprite(&s_PlayPauseButton, IMAGE_DEMOBUTTONS, SPRITE_DEMOBUTTON_PLAY, false, &Button, CUI::CORNER_ALL))
+			DemoPlayer()->Unpause();
+	}
+
+	// stop button
+
+	ButtonBar.VSplitLeft(Margins, 0, &ButtonBar);
+	ButtonBar.VSplitLeft(ButtonbarHeight, &Button, &ButtonBar);
+	static int s_ResetButton = 0;
+	if(DoButton_Sprite(&s_ResetButton, IMAGE_DEMOBUTTONS, SPRITE_DEMOBUTTON_STOP, false, &Button, CUI::CORNER_ALL))
+	{
+		m_pClient->OnReset();
+		DemoPlayer()->Pause();
+		DemoPlayer()->SetPos(0);
+	}
+
+	// slowdown
+	ButtonBar.VSplitLeft(Margins, 0, &ButtonBar);
+	ButtonBar.VSplitLeft(ButtonbarHeight, &Button, &ButtonBar);
+	static int s_SlowDownButton = 0;
+	if(DoButton_Sprite(&s_SlowDownButton, IMAGE_DEMOBUTTONS, SPRITE_DEMOBUTTON_SLOWER, 0, &Button, CUI::CORNER_ALL) || Input()->KeyPresses(KEY_MOUSE_WHEEL_DOWN))
+		DecreaseDemoSpeed = true;
+
+	// fastforward
+	ButtonBar.VSplitLeft(Margins, 0, &ButtonBar);
+	ButtonBar.VSplitLeft(ButtonbarHeight, &Button, &ButtonBar);
+	static int s_FastForwardButton = 0;
+	if(DoButton_Sprite(&s_FastForwardButton, IMAGE_DEMOBUTTONS, SPRITE_DEMOBUTTON_FASTER, 0, &Button, CUI::CORNER_ALL))
+		IncreaseDemoSpeed = true;
+
+	// speed meter
+	ButtonBar.VSplitLeft(Margins*3, 0, &ButtonBar);
+	char aBuffer[64];
+	if(pInfo->m_Speed >= 1.0f)
+		str_format(aBuffer, sizeof(aBuffer), "x%.0f", pInfo->m_Speed);
+	else
+		str_format(aBuffer, sizeof(aBuffer), "x%.2f", pInfo->m_Speed);
+	UI()->DoLabel(&ButtonBar, aBuffer, Button.h*0.7f, -1);
+
+	// close button
+	ButtonBar.VSplitRight(ButtonbarHeight*3, &ButtonBar, &Button);
+	static int s_ExitButton = 0;
+	if(DoButton_DemoPlayer(&s_ExitButton, Localize("Close"), 0, &Button))
+		Client()->Disconnect();
+
+	// demo name
+	char aDemoName[64] = {0};
+	DemoPlayer()->GetDemoName(aDemoName, sizeof(aDemoName));
+	char aBuf[128];
+	str_format(aBuf, sizeof(aBuf), Localize("Demofile: %s"), aDemoName);
+	CTextCursor Cursor;
+	TextRender()->SetCursor(&Cursor, NameBar.x, NameBar.y, Button.h*0.5f, TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
+	Cursor.m_LineWidth = MainView.w;
+	TextRender()->TextEx(&Cursor, aBuf, -1);
 
 	if(IncreaseDemoSpeed || Input()->KeyPresses(KEY_MOUSE_WHEEL_UP))
 	{
@@ -286,7 +297,11 @@ void CMenus::UiDoListboxStart(const void *pID, const CUIRect *pRect, float RowHe
 	RenderTools()->DrawUIRect(&View, vec4(0,0,0,0.15f), 0, 0);
 
 	// prepare the scroll
+#if defined(__ANDROID__)
+	View.VSplitRight(50, &View, &Scroll);
+#else
 	View.VSplitRight(15, &View, &Scroll);
+#endif
 
 	// setup the variables
 	gs_ListBoxOriginalView = View;
@@ -598,7 +613,10 @@ void CMenus::RenderDemoList(CUIRect MainView)
 		UI()->DoLabelScaled(&Left, Localize("Size:"), 14.0f, -1);
 		unsigned Size = (m_lDemos[m_DemolistSelectedIndex].m_Info.m_aMapSize[0]<<24) | (m_lDemos[m_DemolistSelectedIndex].m_Info.m_aMapSize[1]<<16) |
 					(m_lDemos[m_DemolistSelectedIndex].m_Info.m_aMapSize[2]<<8) | (m_lDemos[m_DemolistSelectedIndex].m_Info.m_aMapSize[3]);
-		str_format(aBuf, sizeof(aBuf), Localize("%d Bytes"), Size);
+		if(Size > 1024*1024)
+			str_format(aBuf, sizeof(aBuf), Localize("%.2f MiB"), float(Size)/(1024*1024));
+		else
+			str_format(aBuf, sizeof(aBuf), Localize("%.2f KiB"), float(Size)/1024);
 		UI()->DoLabelScaled(&Right, aBuf, 14.0f, -1);
 		Labels.HSplitTop(5.0f, 0, &Labels);
 		Labels.HSplitTop(20.0f, &Left, &Labels);
@@ -618,7 +636,11 @@ void CMenus::RenderDemoList(CUIRect MainView)
 
 	static int s_DemoListId = 0;
 	static float s_ScrollValue = 0;
+#if defined(__ANDROID__)
+	UiDoListboxStart(&s_DemoListId, &ListBox, 50.0f, Localize("Demos"), aFooterLabel, m_lDemos.size(), 1, m_DemolistSelectedIndex, s_ScrollValue);
+#else
 	UiDoListboxStart(&s_DemoListId, &ListBox, 17.0f, Localize("Demos"), aFooterLabel, m_lDemos.size(), 1, m_DemolistSelectedIndex, s_ScrollValue);
+#endif
 	for(sorted_array<CDemoItem>::range r = m_lDemos.all(); !r.empty(); r.pop_front())
 	{
 		CListboxItem Item = UiDoListboxNextItem((void*)(&r.front()));

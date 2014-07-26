@@ -5,6 +5,8 @@
 #include "kernel.h"
 
 #include "message.h"
+#include <engine/shared/config.h>
+#include <versionsrv/versionsrv.h>
 
 class IClient : public IInterface
 {
@@ -14,19 +16,21 @@ protected:
 	int m_State;
 
 	// quick access to time variables
-	int m_PrevGameTick;
-	int m_CurGameTick;
-	float m_GameIntraTick;
-	float m_GameTickTime;
+	int m_PrevGameTick[2];
+	int m_CurGameTick[2];
+	float m_GameIntraTick[2];
+	float m_GameTickTime[2];
 
-	int m_PredTick;
-	float m_PredIntraTick;
+	int m_PredTick[2];
+	float m_PredIntraTick[2];
 
 	float m_LocalTime;
 	float m_RenderFrameTime;
 
 	int m_GameTickSpeed;
 public:
+	int m_LocalIDs[2];
+	char m_aNews[NEWS_SIZE];
 
 	class CSnapItem
 	{
@@ -59,12 +63,12 @@ public:
 	inline int State() const { return m_State; }
 
 	// tick time access
-	inline int PrevGameTick() const { return m_PrevGameTick; }
-	inline int GameTick() const { return m_CurGameTick; }
-	inline int PredGameTick() const { return m_PredTick; }
-	inline float IntraGameTick() const { return m_GameIntraTick; }
-	inline float PredIntraGameTick() const { return m_PredIntraTick; }
-	inline float GameTickTime() const { return m_GameTickTime; }
+	inline int PrevGameTick() const { return m_PrevGameTick[g_Config.m_ClDummy]; }
+	inline int GameTick() const { return m_CurGameTick[g_Config.m_ClDummy]; }
+	inline int PredGameTick() const { return m_PredTick[g_Config.m_ClDummy]; }
+	inline float IntraGameTick() const { return m_GameIntraTick[g_Config.m_ClDummy]; }
+	inline float PredIntraGameTick() const { return m_PredIntraTick[g_Config.m_ClDummy]; }
+	inline float GameTickTime() const { return m_GameTickTime[g_Config.m_ClDummy]; }
 	inline int GameTickSpeed() const { return m_GameTickSpeed; }
 
 	// other time access
@@ -74,6 +78,12 @@ public:
 	// actions
 	virtual void Connect(const char *pAddress) = 0;
 	virtual void Disconnect() = 0;
+
+	// dummy
+	virtual void DummyDisconnect(const char *pReason) = 0;
+	virtual void DummyConnect() = 0;
+	virtual bool DummyConnected() = 0;
+
 	virtual void Quit() = 0;
 	virtual const char *DemoPlayer_Play(const char *pFilename, int StorageType) = 0;
 	virtual void DemoRecorder_Start(const char *pFilename, bool WithTimestamp) = 0;
@@ -118,6 +128,7 @@ public:
 	virtual void SnapSetStaticsize(int ItemType, int Size) = 0;
 
 	virtual int SendMsg(CMsgPacker *pMsg, int Flags) = 0;
+	virtual int SendMsgExY(CMsgPacker *pMsg, int Flags, bool System=true, int NetClient=1) = 0;
 
 	template<class T>
 	int SendPackMsg(T *pMsg, int Flags)
@@ -161,16 +172,19 @@ public:
 	virtual void OnRender() = 0;
 	virtual void OnStateChange(int NewState, int OldState) = 0;
 	virtual void OnConnected() = 0;
-	virtual void OnMessage(int MsgID, CUnpacker *pUnpacker) = 0;
+	virtual void OnMessage(int MsgID, CUnpacker *pUnpacker, bool IsDummy = 0) = 0;
 	virtual void OnPredict() = 0;
 	virtual void OnActivateEditor() = 0;
 
 	virtual int OnSnapInput(int *pData) = 0;
+	virtual void SendDummyInfo(bool Start) = 0;
+	virtual void ResetDummyInput() = 0;
 
 	virtual const char *GetItemName(int Type) = 0;
 	virtual const char *Version() = 0;
 	virtual const char *NetVersion() = 0;
 
+	virtual void OnDummyDisconnect() = 0;
 };
 
 extern IGameClient *CreateGameClient();

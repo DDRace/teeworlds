@@ -2,6 +2,8 @@
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 
 #include <base/tl/array.h>
+#include <sstream>
+#include <string>
 
 #include <math.h>
 
@@ -18,6 +20,7 @@
 #include <engine/serverbrowser.h>
 #include <engine/storage.h>
 #include <engine/textrender.h>
+#include <engine/autoupdate.h>
 #include <engine/shared/config.h>
 
 #include <game/version.h>
@@ -29,10 +32,12 @@
 #include <game/client/lineinput.h>
 #include <game/localization.h>
 #include <mastersrv/mastersrv.h>
+#include <versionsrv/versionsrv.h>
 
 #include "countryflags.h"
 #include "menus.h"
 #include "skins.h"
+#include "controls.h"
 
 vec4 CMenus::ms_GuiColor;
 vec4 CMenus::ms_ColorTabbarInactiveOutgame;
@@ -42,8 +47,14 @@ vec4 CMenus::ms_ColorTabbarActive = vec4(0,0,0,0.5f);
 vec4 CMenus::ms_ColorTabbarInactiveIngame;
 vec4 CMenus::ms_ColorTabbarActiveIngame;
 
+#if defined(__ANDROID__)
+float CMenus::ms_ButtonHeight = 50.0f;
+float CMenus::ms_ListheaderHeight = 50.0f;
+float CMenus::ms_ListitemAdditionalHeight = 33.0f;
+#else
 float CMenus::ms_ButtonHeight = 25.0f;
 float CMenus::ms_ListheaderHeight = 17.0f;
+#endif
 float CMenus::ms_FontmodHeight = 0.8f;
 
 IInput::CEvent CMenus::m_aInputEvents[MAX_INPUTEVENTS];
@@ -59,6 +70,7 @@ CMenus::CMenus()
 	m_NeedRestartGraphics = false;
 	m_NeedRestartSound = false;
 	m_NeedSendinfo = false;
+	m_NeedSendDummyinfo = false;
 	m_MenuActive = true;
 	m_UseMouseButtons = true;
 
@@ -73,6 +85,7 @@ CMenus::CMenus()
 	m_aCallvoteReason[0] = 0;
 
 	m_FriendlistSelectedIndex = -1;
+	m_DoubleClickIndex = -1;
 
 	m_DDRacePage = PAGE_BROWSER;
 }
@@ -124,7 +137,13 @@ int CMenus::DoButton_Menu(const void *pID, const char *pText, int Checked, const
 	RenderTools()->DrawUIRect(pRect, vec4(1,1,1,0.5f)*ButtonColorMul(pID), CUI::CORNER_ALL, 5.0f);
 	CUIRect Temp;
 	pRect->HMargin(pRect->h>=20.0f?2.0f:1.0f, &Temp);
+#if defined(__ANDROID__)
+	float TextH = min(22.0f, Temp.h);
+	Temp.y += (Temp.h - TextH) / 2;
+	UI()->DoLabel(&Temp, pText, TextH*ms_FontmodHeight, 0);
+#else
 	UI()->DoLabel(&Temp, pText, Temp.h*ms_FontmodHeight, 0);
+#endif
 	return UI()->DoButtonLogic(pID, pText, Checked, pRect);
 }
 
@@ -144,7 +163,13 @@ int CMenus::DoButton_MenuTab(const void *pID, const char *pText, int Checked, co
 		RenderTools()->DrawUIRect(pRect, ms_ColorTabbarInactive, Corners, 10.0f);
 	CUIRect Temp;
 	pRect->HMargin(2.0f, &Temp);
+#if defined(__ANDROID__)
+	float TextH = min(22.0f, Temp.h);
+	Temp.y += (Temp.h - TextH) / 2;
+	UI()->DoLabel(&Temp, pText, TextH*ms_FontmodHeight, 0);
+#else
 	UI()->DoLabel(&Temp, pText, Temp.h*ms_FontmodHeight, 0);
+#endif
 
 	return UI()->DoButtonLogic(pID, pText, Checked, pRect);
 }
@@ -156,7 +181,12 @@ int CMenus::DoButton_GridHeader(const void *pID, const char *pText, int Checked,
 		RenderTools()->DrawUIRect(pRect, vec4(1,1,1,0.5f), CUI::CORNER_T, 5.0f);
 	CUIRect t;
 	pRect->VSplitLeft(5.0f, 0, &t);
+#if defined(__ANDROID__)
+	float TextH = min(20.0f, pRect->h);
+	UI()->DoLabel(&t, pText, TextH*ms_FontmodHeight, -1);
+#else
 	UI()->DoLabel(&t, pText, pRect->h*ms_FontmodHeight, -1);
+#endif
 	return UI()->DoButtonLogic(pID, pText, Checked, pRect);
 }
 
@@ -248,7 +278,8 @@ int CMenus::DoEditBox(void *pID, const CUIRect *pRect, char *pStr, unsigned StrS
 		for(int i = 0; i < m_NumInputEvents; i++)
 		{
 			Len = str_length(pStr);
-			ReturnValue |= CLineInput::Manipulate(m_aInputEvents[i], pStr, StrSize, &Len, &s_AtIndex);
+			int NumChars = Len;
+			ReturnValue |= CLineInput::Manipulate(m_aInputEvents[i], pStr, StrSize, StrSize, &Len, &s_AtIndex, &NumChars);
 		}
 	}
 
@@ -274,7 +305,16 @@ int CMenus::DoEditBox(void *pID, const CUIRect *pRect, char *pStr, unsigned StrS
 	}
 
 	if(Inside)
+	{
 		UI()->SetHotItem(pID);
+#if defined(__ANDROID__)
+		if(UI()->ActiveItem() == pID && UI()->MouseButtonClicked(0))
+		{
+			s_AtIndex = 0;
+			UI()->AndroidBlockAndGetTextInput(pStr, StrSize, "");
+		}
+#endif
+	}
 
 	CUIRect Textbox = *pRect;
 	RenderTools()->DrawUIRect(&Textbox, vec4(1, 1, 1, 0.5f), Corners, 3.0f);
@@ -344,7 +384,11 @@ float CMenus::DoScrollbarV(const void *pID, const CUIRect *pRect, float Current)
 {
 	CUIRect Handle;
 	static float OffsetY;
+#if defined(__ANDROID__)
+	pRect->HSplitTop(50, &Handle, 0);
+#else
 	pRect->HSplitTop(33, &Handle, 0);
+#endif
 
 	Handle.y += (pRect->h-Handle.h)*Current;
 
@@ -533,14 +577,14 @@ int CMenus::RenderMenubar(CUIRect r)
 	if(Client()->State() == IClient::STATE_OFFLINE)
 	{
 		// offline menus
-		if(0) // this is not done yet
+		Box.VSplitLeft(90.0f, &Button, &Box);
+		static int s_NewsButton=0;
+		if (DoButton_MenuTab(&s_NewsButton, Localize("News"), m_ActivePage==PAGE_NEWS, &Button, CUI::CORNER_T))
 		{
-			Box.VSplitLeft(90.0f, &Button, &Box);
-			static int s_NewsButton=0;
-			if (DoButton_MenuTab(&s_NewsButton, Localize("News"), m_ActivePage==PAGE_NEWS, &Button, 0))
-				NewPage = PAGE_NEWS;
-			Box.VSplitLeft(30.0f, 0, &Box);
+			NewPage = PAGE_NEWS;
+			m_DoubleClickIndex = -1;
 		}
+		Box.VSplitLeft(10.0f, 0, &Box);
 
 		Box.VSplitLeft(100.0f, &Button, &Box);
 		static int s_InternetButton=0;
@@ -548,15 +592,17 @@ int CMenus::RenderMenubar(CUIRect r)
 		{
 			ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET);
 			NewPage = PAGE_INTERNET;
+			m_DoubleClickIndex = -1;
 		}
 
 		//Box.VSplitLeft(4.0f, 0, &Box);
-		Box.VSplitLeft(80.0f, &Button, &Box);
+		Box.VSplitLeft(70.0f, &Button, &Box);
 		static int s_LanButton=0;
 		if(DoButton_MenuTab(&s_LanButton, Localize("LAN"), m_ActivePage==PAGE_LAN, &Button, 0))
 		{
 			ServerBrowser()->Refresh(IServerBrowser::TYPE_LAN);
 			NewPage = PAGE_LAN;
+			m_DoubleClickIndex = -1;
 		}
 
 		//box.VSplitLeft(4.0f, 0, &box);
@@ -566,15 +612,17 @@ int CMenus::RenderMenubar(CUIRect r)
 		{
 			ServerBrowser()->Refresh(IServerBrowser::TYPE_FAVORITES);
 			NewPage = PAGE_FAVORITES;
+			m_DoubleClickIndex = -1;
 		}
 
-		Box.VSplitLeft(4.0f*5, 0, &Box);
+		Box.VSplitLeft(10.0f, 0, &Box);
 		Box.VSplitLeft(100.0f, &Button, &Box);
 		static int s_DemosButton=0;
 		if(DoButton_MenuTab(&s_DemosButton, Localize("Demos"), m_ActivePage==PAGE_DEMOS, &Button, CUI::CORNER_T))
 		{
 			DemolistPopulate();
 			NewPage = PAGE_DEMOS;
+			m_DoubleClickIndex = -1;
 		}
 	}
 	else
@@ -597,7 +645,7 @@ int CMenus::RenderMenubar(CUIRect r)
 
 		Box.VSplitLeft(100.0f, &Button, &Box);
 		static int s_GhostButton=0;
-		if(DoButton_MenuTab(&s_GhostButton, "DDRace", m_ActivePage==PAGE_DDRace, &Button, CUI::CORNER_TR))
+		if(DoButton_MenuTab(&s_GhostButton, "Network", m_ActivePage==PAGE_DDRace, &Button, 0))
 			NewPage = PAGE_DDRace;
 
 		Box.VSplitLeft(100.0f, &Button, &Box);
@@ -616,16 +664,24 @@ int CMenus::RenderMenubar(CUIRect r)
 	box.VSplitRight(30.0f, &box, 0);
 	*/
 
-	Box.VSplitRight(90.0f, &Box, &Button);
+	Box.VSplitRight(30.0f, &Box, &Button);
 	static int s_QuitButton=0;
-	if(DoButton_MenuTab(&s_QuitButton, Localize("Quit"), 0, &Button, CUI::CORNER_T))
+	if(DoButton_MenuTab(&s_QuitButton, "×", 0, &Button, CUI::CORNER_T))
 		m_Popup = POPUP_QUIT;
 
 	Box.VSplitRight(10.0f, &Box, &Button);
-	Box.VSplitRight(130.0f, &Box, &Button);
+	Box.VSplitRight(30.0f, &Box, &Button);
 	static int s_SettingsButton=0;
-	if(DoButton_MenuTab(&s_SettingsButton, Localize("Settings"), m_ActivePage==PAGE_SETTINGS, &Button, CUI::CORNER_T))
+	if(DoButton_MenuTab(&s_SettingsButton, "⚙", m_ActivePage==PAGE_SETTINGS, &Button, CUI::CORNER_T))
 		NewPage = PAGE_SETTINGS;
+
+	Box.VSplitRight(10.0f, &Box, &Button);
+	Box.VSplitRight(30.0f, &Box, &Button);
+	static int s_EditorButton=0;
+	if(DoButton_MenuTab(&s_EditorButton, Localize("✎"), 0, &Button, CUI::CORNER_T))
+	{
+		g_Config.m_ClEditor = 1;
+	}
 
 	if(NewPage != -1)
 	{
@@ -675,7 +731,7 @@ void CMenus::RenderLoading()
 	Graphics()->QuadsEnd();
 
 
-	const char *pCaption = Localize("Loading DDRace Client");
+	const char *pCaption = Localize("Loading DDNet Client");
 
 	CUIRect r;
 	r.x = x;
@@ -695,7 +751,31 @@ void CMenus::RenderLoading()
 
 void CMenus::RenderNews(CUIRect MainView)
 {
+	// TODO: Like the settings with big fonts
+	// Make it work WITHOUT version updates
+	// Show news once after each version or news update
 	RenderTools()->DrawUIRect(&MainView, ms_ColorTabbarActive, CUI::CORNER_ALL, 10.0f);
+
+	MainView.HSplitTop(15.0f, 0, &MainView);
+	MainView.VSplitLeft(15.0f, 0, &MainView);
+
+	CUIRect Label;
+
+	std::istringstream f(Client()->m_aNews);
+	std::string line;
+	while (std::getline(f, line))
+	{
+		if(line.size() > 0 && line.at(0) == '|' && line.at(line.size()-1) == '|')
+		{
+			MainView.HSplitTop(30.0f, &Label, &MainView);
+			UI()->DoLabelScaled(&Label, Localize(line.substr(1, line.size()-2).c_str()), 20.0f, -1);
+		}
+		else
+		{
+			MainView.HSplitTop(20.0f, &Label, &MainView);
+			UI()->DoLabelScaled(&Label, line.c_str(), 15.f, -1, MainView.w-30.0f);
+		}
+	}
 }
 
 void CMenus::OnInit()
@@ -745,7 +825,10 @@ void CMenus::OnInit()
 	// */
 
 	if(g_Config.m_ClShowWelcome)
+	{
 		m_Popup = POPUP_LANGUAGE;
+		str_copy(g_Config.m_BrFilterString, "DDraceNetwork", sizeof(g_Config.m_BrFilterString));
+	}
 	g_Config.m_ClShowWelcome = 0;
 
 	Console()->Chain("add_favorite", ConchainServerbrowserUpdate, this);
@@ -788,6 +871,7 @@ int CMenus::Render()
 			ServerBrowser()->Refresh(IServerBrowser::TYPE_FAVORITES);
 		m_pClient->m_pSounds->Enqueue(CSounds::CHN_MUSIC, SOUND_MENU);
 		s_First = false;
+		m_DoubleClickIndex = -1;
 	}
 
 	if(Client()->State() == IClient::STATE_ONLINE)
@@ -819,15 +903,20 @@ int CMenus::Render()
 	if(m_Popup == POPUP_NONE)
 	{
 		// do tab bar
+#if defined(__ANDROID__)
+		Screen.HSplitTop(100.0f, &TabBar, &MainView);
+#else
 		Screen.HSplitTop(24.0f, &TabBar, &MainView);
+#endif
 		TabBar.VMargin(20.0f, &TabBar);
 		RenderMenubar(TabBar);
 
 		// news is not implemented yet
-		if(g_Config.m_UiPage <= PAGE_NEWS || g_Config.m_UiPage > PAGE_SETTINGS || (Client()->State() == IClient::STATE_OFFLINE && g_Config.m_UiPage >= PAGE_GAME && g_Config.m_UiPage <= PAGE_CALLVOTE))
+		if(g_Config.m_UiPage < PAGE_NEWS || g_Config.m_UiPage > PAGE_SETTINGS || (Client()->State() == IClient::STATE_OFFLINE && g_Config.m_UiPage >= PAGE_GAME && g_Config.m_UiPage <= PAGE_CALLVOTE))
 		{
 			ServerBrowser()->Refresh(IServerBrowser::TYPE_INTERNET);
 			g_Config.m_UiPage = PAGE_INTERNET;
+			m_DoubleClickIndex = -1;
 		}
 
 		// render current page
@@ -891,12 +980,36 @@ int CMenus::Render()
 				pExtraText = "";
 			}
 		}
-		else if(m_Popup == POPUP_DISCONNECTED)
+		else if (m_Popup == POPUP_DISCONNECTED)
 		{
 			pTitle = Localize("Disconnected");
 			pExtraText = Client()->ErrorString();
 			pButtonText = Localize("Ok");
-			ExtraAlign = -1;
+			if ((str_find_nocase(Client()->ErrorString(), "full")) || (str_find_nocase(Client()->ErrorString(), "reserved")))
+			{
+				if (g_Config.m_ClReconnectFull)
+				{
+					if (_my_rtime == 0)
+						_my_rtime = time_get();
+					str_format(aBuf, sizeof(aBuf), Localize("\n\nReconnect in %d sec"), ((_my_rtime - time_get()) / time_freq() + g_Config.m_ClReconnectFullTimeout));
+					pTitle = Client()->ErrorString();
+					pExtraText = aBuf;
+					pButtonText = Localize("Abort");
+				}
+			}
+			else if (str_find_nocase(Client()->ErrorString(), "ban"))
+			{
+				if (g_Config.m_ClReconnectBan)
+				{
+					if (_my_rtime == 0)
+						_my_rtime = time_get();
+					str_format(aBuf, sizeof(aBuf), Localize("\n\nReconnect in %d sec"), ((_my_rtime - time_get()) / time_freq() + g_Config.m_ClReconnectBanTimeout));
+					pTitle = Client()->ErrorString();
+					pExtraText = aBuf;
+					pButtonText = Localize("Abort");
+				}
+			}
+			ExtraAlign = 0;
 		}
 		else if(m_Popup == POPUP_PURE)
 		{
@@ -942,6 +1055,12 @@ int CMenus::Render()
 			pExtraText = Localize("Are you sure that you want to quit?");
 			ExtraAlign = -1;
 		}
+		else if(m_Popup == POPUP_DISCONNECT)
+		{
+			pTitle = Localize("Disconnect");
+			pExtraText = Localize("Are you sure that you want to disconnect?");
+			ExtraAlign = -1;
+		}
 		else if(m_Popup == POPUP_FIRST_LAUNCH)
 		{
 			pTitle = Localize("Welcome to Teeworlds");
@@ -949,11 +1068,23 @@ int CMenus::Render()
 			pButtonText = Localize("Ok");
 			ExtraAlign = -1;
 		}
+#if !defined(CONF_PLATFORM_MACOSX) && !defined(__ANDROID__)
+		else if(m_Popup == POPUP_AUTOUPDATE)
+		{
+			pTitle = Localize("Auto-Update");
+			pExtraText = Localize("An update to DDNet client is available. Do you want to update now? This may restart the client. If an update fails, make sure the client has permissions to modify files.");
+			ExtraAlign = -1;
+		}
+#endif
 
 		CUIRect Box, Part;
 		Box = Screen;
 		Box.VMargin(150.0f/UI()->Scale(), &Box);
+#if defined(__ANDROID__)
+		Box.HMargin(100.0f/UI()->Scale(), &Box);
+#else
 		Box.HMargin(150.0f/UI()->Scale(), &Box);
+#endif
 
 		// render the box
 		RenderTools()->DrawUIRect(&Box, vec4(0,0,0,0.5f), CUI::CORNER_ALL, 15.0f);
@@ -974,7 +1105,11 @@ int CMenus::Render()
 		{
 			CUIRect Yes, No;
 			Box.HSplitBottom(20.f, &Box, &Part);
+#if defined(__ANDROID__)
+			Box.HSplitBottom(60.f, &Box, &Part);
+#else
 			Box.HSplitBottom(24.f, &Box, &Part);
+#endif
 
 			// additional info
 			Box.HSplitTop(10.0f, 0, &Box);
@@ -1000,12 +1135,62 @@ int CMenus::Render()
 			if(DoButton_Menu(&s_ButtonTryAgain, Localize("Yes"), 0, &Yes) || m_EnterPressed)
 				Client()->Quit();
 		}
+		else if(m_Popup == POPUP_DISCONNECT)
+		{
+			CUIRect Yes, No;
+			Box.HSplitBottom(20.f, &Box, &Part);
+#if defined(__ANDROID__)
+			Box.HSplitBottom(60.f, &Box, &Part);
+#else
+			Box.HSplitBottom(24.f, &Box, &Part);
+#endif
+
+			// buttons
+			Part.VMargin(80.0f, &Part);
+			Part.VSplitMid(&No, &Yes);
+			Yes.VMargin(20.0f, &Yes);
+			No.VMargin(20.0f, &No);
+
+			static int s_ButtonAbort = 0;
+			if(DoButton_Menu(&s_ButtonAbort, Localize("No"), 0, &No) || m_EscapePressed)
+				m_Popup = POPUP_NONE;
+
+			static int s_ButtonTryAgain = 0;
+			if(DoButton_Menu(&s_ButtonTryAgain, Localize("Yes"), 0, &Yes) || m_EnterPressed)
+				Client()->Disconnect();
+		}
+#if !defined(CONF_PLATFORM_MACOSX) && !defined(__ANDROID__)
+		else if(m_Popup == POPUP_AUTOUPDATE)
+		{
+			CUIRect Yes, No;
+			Box.HSplitBottom(20.f, &Box, &Part);
+			Box.HSplitBottom(24.f, &Box, &Part);
+
+			// buttons
+			Part.VMargin(80.0f, &Part);
+			Part.VSplitMid(&No, &Yes);
+			Yes.VMargin(20.0f, &Yes);
+			No.VMargin(20.0f, &No);
+
+			static int s_ButtonAbort = 0;
+			if(DoButton_Menu(&s_ButtonAbort, Localize("No"), 0, &No) || m_EscapePressed)
+				m_Popup = POPUP_NONE;
+
+			static int s_ButtonTryAgain = 0;
+			if(DoButton_Menu(&s_ButtonTryAgain, Localize("Yes"), 0, &Yes) || m_EnterPressed)
+				m_pClient->AutoUpdate()->DoUpdates(this);
+		}
+#endif
 		else if(m_Popup == POPUP_PASSWORD)
 		{
 			CUIRect Label, TextBox, TryAgain, Abort;
 
 			Box.HSplitBottom(20.f, &Box, &Part);
+#if defined(__ANDROID__)
+			Box.HSplitBottom(60.f, &Box, &Part);
+#else
 			Box.HSplitBottom(24.f, &Box, &Part);
+#endif
 			Part.VMargin(80.0f, &Part);
 
 			Part.VSplitMid(&Abort, &TryAgain);
@@ -1024,7 +1209,11 @@ int CMenus::Render()
 			}
 
 			Box.HSplitBottom(60.f, &Box, &Part);
+#if defined(__ANDROID__)
+			Box.HSplitBottom(60.f, &Box, &Part);
+#else
 			Box.HSplitBottom(24.f, &Box, &Part);
+#endif
 
 			Part.VSplitLeft(60.0f, 0, &Label);
 			Label.VSplitLeft(100.0f, 0, &TextBox);
@@ -1040,7 +1229,11 @@ int CMenus::Render()
 			Box.VMargin(150.0f, &Box);
 			Box.HMargin(150.0f, &Box);
 			Box.HSplitBottom(20.f, &Box, &Part);
+#if defined(__ANDROID__)
+			Box.HSplitBottom(60.f, &Box, &Part);
+#else
 			Box.HSplitBottom(24.f, &Box, &Part);
+#endif
 			Part.VMargin(120.0f, &Part);
 
 			static int s_Button = 0;
@@ -1062,7 +1255,7 @@ int CMenus::Render()
 					}
 
 					// update download speed
-					float Diff = Client()->MapDownloadAmount()-m_DownloadLastCheckSize;
+					float Diff = (Client()->MapDownloadAmount()-m_DownloadLastCheckSize)/((int)((Now-m_DownloadLastCheckTime)/time_freq()));
 					float StartDiff = m_DownloadLastCheckSize-0.0f;
 					if(StartDiff+Diff > 0.0f)
 						m_DownloadSpeed = (Diff/(StartDiff+Diff))*(Diff/1.0f) + (StartDiff/(Diff+StartDiff))*m_DownloadSpeed;
@@ -1105,10 +1298,18 @@ int CMenus::Render()
 		{
 			Box = Screen;
 			Box.VMargin(150.0f, &Box);
+#if defined(__ANDROID__)
+			Box.HMargin(20.0f, &Box);
+#else
 			Box.HMargin(150.0f, &Box);
+#endif
 			Box.HSplitTop(20.f, &Part, &Box);
 			Box.HSplitBottom(20.f, &Box, &Part);
+#if defined(__ANDROID__)
+			Box.HSplitBottom(60.f, &Box, &Part);
+#else
 			Box.HSplitBottom(24.f, &Box, &Part);
+#endif
 			Box.HSplitBottom(20.f, &Box, 0);
 			Box.VMargin(20.0f, &Box);
 			RenderLanguageSelection(Box);
@@ -1122,10 +1323,18 @@ int CMenus::Render()
 		{
 			Box = Screen;
 			Box.VMargin(150.0f, &Box);
+#if defined(__ANDROID__)
+			Box.HMargin(20.0f, &Box);
+#else
 			Box.HMargin(150.0f, &Box);
+#endif
 			Box.HSplitTop(20.f, &Part, &Box);
 			Box.HSplitBottom(20.f, &Box, &Part);
+#if defined(__ANDROID__)
+			Box.HSplitBottom(60.f, &Box, &Part);
+#else
 			Box.HSplitBottom(24.f, &Box, &Part);
+#endif
 			Box.HSplitBottom(20.f, &Box, 0);
 			Box.VMargin(20.0f, &Box);
 
@@ -1181,7 +1390,11 @@ int CMenus::Render()
 		{
 			CUIRect Yes, No;
 			Box.HSplitBottom(20.f, &Box, &Part);
+#if defined(__ANDROID__)
+			Box.HSplitBottom(60.f, &Box, &Part);
+#else
 			Box.HSplitBottom(24.f, &Box, &Part);
+#endif
 			Part.VMargin(80.0f, &Part);
 
 			Part.VSplitMid(&No, &Yes);
@@ -1217,7 +1430,11 @@ int CMenus::Render()
 			CUIRect Label, TextBox, Ok, Abort;
 
 			Box.HSplitBottom(20.f, &Box, &Part);
+#if defined(__ANDROID__)
+			Box.HSplitBottom(60.f, &Box, &Part);
+#else
 			Box.HSplitBottom(24.f, &Box, &Part);
+#endif
 			Part.VMargin(80.0f, &Part);
 
 			Part.VSplitMid(&Abort, &Ok);
@@ -1255,7 +1472,11 @@ int CMenus::Render()
 			}
 
 			Box.HSplitBottom(60.f, &Box, &Part);
+#if defined(__ANDROID__)
+			Box.HSplitBottom(60.f, &Box, &Part);
+#else
 			Box.HSplitBottom(24.f, &Box, &Part);
+#endif
 
 			Part.VSplitLeft(60.0f, 0, &Label);
 			Label.VSplitLeft(120.0f, 0, &TextBox);
@@ -1269,7 +1490,11 @@ int CMenus::Render()
 		{
 			CUIRect Yes, No;
 			Box.HSplitBottom(20.f, &Box, &Part);
+#if defined(__ANDROID__)
+			Box.HSplitBottom(60.f, &Box, &Part);
+#else
 			Box.HSplitBottom(24.f, &Box, &Part);
+#endif
 			Part.VMargin(80.0f, &Part);
 
 			Part.VSplitMid(&No, &Yes);
@@ -1300,7 +1525,11 @@ int CMenus::Render()
 			CUIRect Label, TextBox;
 
 			Box.HSplitBottom(20.f, &Box, &Part);
+#if defined(__ANDROID__)
+			Box.HSplitBottom(60.f, &Box, &Part);
+#else
 			Box.HSplitBottom(24.f, &Box, &Part);
+#endif
 			Part.VMargin(80.0f, &Part);
 
 			static int s_EnterButton = 0;
@@ -1308,7 +1537,11 @@ int CMenus::Render()
 				m_Popup = POPUP_NONE;
 
 			Box.HSplitBottom(40.f, &Box, &Part);
+#if defined(__ANDROID__)
+			Box.HSplitBottom(60.f, &Box, &Part);
+#else
 			Box.HSplitBottom(24.f, &Box, &Part);
+#endif
 
 			Part.VSplitLeft(60.0f, 0, &Label);
 			Label.VSplitLeft(100.0f, 0, &TextBox);
@@ -1321,15 +1554,38 @@ int CMenus::Render()
 		else
 		{
 			Box.HSplitBottom(20.f, &Box, &Part);
+#if defined(__ANDROID__)
+			Box.HSplitBottom(60.f, &Box, &Part);
+#else
 			Box.HSplitBottom(24.f, &Box, &Part);
+#endif
 			Part.VMargin(120.0f, &Part);
 
 			static int s_Button = 0;
 			if(DoButton_Menu(&s_Button, pButtonText, 0, &Part) || m_EscapePressed || m_EnterPressed)
 				m_Popup = POPUP_NONE;
 		}
+
+		if(m_Popup == POPUP_NONE)
+			UI()->SetActiveItem(0);
 	}
 
+	if (m_Popup == POPUP_DISCONNECTED)
+	{
+		if (str_find_nocase(Client()->ErrorString(), "full") || str_find_nocase(Client()->ErrorString(), "reserved"))
+		{
+			if (g_Config.m_ClReconnectFull && time_get() > _my_rtime + time_freq() * g_Config.m_ClReconnectFullTimeout)
+				Client()->Connect(g_Config.m_UiServerAddress);
+		}
+		else if (str_find_nocase(Client()->ErrorString(), "ban") || str_find_nocase(Client()->ErrorString(), "kick"))
+		{
+			if (g_Config.m_ClReconnectBan && time_get() > _my_rtime + time_freq() * g_Config.m_ClReconnectBanTimeout)
+				Client()->Connect(g_Config.m_UiServerAddress);
+		}
+	}
+	else if (_my_rtime != 0) {
+		_my_rtime = 0;
+	}
 	return 0;
 }
 
@@ -1337,12 +1593,21 @@ int CMenus::Render()
 void CMenus::SetActive(bool Active)
 {
 	m_MenuActive = Active;
+#if defined(__ANDROID__)
+	UI()->AndroidShowScreenKeys(!m_MenuActive && !m_pClient->m_pControls->m_UsingGamepad);
+#endif
 	if(!m_MenuActive)
 	{
 		if(m_NeedSendinfo)
 		{
 			m_pClient->SendInfo(false);
 			m_NeedSendinfo = false;
+		}
+
+		if(m_NeedSendDummyinfo)
+		{
+			m_pClient->SendDummyInfo(false);
+			m_NeedSendDummyinfo = false;
 		}
 
 		if(Client()->State() == IClient::STATE_ONLINE)
@@ -1367,9 +1632,14 @@ bool CMenus::OnMouseMove(float x, float y)
 	if(!m_MenuActive)
 		return false;
 
+#if defined(__ANDROID__) // No relative mouse on Android
+	m_MousePos.x = x;
+	m_MousePos.y = y;
+#else
 	UI()->ConvertMouseMove(&x, &y);
 	m_MousePos.x += x;
 	m_MousePos.y += y;
+#endif
 	if(m_MousePos.x < 0) m_MousePos.x = 0;
 	if(m_MousePos.y < 0) m_MousePos.y = 0;
 	if(m_MousePos.x > Graphics()->ScreenWidth()) m_MousePos.x = Graphics()->ScreenWidth();
@@ -1531,7 +1801,14 @@ void CMenus::OnRender()
 		if(Input()->KeyPressed(KEY_MOUSE_3)) Buttons |= 4;
 	}
 
+#if defined(__ANDROID__)
+	static int ButtonsOneFrameDelay = 0; // For Android touch input
+
+	UI()->Update(mx,my,mx*3.0f,my*3.0f,ButtonsOneFrameDelay);
+	ButtonsOneFrameDelay = Buttons;
+#else
 	UI()->Update(mx,my,mx*3.0f,my*3.0f,Buttons);
+#endif
 
 	// render
 	if(Client()->State() != IClient::STATE_DEMOPLAYBACK)
@@ -1635,4 +1912,57 @@ int CMenus::DoButton_CheckBox_DontCare(const void *pID, const char *pText, int C
 	default:
 		return DoButton_CheckBox_Common(pID, pText, "", pRect);
 	}
+}
+
+void CMenus::RenderUpdating(const char *pCaption, int current, int total)
+{
+	// make sure that we don't render for each little thing we load
+	// because that will slow down loading if we have vsync
+	static int64 LastLoadRender = 0;
+	if(time_get()-LastLoadRender < time_freq()/60)
+		return;
+	LastLoadRender = time_get();
+
+	// need up date this here to get correct
+	vec3 Rgb = HslToRgb(vec3(g_Config.m_UiColorHue/255.0f, g_Config.m_UiColorSat/255.0f, g_Config.m_UiColorLht/255.0f));
+	ms_GuiColor = vec4(Rgb.r, Rgb.g, Rgb.b, g_Config.m_UiColorAlpha/255.0f);
+
+	CUIRect Screen = *UI()->Screen();
+	Graphics()->MapScreen(Screen.x, Screen.y, Screen.w, Screen.h);
+
+	RenderBackground();
+
+	float w = 700;
+	float h = 200;
+	float x = Screen.w/2-w/2;
+	float y = Screen.h/2-h/2;
+
+	Graphics()->BlendNormal();
+
+	Graphics()->TextureSet(-1);
+	Graphics()->QuadsBegin();
+	Graphics()->SetColor(0,0,0,0.50f);
+	RenderTools()->DrawRoundRect(0, y, Screen.w, h, 0.0f);
+	Graphics()->QuadsEnd();
+
+	CUIRect r;
+	r.x = x;
+	r.y = y+20;
+	r.w = w;
+	r.h = h;
+	UI()->DoLabel(&r, Localize(pCaption), 32.0f, 0, -1);
+
+	if (total>0)
+	{
+		float Percent = current/(float)total;
+		Graphics()->TextureSet(-1);
+		Graphics()->QuadsBegin();
+		Graphics()->SetColor(0.15f,0.15f,0.15f,0.75f);
+		RenderTools()->DrawRoundRect(x+40, y+h-75, w-80, 30, 5.0f);
+		Graphics()->SetColor(1,1,1,0.75f);
+		RenderTools()->DrawRoundRect(x+45, y+h-70, (w-85)*Percent, 20, 5.0f);
+		Graphics()->QuadsEnd();
+	}
+
+	Graphics()->Swap();
 }

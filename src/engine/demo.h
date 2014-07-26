@@ -21,6 +21,10 @@ struct CDemoHeader
 	char m_aType[8];
 	char m_aLength[4];
 	char m_aTimestamp[20];
+};
+
+struct CTimelineMarkers
+{
 	char m_aNumTimelineMarkers[4];
 	char m_aTimelineMarkers[MAX_TIMELINE_MARKERS][4];
 };
@@ -55,6 +59,7 @@ public:
 	virtual int SetPos(float Percent) = 0;
 	virtual void Pause() = 0;
 	virtual void Unpause() = 0;
+	virtual bool IsPlaying() const = 0;
 	virtual const CInfo *BaseInfo() const = 0;
 	virtual void GetDemoName(char *pBuffer, int BufferSize) const = 0;
 	virtual bool GetDemoInfo(class IStorage *pStorage, const char *pFilename, int StorageType, CDemoHeader *pDemoHeader) const = 0;

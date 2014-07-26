@@ -328,11 +328,11 @@ bool IGameController::OnEntity(int Index, vec2 Pos, int Layer, int Flags, int Nu
 	}
 	else if(Index >= ENTITY_DRAGGER_WEAK && Index <= ENTITY_DRAGGER_STRONG)
 	{
-		new CDraggerTeam(&GameServer()->m_World, Pos, Index - ENTITY_DRAGGER_WEAK + 1, false, Layer, Number);
+		CDraggerTeam(&GameServer()->m_World, Pos, Index - ENTITY_DRAGGER_WEAK + 1, false, Layer, Number);
 	}
 	else if(Index >= ENTITY_DRAGGER_WEAK_NW && Index <= ENTITY_DRAGGER_STRONG_NW)
 	{
-		new CDraggerTeam(&GameServer()->m_World, Pos, Index - ENTITY_DRAGGER_WEAK_NW + 1, true, Layer, Number);
+		CDraggerTeam(&GameServer()->m_World, Pos, Index - ENTITY_DRAGGER_WEAK_NW + 1, true, Layer, Number);
 	}
 	else if(Index == ENTITY_PLASMAE)
 	{
@@ -475,8 +475,8 @@ void IGameController::ChangeMap(const char *pToMap)
 		pNextMap = pMapRotation;
 
 	// cut out the next map
-	char aBuf[512];
-	for(int i = 0; i < 512; i++)
+	char aBuf[512] = {0};
+	for(int i = 0; i < 511; i++)
 	{
 		aBuf[i] = pNextMap[i];
 		if(IsSeparator(pNextMap[i]) || pNextMap[i] == 0)

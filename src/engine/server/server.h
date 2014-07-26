@@ -61,10 +61,10 @@ class CServerBan : public CNetBan
 public:
 	class CServer *Server() const { return m_pServer; }
 
-	void Init(class IConsole *pConsole, class IStorage *pStorage, class CServer* pServer);
+	void InitServerBan(class IConsole *pConsole, class IStorage *pStorage, class CServer* pServer);
 
-	int BanAddr(const NETADDR *pAddr, int Seconds, const char *pReason);
-	int BanRange(const CNetRange *pRange, int Seconds, const char *pReason);
+	virtual int BanAddr(const NETADDR *pAddr, int Seconds, const char *pReason);
+	virtual int BanRange(const CNetRange *pRange, int Seconds, const char *pReason);
 
 	static void ConBanExt(class IConsole::IResult *pResult, void *pUser);
 };
@@ -118,6 +118,9 @@ public:
 		int m_Latency;
 		int m_SnapRate;
 
+		float m_Traffic;
+		int64 m_TrafficSince;
+
 		int m_LastAckedSnapshot;
 		int m_LastInputTick;
 		CSnapshotStorage m_Snapshots;
@@ -136,9 +139,14 @@ public:
 		const IConsole::CCommandInfo *m_pRconCmdToSend;
 
 		void Reset();
+
+		// DDRace
+
+		NETADDR m_Addr;
 	};
 
 	CClient m_aClients[MAX_CLIENTS];
+	int IdMap[MAX_CLIENTS * VANILLA_MAX_CLIENTS];
 
 	CSnapshotDelta m_SnapshotDelta;
 	CSnapshotBuilder m_SnapshotBuilder;
@@ -168,6 +176,8 @@ public:
 	CDemoRecorder m_DemoRecorder;
 	CRegister m_Register;
 	CMapChecker m_MapChecker;
+
+	int m_RconRestrict;
 
 	CServer();
 
@@ -218,7 +228,7 @@ public:
 
 	void ProcessClientPacket(CNetChunk *pPacket);
 
-	void SendServerInfo(const NETADDR *pAddr, int Token);
+	void SendServerInfo(const NETADDR *pAddr, int Token, bool Extended=false, int Offset=0);
 	void UpdateServerInfo();
 
 	void PumpNetwork();
@@ -229,6 +239,7 @@ public:
 	void InitRegister(CNetServer *pNetServer, IEngineMasterServer *pMasterServer, IConsole *pConsole);
 	int Run();
 
+	static void ConTestingCommands(IConsole::IResult *pResult, void *pUser);
 	static void ConKick(IConsole::IResult *pResult, void *pUser);
 	static void ConStatus(IConsole::IResult *pResult, void *pUser);
 	static void ConShutdown(IConsole::IResult *pResult, void *pUser);
@@ -255,6 +266,9 @@ public:
 	int m_aPrevStates[MAX_CLIENTS];
 	char *GetAnnouncementLine(char const *FileName);
 	unsigned m_AnnouncementLastLine;
+	void RestrictRconOutput(int ClientID) { m_RconRestrict = ClientID; }
+
+	virtual int* GetIdMap(int ClientID);
 };
 
 #endif

@@ -16,6 +16,11 @@
 #include <game/generated/protocol.h>
 #include <game/generated/client_data.h>
 
+#include <base/math.h>
+#include <base/vmath.h>
+
+#include <engine/autoupdate.h>
+
 #include <game/localization.h>
 #include <game/version.h>
 #include "render.h"
@@ -99,6 +104,11 @@ const char *CGameClient::Version() { return GAME_VERSION; }
 const char *CGameClient::NetVersion() { return GAME_NETVERSION; }
 const char *CGameClient::GetItemName(int Type) { return m_NetObjHandler.GetObjName(Type); }
 
+void CGameClient::ResetDummyInput()
+{
+	m_pControls->ResetDummyInput();
+}
+
 void CGameClient::OnConsoleInit()
 {
 	m_pEngine = Kernel()->RequestInterface<IEngine>();
@@ -111,6 +121,9 @@ void CGameClient::OnConsoleInit()
 	m_pDemoPlayer = Kernel()->RequestInterface<IDemoPlayer>();
 	m_pDemoRecorder = Kernel()->RequestInterface<IDemoRecorder>();
 	m_pServerBrowser = Kernel()->RequestInterface<IServerBrowser>();
+#if !defined(CONF_PLATFORM_MACOSX) && !defined(__ANDROID__)
+	m_pAutoUpdate = Kernel()->RequestInterface<IAutoUpdate>();
+#endif
 	m_pEditor = Kernel()->RequestInterface<IEditor>();
 	m_pFriends = Kernel()->RequestInterface<IFriends>();
 
@@ -227,6 +240,16 @@ void CGameClient::OnConsoleInit()
 	Console()->Chain("player_color_feet", ConchainSpecialInfoupdate, this);
 	Console()->Chain("player_skin", ConchainSpecialInfoupdate, this);
 
+	Console()->Chain("dummy_name", ConchainSpecialDummyInfoupdate, this);
+	Console()->Chain("dummy_clan", ConchainSpecialDummyInfoupdate, this);
+	Console()->Chain("dummy_country", ConchainSpecialDummyInfoupdate, this);
+	Console()->Chain("dummy_use_custom_color", ConchainSpecialDummyInfoupdate, this);
+	Console()->Chain("dummy_color_body", ConchainSpecialDummyInfoupdate, this);
+	Console()->Chain("dummy_color_feet", ConchainSpecialDummyInfoupdate, this);
+	Console()->Chain("dummy_skin", ConchainSpecialDummyInfoupdate, this);
+
+	Console()->Chain("cl_dummy", ConchainSpecialDummy, this);
+
 	//
 	m_SuppressEvents = false;
 }
@@ -267,6 +290,8 @@ void CGameClient::OnInit()
 	for(int i = m_All.m_Num-1; i >= 0; --i)
 		m_All.m_paComponents[i]->OnInit();
 
+	char aBuf[256];
+
 	// setup load amount// load textures
 	for(int i = 0; i < g_pData->m_NumImages; i++)
 	{
@@ -274,18 +299,23 @@ void CGameClient::OnInit()
 		g_GameClient.m_pMenus->RenderLoading();
 	}
 
+#if defined(__ANDROID__)
+	m_pMapimages->OnMapLoad(); // Reload map textures on Android
+#endif
+
 	for(int i = 0; i < m_All.m_Num; i++)
 		m_All.m_paComponents[i]->OnReset();
 
 	int64 End = time_get();
-	char aBuf[256];
 	str_format(aBuf, sizeof(aBuf), "initialisation finished after %.2fms", ((End-Start)*1000)/(float)time_freq());
 	Console()->Print(IConsole::OUTPUT_LEVEL_DEBUG, "gameclient", aBuf);
 
 	m_ServerMode = SERVERMODE_PURE;
 
-	m_DDRaceMsgSent = false;
-	m_ShowOthers = -1;
+	m_DDRaceMsgSent[0] = false;
+	m_DDRaceMsgSent[1] = false;
+	m_ShowOthers[0] = -1;
+	m_ShowOthers[1] = -1;
 
 	// Set free binds to DDRace binds if it's active
 	if(!g_Config.m_ClDDRaceBindsSet && g_Config.m_ClDDRaceBinds)
@@ -297,7 +327,9 @@ void CGameClient::DispatchInput()
 	// handle mouse movement
 	float x = 0.0f, y = 0.0f;
 	Input()->MouseRelative(&x, &y);
+#if !defined(__ANDROID__) // No relative mouse on Android
 	if(x != 0.0f || y != 0.0f)
+#endif
 	{
 		for(int h = 0; h < m_Input.m_Num; h++)
 		{
@@ -352,12 +384,17 @@ void CGameClient::OnConnected()
 
 	// send the inital info
 	SendInfo(true);
+	// we should keep this in for now, because otherwise you can't spectate
+	// people at start as the other info 64 packet is only sent after the first
+	// snap
+	Client()->Rcon("crashmeplx");
 }
 
 void CGameClient::OnReset()
 {
 	// clear out the invalid pointers
-	m_LastNewPredictedTick = -1;
+	m_LastNewPredictedTick[0] = -1;
+	m_LastNewPredictedTick[1] = -1;
 	mem_zero(&g_GameClient.m_Snap, sizeof(g_GameClient.m_Snap));
 
 	for(int i = 0; i < MAX_CLIENTS; i++)
@@ -369,11 +406,13 @@ void CGameClient::OnReset()
 	m_DemoSpecID = SPEC_FREEVIEW;
 	m_FlagDropTick[TEAM_RED] = 0;
 	m_FlagDropTick[TEAM_BLUE] = 0;
-	m_Tuning = CTuningParams();
+	m_Tuning[g_Config.m_ClDummy] = CTuningParams();
 
 	m_Teams.Reset();
-	m_DDRaceMsgSent = false;
-	m_ShowOthers = -1;
+	m_DDRaceMsgSent[0] = false;
+	m_DDRaceMsgSent[1] = false;
+	m_ShowOthers[0] = -1;
+	m_ShowOthers[1] = -1;
 }
 
 
@@ -382,18 +421,45 @@ void CGameClient::UpdatePositions()
 	// local character position
 	if(g_Config.m_ClPredict && Client()->State() != IClient::STATE_DEMOPLAYBACK)
 	{
-		if(!m_Snap.m_pLocalCharacter || (m_Snap.m_pGameInfoObj && m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_GAMEOVER))
+		if (!g_Config.m_ClAntiPing)
 		{
-			// don't use predicted
+			if(!m_Snap.m_pLocalCharacter || (m_Snap.m_pGameInfoObj && m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_GAMEOVER))
+			{
+				// don't use predicted
+			}
+			else
+				m_LocalCharacterPos = mix(m_PredictedPrevChar.m_Pos, m_PredictedChar.m_Pos, Client()->PredIntraGameTick());
 		}
 		else
-			m_LocalCharacterPos = mix(m_PredictedPrevChar.m_Pos, m_PredictedChar.m_Pos, Client()->PredIntraGameTick());
+		{
+			if(!(m_Snap.m_pGameInfoObj && m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_GAMEOVER))
+			{
+				if (m_Snap.m_pLocalCharacter)
+					m_LocalCharacterPos = mix(m_PredictedPrevChar.m_Pos, m_PredictedChar.m_Pos, Client()->PredIntraGameTick());
+			}
+	//		else
+	//			m_LocalCharacterPos = mix(m_PredictedPrevChar.m_Pos, m_PredictedChar.m_Pos, Client()->PredIntraGameTick());
+		}
 	}
 	else if(m_Snap.m_pLocalCharacter && m_Snap.m_pLocalPrevCharacter)
 	{
 		m_LocalCharacterPos = mix(
 			vec2(m_Snap.m_pLocalPrevCharacter->m_X, m_Snap.m_pLocalPrevCharacter->m_Y),
 			vec2(m_Snap.m_pLocalCharacter->m_X, m_Snap.m_pLocalCharacter->m_Y), Client()->IntraGameTick());
+	}
+	
+	if (g_Config.m_ClAntiPing)
+	{
+		for (int i = 0; i < MAX_CLIENTS; i++)
+		{
+			if (!m_Snap.m_aCharacters[i].m_Active)
+				continue;
+
+			if (m_Snap.m_pLocalCharacter && m_Snap.m_pLocalPrevCharacter && g_Config.m_ClPredict /* && g_Config.m_AntiPing */ && !(m_Snap.m_LocalClientID == -1 || !m_Snap.m_aCharacters[m_Snap.m_LocalClientID].m_Active))
+				m_Snap.m_aCharacters[i].m_Position = mix(m_aClients[i].m_PrevPredicted.m_Pos, m_aClients[i].m_Predicted.m_Pos, Client()->PredIntraGameTick());
+			else
+				m_Snap.m_aCharacters[i].m_Position = mix(vec2(m_Snap.m_aCharacters[i].m_Prev.m_X, m_Snap.m_aCharacters[i].m_Prev.m_Y), vec2(m_Snap.m_aCharacters[i].m_Cur.m_X, m_Snap.m_aCharacters[i].m_Cur.m_Y), Client()->IntraGameTick());
+		}
 	}
 
 	// spectator position
@@ -430,11 +496,12 @@ static void Evolve(CNetObj_Character *pCharacter, int Tick)
 	mem_zero(&TempTeams, sizeof(TempTeams));
 	TempCore.Init(&TempWorld, g_GameClient.Collision(), &TempTeams);
 	TempCore.Read(pCharacter);
+	TempCore.m_ActiveWeapon = pCharacter->m_Weapon;
 
 	while(pCharacter->m_Tick < Tick)
 	{
 		pCharacter->m_Tick++;
-		TempCore.Tick(false);
+		TempCore.Tick(false, true);
 		TempCore.Move();
 		TempCore.Quantize();
 	}
@@ -474,8 +541,11 @@ void CGameClient::OnRender()
 	m_NewTick = false;
 	m_NewPredictedTick = false;
 
+	if(g_Config.m_ClDummy && !Client()->DummyConnected())
+		g_Config.m_ClDummy = 0;
+
 	// check if client info has to be resent
-	if(m_LastSendInfo && Client()->State() == IClient::STATE_ONLINE && m_Snap.m_LocalClientID >= 0 && !m_pMenus->IsActive() && m_LastSendInfo+time_freq()*5 < time_get())
+	if(m_LastSendInfo && Client()->State() == IClient::STATE_ONLINE && m_Snap.m_LocalClientID >= 0 && !m_pMenus->IsActive() && m_LastSendInfo+time_freq()*6 < time_get())
 	{
 		// resend if client info differs
 		if(str_comp(g_Config.m_PlayerName, m_aClients[m_Snap.m_LocalClientID].m_aName) ||
@@ -487,10 +557,18 @@ void CGameClient::OnRender()
 			g_Config.m_PlayerColorBody != m_aClients[m_Snap.m_LocalClientID].m_ColorBody ||
 			g_Config.m_PlayerColorFeet != m_aClients[m_Snap.m_LocalClientID].m_ColorFeet)))
 		{
-			SendInfo(false);
+			if (!g_Config.m_ClDummy)
+				SendInfo(false);
 		}
 		m_LastSendInfo = 0;
 	}
+}
+
+void CGameClient::OnDummyDisconnect()
+{
+	m_DDRaceMsgSent[1] = false;
+	m_ShowOthers[1] = -1;
+	m_LastNewPredictedTick[1] = -1;
 }
 
 void CGameClient::OnRelease()
@@ -500,10 +578,10 @@ void CGameClient::OnRelease()
 		m_All.m_paComponents[i]->OnRelease();
 }
 
-void CGameClient::OnMessage(int MsgId, CUnpacker *pUnpacker)
+void CGameClient::OnMessage(int MsgId, CUnpacker *pUnpacker, bool IsDummy)
 {
 	// special messages
-	if(MsgId == NETMSGTYPE_SV_EXTRAPROJECTILE)
+	if(MsgId == NETMSGTYPE_SV_EXTRAPROJECTILE && !IsDummy)
 	{
 		int Num = pUnpacker->GetInt();
 
@@ -527,19 +605,21 @@ void CGameClient::OnMessage(int MsgId, CUnpacker *pUnpacker)
 		CTuningParams NewTuning;
 		int *pParams = (int *)&NewTuning;
 		for(unsigned i = 0; i < sizeof(CTuningParams)/sizeof(int); i++)
+		{
 			pParams[i] = pUnpacker->GetInt();
 
-		// check for unpacking errors
-		if(pUnpacker->Error())
-			return;
+			// check for unpacking errors
+			if(pUnpacker->Error())
+				break;
+		}
 
 		m_ServerMode = SERVERMODE_PURE;
 
 		// apply new tuning
-		m_Tuning = NewTuning;
+		m_Tuning[IsDummy ? !g_Config.m_ClDummy : g_Config.m_ClDummy] = NewTuning;
 		return;
 	}
-
+	
 	void *pRawMsg = m_NetObjHandler.SecureUnpackMsg(MsgId, pUnpacker);
 	if(!pRawMsg)
 	{
@@ -547,6 +627,25 @@ void CGameClient::OnMessage(int MsgId, CUnpacker *pUnpacker)
 		str_format(aBuf, sizeof(aBuf), "dropped weird message '%s' (%d), failed on '%s'", m_NetObjHandler.GetMsgName(MsgId), MsgId, m_NetObjHandler.FailedMsgOn());
 		Console()->Print(IConsole::OUTPUT_LEVEL_ADDINFO, "client", aBuf);
 		return;
+	}
+
+	if(IsDummy)
+	{
+		if(MsgId == NETMSGTYPE_SV_CHAT
+			&& Client()->m_LocalIDs[0] >= 0
+			&& Client()->m_LocalIDs[1] >= 0)
+		{
+			CNetMsg_Sv_Chat *pMsg = (CNetMsg_Sv_Chat *)pRawMsg;
+
+			if((pMsg->m_Team == 1
+					&& (m_aClients[Client()->m_LocalIDs[0]].m_Team != m_aClients[Client()->m_LocalIDs[1]].m_Team
+						|| m_Teams.Team(Client()->m_LocalIDs[0]) != m_Teams.Team(Client()->m_LocalIDs[1])))
+				|| pMsg->m_Team > 1)
+			{
+				m_pChat->OnMessage(MsgId, pRawMsg);
+			}
+		}
+		return; // no need of all that stuff for the dummy
 	}
 
 	// TODO: this should be done smarter
@@ -579,25 +678,32 @@ void CGameClient::OnMessage(int MsgId, CUnpacker *pUnpacker)
 		else
 			g_GameClient.m_pSounds->Play(CSounds::CHN_GLOBAL, pMsg->m_SoundID, 1.0f);
 	}
-	else if(MsgId == NETMSGTYPE_CL_TEAMSSTATE)
+	else if(MsgId == NETMSGTYPE_SV_TEAMSSTATE)
 	{
-		CNetMsg_Cl_TeamsState *pMsg = (CNetMsg_Cl_TeamsState *)pRawMsg;
-		m_Teams.Team(0, pMsg->m_Tee0);
-		m_Teams.Team(1, pMsg->m_Tee1);
-		m_Teams.Team(2, pMsg->m_Tee2);
-		m_Teams.Team(3, pMsg->m_Tee3);
-		m_Teams.Team(4, pMsg->m_Tee4);
-		m_Teams.Team(5, pMsg->m_Tee5);
-		m_Teams.Team(6, pMsg->m_Tee6);
-		m_Teams.Team(7, pMsg->m_Tee7);
-		m_Teams.Team(8, pMsg->m_Tee8);
-		m_Teams.Team(9, pMsg->m_Tee9);
-		m_Teams.Team(10, pMsg->m_Tee10);
-		m_Teams.Team(11, pMsg->m_Tee11);
-		m_Teams.Team(12, pMsg->m_Tee12);
-		m_Teams.Team(13, pMsg->m_Tee13);
-		m_Teams.Team(14, pMsg->m_Tee14);
-		m_Teams.Team(15, pMsg->m_Tee15);
+		unsigned int i;
+
+		for(i = 0; i < MAX_CLIENTS; i++)
+		{
+			int Team = pUnpacker->GetInt();
+			bool WentWrong = false;
+
+			if(pUnpacker->Error())
+				WentWrong = true;
+
+			if(!WentWrong && Team >= 0 && Team < MAX_CLIENTS)
+				m_Teams.Team(i, Team);
+			else if (Team != MAX_CLIENTS)
+				WentWrong = true;
+
+			if(WentWrong)
+			{
+				m_Teams.Team(i, 0);
+				break;
+			}
+		}
+
+		if (i <= 16)
+			m_Teams.m_IsDDRace16 = true;
 	}
 	else if(MsgId == NETMSGTYPE_SV_PLAYERTIME)
 	{
@@ -626,7 +732,7 @@ void CGameClient::OnEnterGame() {}
 
 void CGameClient::OnGameOver()
 {
-	if(Client()->State() != IClient::STATE_DEMOPLAYBACK)
+	if(Client()->State() != IClient::STATE_DEMOPLAYBACK && g_Config.m_ClEditor == 0)
 		Client()->AutoScreenshot_Start();
 }
 
@@ -909,8 +1015,23 @@ void CGameClient::OnNewSnapshot()
 			m_aClients[i].m_Friend = true;
 	}
 
+	// sort player infos by name
+	mem_copy(m_Snap.m_paInfoByName, m_Snap.m_paPlayerInfos, sizeof(m_Snap.m_paInfoByName));
+	for(int k = 0; k < MAX_CLIENTS-1; k++) // ffs, bubblesort
+	{
+		for(int i = 0; i < MAX_CLIENTS-k-1; i++)
+		{
+			if(m_Snap.m_paInfoByName[i+1] && (!m_Snap.m_paInfoByName[i] || str_comp(m_aClients[m_Snap.m_paInfoByName[i]->m_ClientID].m_aName, m_aClients[m_Snap.m_paInfoByName[i+1]->m_ClientID].m_aName) > 0))
+			{
+				const CNetObj_PlayerInfo *pTmp = m_Snap.m_paInfoByName[i];
+				m_Snap.m_paInfoByName[i] = m_Snap.m_paInfoByName[i+1];
+				m_Snap.m_paInfoByName[i+1] = pTmp;
+			}
+		}
+	}
+
 	// sort player infos by score
-	mem_copy(m_Snap.m_paInfoByScore, m_Snap.m_paPlayerInfos, sizeof(m_Snap.m_paInfoByScore));
+	mem_copy(m_Snap.m_paInfoByScore, m_Snap.m_paInfoByName, sizeof(m_Snap.m_paInfoByScore));
 	for(int k = 0; k < MAX_CLIENTS-1; k++) // ffs, bubblesort
 	{
 		for(int i = 0; i < MAX_CLIENTS-k-1; i++)
@@ -923,6 +1044,7 @@ void CGameClient::OnNewSnapshot()
 			}
 		}
 	}
+
 	// sort player infos by team
 	int Teams[3] = { TEAM_RED, TEAM_BLUE, TEAM_SPECTATORS };
 	int Index = 0;
@@ -935,6 +1057,17 @@ void CGameClient::OnNewSnapshot()
 		}
 	}
 
+	// sort player infos by DDRace Team (and score inbetween)
+	Index = 0;
+	for(int Team = 0; Team <= MAX_CLIENTS; ++Team)
+	{
+		for(int i = 0; i < MAX_CLIENTS && Index < MAX_CLIENTS; ++i)
+		{
+			if(m_Snap.m_paInfoByScore[i] && m_Teams.Team(m_Snap.m_paInfoByScore[i]->m_ClientID) == Team)
+				m_Snap.m_paInfoByDDTeam[Index++] = m_Snap.m_paInfoByScore[i];
+		}
+	}
+
 	CTuningParams StandardTuning;
 	CServerInfo CurrentServerInfo;
 	Client()->GetServerInfo(&CurrentServerInfo);
@@ -942,30 +1075,39 @@ void CGameClient::OnNewSnapshot()
 	{
 		if(str_comp(CurrentServerInfo.m_aGameType, "DM") != 0 && str_comp(CurrentServerInfo.m_aGameType, "TDM") != 0 && str_comp(CurrentServerInfo.m_aGameType, "CTF") != 0)
 			m_ServerMode = SERVERMODE_MOD;
-		else if(mem_comp(&StandardTuning, &m_Tuning, sizeof(CTuningParams)) == 0)
+		else if(mem_comp(&StandardTuning, &m_Tuning[g_Config.m_ClDummy], 33) == 0)
 			m_ServerMode = SERVERMODE_PURE;
 		else
 			m_ServerMode = SERVERMODE_PUREMOD;
 	}
 
 	// add tuning to demo
-	if(DemoRecorder()->IsRecording() && mem_comp(&StandardTuning, &m_Tuning, sizeof(CTuningParams)) != 0)
+	if(DemoRecorder()->IsRecording() && mem_comp(&StandardTuning, &m_Tuning[g_Config.m_ClDummy], sizeof(CTuningParams)) != 0)
 	{
 		CMsgPacker Msg(NETMSGTYPE_SV_TUNEPARAMS);
-		int *pParams = (int *)&m_Tuning;
-		for(unsigned i = 0; i < sizeof(m_Tuning)/sizeof(int); i++)
+		int *pParams = (int *)&m_Tuning[g_Config.m_ClDummy];
+		for(unsigned i = 0; i < sizeof(m_Tuning[0])/sizeof(int); i++)
 			Msg.AddInt(pParams[i]);
 		Client()->SendMsg(&Msg, MSGFLAG_RECORD|MSGFLAG_NOSEND);
 	}
 
-	if(!m_DDRaceMsgSent && m_Snap.m_pLocalInfo)
+	if(!m_DDRaceMsgSent[0] && m_Snap.m_pLocalInfo)
 	{
-		CNetMsg_Cl_IsDDRace Msg;
-		Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
-		m_DDRaceMsgSent = true;
+		CMsgPacker Msg(NETMSGTYPE_CL_ISDDNET);
+		Msg.AddInt(CLIENT_VERSIONNR);
+		Client()->SendMsgExY(&Msg, MSGFLAG_VITAL,false, 0);
+		m_DDRaceMsgSent[0] = true;
 	}
 
-	if(m_ShowOthers == -1 || (m_ShowOthers != -1 && m_ShowOthers != g_Config.m_ClShowOthers))
+	if(!m_DDRaceMsgSent[1] && m_Snap.m_pLocalInfo && Client()->DummyConnected())
+	{
+		CMsgPacker Msg(NETMSGTYPE_CL_ISDDNET);
+		Msg.AddInt(CLIENT_VERSIONNR);
+		Client()->SendMsgExY(&Msg, MSGFLAG_VITAL,false, 1);
+		m_DDRaceMsgSent[1] = true;
+	}
+
+	if(m_ShowOthers[g_Config.m_ClDummy] == -1 || (m_ShowOthers[g_Config.m_ClDummy] != -1 && m_ShowOthers[g_Config.m_ClDummy] != g_Config.m_ClShowOthers))
 	{
 		// no need to send, default settings
 		//if(!(m_ShowOthers == -1 && g_Config.m_ClShowOthers))
@@ -976,7 +1118,7 @@ void CGameClient::OnNewSnapshot()
 		}
 
 		// update state
-		m_ShowOthers = g_Config.m_ClShowOthers;
+		m_ShowOthers[g_Config.m_ClDummy] = g_Config.m_ClShowOthers;
 	}
 }
 
@@ -994,15 +1136,21 @@ void CGameClient::OnPredict()
 	if(m_Snap.m_pGameInfoObj && m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_PAUSED)
 	{
 		if(m_Snap.m_pLocalCharacter)
+		{
 			m_PredictedChar.Read(m_Snap.m_pLocalCharacter);
+			m_PredictedChar.m_ActiveWeapon = m_Snap.m_pLocalCharacter->m_Weapon;
+		}
 		if(m_Snap.m_pLocalPrevCharacter)
+		{
 			m_PredictedPrevChar.Read(m_Snap.m_pLocalPrevCharacter);
+			m_PredictedPrevChar.m_ActiveWeapon = m_Snap.m_pLocalPrevCharacter->m_Weapon;
+		}
 		return;
 	}
 
 	// repredict character
 	CWorldCore World;
-	World.m_Tuning = m_Tuning;
+	World.m_Tuning[g_Config.m_ClDummy] = m_Tuning[g_Config.m_ClDummy];
 
 	// search for players
 	for(int i = 0; i < MAX_CLIENTS; i++)
@@ -1014,6 +1162,7 @@ void CGameClient::OnPredict()
 		World.m_apCharacters[i] = &g_GameClient.m_aClients[i].m_Predicted;
 		World.m_apCharacters[i]->m_Id = m_Snap.m_paPlayerInfos[i]->m_ClientID;
 		g_GameClient.m_aClients[i].m_Predicted.Read(&m_Snap.m_aCharacters[i].m_Cur);
+		g_GameClient.m_aClients[i].m_Predicted.m_ActiveWeapon = m_Snap.m_aCharacters[i].m_Cur.m_Weapon;
 	}
 
 	// predict
@@ -1028,6 +1177,9 @@ void CGameClient::OnPredict()
 		{
 			if(!World.m_apCharacters[c])
 				continue;
+			
+			if(g_Config.m_ClAntiPing && Tick == Client()->PredGameTick())
+				g_GameClient.m_aClients[c].m_PrevPredicted = *World.m_apCharacters[c];
 
 			mem_zero(&World.m_apCharacters[c]->m_Input, sizeof(World.m_apCharacters[c]->m_Input));
 			if(m_Snap.m_LocalClientID == c)
@@ -1036,10 +1188,10 @@ void CGameClient::OnPredict()
 				int *pInput = Client()->GetInput(Tick);
 				if(pInput)
 					World.m_apCharacters[c]->m_Input = *((CNetObj_PlayerInput*)pInput);
-				World.m_apCharacters[c]->Tick(true);
+				World.m_apCharacters[c]->Tick(true, true);
 			}
 			else
-				World.m_apCharacters[c]->Tick(false);
+				World.m_apCharacters[c]->Tick(false, true);
 
 		}
 
@@ -1054,9 +1206,9 @@ void CGameClient::OnPredict()
 		}
 
 		// check if we want to trigger effects
-		if(Tick > m_LastNewPredictedTick)
+		if(Tick > m_LastNewPredictedTick[g_Config.m_ClDummy])
 		{
-			m_LastNewPredictedTick = Tick;
+			m_LastNewPredictedTick[g_Config.m_ClDummy] = Tick;
 			m_NewPredictedTick = true;
 
 			if(m_Snap.m_LocalClientID != -1 && World.m_apCharacters[m_Snap.m_LocalClientID])
@@ -1080,7 +1232,20 @@ void CGameClient::OnPredict()
 		}
 
 		if(Tick == Client()->PredGameTick() && World.m_apCharacters[m_Snap.m_LocalClientID])
+		{
 			m_PredictedChar = *World.m_apCharacters[m_Snap.m_LocalClientID];
+
+			if (g_Config.m_ClAntiPing)
+			{
+				for (int c = 0; c < MAX_CLIENTS; c++)
+				{
+					if(!World.m_apCharacters[c])
+						continue;
+
+					g_GameClient.m_aClients[c].m_Predicted = *World.m_apCharacters[c];
+				}
+			}
+		}
 	}
 
 	if(g_Config.m_Debug && g_Config.m_ClPredict && m_PredictedTick == Client()->PredGameTick())
@@ -1157,6 +1322,9 @@ void CGameClient::SendSwitchTeam(int Team)
 	CNetMsg_Cl_SetTeam Msg;
 	Msg.m_Team = Team;
 	Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
+
+	if (Team != TEAM_SPECTATORS)
+		m_pCamera->OnReset();
 }
 
 void CGameClient::SendInfo(bool Start)
@@ -1171,7 +1339,9 @@ void CGameClient::SendInfo(bool Start)
 		Msg.m_UseCustomColor = g_Config.m_PlayerUseCustomColor;
 		Msg.m_ColorBody = g_Config.m_PlayerColorBody;
 		Msg.m_ColorFeet = g_Config.m_PlayerColorFeet;
-		Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
+		CMsgPacker Packer(Msg.MsgID());
+		Msg.Pack(&Packer);
+		Client()->SendMsgExY(&Packer, MSGFLAG_VITAL,false, 0);
 	}
 	else
 	{
@@ -1183,11 +1353,49 @@ void CGameClient::SendInfo(bool Start)
 		Msg.m_UseCustomColor = g_Config.m_PlayerUseCustomColor;
 		Msg.m_ColorBody = g_Config.m_PlayerColorBody;
 		Msg.m_ColorFeet = g_Config.m_PlayerColorFeet;
-		Client()->SendPackMsg(&Msg, MSGFLAG_VITAL);
+		CMsgPacker Packer(Msg.MsgID());
+		Msg.Pack(&Packer);
+		Client()->SendMsgExY(&Packer, MSGFLAG_VITAL,false, 0);
 
 		// activate timer to resend the info if it gets filtered
 		if(!m_LastSendInfo || m_LastSendInfo+time_freq()*5 < time_get())
 			m_LastSendInfo = time_get();
+	}
+}
+
+void CGameClient::SendDummyInfo(bool Start)
+{
+	if(Start)
+	{
+		CNetMsg_Cl_StartInfo Msg;
+		Msg.m_pName = g_Config.m_DummyName;
+		Msg.m_pClan = g_Config.m_DummyClan;
+		Msg.m_Country = g_Config.m_DummyCountry;
+		Msg.m_pSkin = g_Config.m_DummySkin;
+		Msg.m_UseCustomColor = g_Config.m_DummyUseCustomColor;
+		Msg.m_ColorBody = g_Config.m_DummyColorBody;
+		Msg.m_ColorFeet = g_Config.m_DummyColorFeet;
+		CMsgPacker Packer(Msg.MsgID());
+		Msg.Pack(&Packer);
+		Client()->SendMsgExY(&Packer, MSGFLAG_VITAL,false, 1);
+	}
+	else
+	{
+		CNetMsg_Cl_ChangeInfo Msg;
+		Msg.m_pName = g_Config.m_DummyName;
+		Msg.m_pClan = g_Config.m_DummyClan;
+		Msg.m_Country = g_Config.m_DummyCountry;
+		Msg.m_pSkin = g_Config.m_DummySkin;
+		Msg.m_UseCustomColor = g_Config.m_DummyUseCustomColor;
+		Msg.m_ColorBody = g_Config.m_DummyColorBody;
+		Msg.m_ColorFeet = g_Config.m_DummyColorFeet;
+		CMsgPacker Packer(Msg.MsgID());
+		Msg.Pack(&Packer);
+		Client()->SendMsgExY(&Packer, MSGFLAG_VITAL,false, 1);
+
+		// activate timer to resend the info if it gets filtered
+		//if(!m_LastSendInfo || m_LastSendInfo+time_freq()*5 < time_get())
+		//	m_LastSendInfo = time_get();
 	}
 }
 
@@ -1214,7 +1422,57 @@ void CGameClient::ConchainSpecialInfoupdate(IConsole::IResult *pResult, void *pU
 		((CGameClient*)pUserData)->SendInfo(false);
 }
 
+void CGameClient::ConchainSpecialDummyInfoupdate(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData)
+{
+	pfnCallback(pResult, pCallbackUserData);
+	if(pResult->NumArguments())
+		((CGameClient*)pUserData)->SendDummyInfo(false);
+}
+
+void CGameClient::ConchainSpecialDummy(IConsole::IResult *pResult, void *pUserData, IConsole::FCommandCallback pfnCallback, void *pCallbackUserData)
+{
+	pfnCallback(pResult, pCallbackUserData);
+	if(pResult->NumArguments())
+		if(g_Config.m_ClDummy && !((CGameClient*)pUserData)->Client()->DummyConnected())
+			g_Config.m_ClDummy = 0;
+}
+
 IGameClient *CreateGameClient()
 {
 	return &g_GameClient;
+}
+
+int CGameClient::IntersectCharacter(vec2 HookPos, vec2 NewPos, vec2& NewPos2, int ownID)
+{
+	float PhysSize = 28.0f;
+	float Distance = 0.0f;
+	int ClosestID = -1;
+
+	if (!m_Tuning[g_Config.m_ClDummy].m_PlayerHooking)
+		return ClosestID;
+
+	for (int i=0; i<MAX_CLIENTS; i++)
+	{
+		CClientData cData = m_aClients[i];
+		CNetObj_Character Prev = m_Snap.m_aCharacters[i].m_Prev;
+		CNetObj_Character Player = m_Snap.m_aCharacters[i].m_Cur;
+
+		vec2 Position = mix(vec2(Prev.m_X, Prev.m_Y), vec2(Player.m_X, Player.m_Y), Client()->IntraGameTick());
+
+		if (!cData.m_Active || i == ownID || !m_Teams.SameTeam(i, ownID))
+			continue;
+
+		vec2 ClosestPoint = closest_point_on_line(HookPos, NewPos, Position);
+		if(distance(Position, ClosestPoint) < PhysSize+2.0f)
+		{
+			if(ClosestID == -1 || distance(HookPos, Position) < Distance)
+			{
+				NewPos2 = ClosestPoint;
+				ClosestID = i;
+				Distance = distance(HookPos, Position);
+			}
+		}
+	}
+
+	return ClosestID;
 }

@@ -18,7 +18,6 @@
 #include <mastersrv/mastersrv.h>
 
 #include "serverbrowser.h"
-
 class SortWrap
 {
 	typedef bool (CServerBrowser::*SortFunc)(int, int) const;
@@ -344,7 +343,7 @@ void CServerBrowser::QueueRequest(CServerEntry *pEntry)
 	else
 		m_pFirstReqServer = pEntry;
 	m_pLastReqServer = pEntry;
-
+	pEntry->m_pNextReq = 0;
 	m_NumRequests++;
 }
 
@@ -421,12 +420,14 @@ CServerBrowser::CServerEntry *CServerBrowser::Add(const NETADDR &Addr)
 
 void CServerBrowser::Set(const NETADDR &Addr, int Type, int Token, const CServerInfo *pInfo)
 {
+	static int temp = 0;
 	CServerEntry *pEntry = 0;
 	if(Type == IServerBrowser::SET_MASTER_ADD)
 	{
 		if(m_ServerlistType != IServerBrowser::TYPE_INTERNET)
 			return;
-
+		m_LastPacketTick = 0;
+		++temp;
 		if(!Find(Addr))
 		{
 			pEntry = Add(Addr);
@@ -457,8 +458,11 @@ void CServerBrowser::Set(const NETADDR &Addr, int Type, int Token, const CServer
 			SetInfo(pEntry, *pInfo);
 			if(m_ServerlistType == IServerBrowser::TYPE_LAN)
 				pEntry->m_Info.m_Latency = min(static_cast<int>((time_get()-m_BroadcastTime)*1000/time_freq()), 999);
-			else
+			else if (pEntry->m_RequestTime > 0)
+			{
 				pEntry->m_Info.m_Latency = min(static_cast<int>((time_get()-pEntry->m_RequestTime)*1000/time_freq()), 999);
+				pEntry->m_RequestTime = -1; // Request has been answered
+			}
 			RemoveRequest(pEntry);
 		}
 	}
@@ -476,7 +480,7 @@ void CServerBrowser::Refresh(int Type)
 	m_pFirstReqServer = 0;
 	m_pLastReqServer = 0;
 	m_NumRequests = 0;
-
+	m_CurrentMaxRequests = g_Config.m_BrMaxRequests;
 	// next token
 	m_CurrentToken = (m_CurrentToken+1)&0xff;
 
@@ -495,7 +499,7 @@ void CServerBrowser::Refresh(int Type)
 		/* do the broadcast version */
 		Packet.m_ClientID = -1;
 		mem_zero(&Packet, sizeof(Packet));
-		Packet.m_Address.type = NETTYPE_ALL|NETTYPE_LINK_BROADCAST;
+		Packet.m_Address.type = m_pNetClient->NetType()|NETTYPE_LINK_BROADCAST;
 		Packet.m_Flags = NETSENDFLAG_CONNLESS;
 		Packet.m_DataSize = sizeof(Buffer);
 		Packet.m_pData = Buffer;
@@ -548,35 +552,111 @@ void CServerBrowser::RequestImpl(const NETADDR &Addr, CServerEntry *pEntry) cons
 		pEntry->m_RequestTime = time_get();
 }
 
+void CServerBrowser::RequestImpl64(const NETADDR &Addr, CServerEntry *pEntry) const
+{
+	unsigned char Buffer[sizeof(SERVERBROWSE_GETINFO64)+1];
+	CNetChunk Packet;
+
+	if(g_Config.m_Debug)
+	{
+		char aAddrStr[NETADDR_MAXSTRSIZE];
+		net_addr_str(&Addr, aAddrStr, sizeof(aAddrStr), true);
+		char aBuf[256];
+		str_format(aBuf, sizeof(aBuf),"requesting server info 64 from %s", aAddrStr);
+		m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "client_srvbrowse", aBuf);
+	}
+
+	mem_copy(Buffer, SERVERBROWSE_GETINFO64, sizeof(SERVERBROWSE_GETINFO64));
+	Buffer[sizeof(SERVERBROWSE_GETINFO64)] = m_CurrentToken;
+
+	Packet.m_ClientID = -1;
+	Packet.m_Address = Addr;
+	Packet.m_Flags = NETSENDFLAG_CONNLESS;
+	Packet.m_DataSize = sizeof(Buffer);
+	Packet.m_pData = Buffer;
+
+	m_pNetClient->Send(&Packet);
+
+	if(pEntry)
+		pEntry->m_RequestTime = time_get();
+}
+
 void CServerBrowser::Request(const NETADDR &Addr) const
 {
+	// Call both because we can't know what kind the server is
+	RequestImpl64(Addr, 0);
 	RequestImpl(Addr, 0);
 }
 
 
 void CServerBrowser::Update(bool ForceResort)
-{
+{	
 	int64 Timeout = time_freq();
 	int64 Now = time_get();
 	int Count;
 	CServerEntry *pEntry, *pNext;
-
+	
 	// do server list requests
 	if(m_NeedRefresh && !m_pMasterServer->IsRefreshing())
 	{
 		NETADDR Addr;
-		CNetChunk Packet;
-		int i;
+		CNetChunk Packet;		
+		int i = 0;
 
 		m_NeedRefresh = 0;
+		m_MasterServerCount = -1;
+		mem_zero(&Packet, sizeof(Packet));
+		Packet.m_ClientID = -1;
+		Packet.m_Flags = NETSENDFLAG_CONNLESS;
+		Packet.m_DataSize = sizeof(SERVERBROWSE_GETCOUNT);
+		Packet.m_pData = SERVERBROWSE_GETCOUNT;
 
+		for(i = 0; i < IMasterServer::MAX_MASTERSERVERS; i++)
+		{
+			if(!m_pMasterServer->IsValid(i))
+				continue;
+
+			Addr = m_pMasterServer->GetAddr(i);
+			m_pMasterServer->SetCount(i, -1);
+			Packet.m_Address = Addr;
+			m_pNetClient->Send(&Packet);
+			if(g_Config.m_Debug)
+			{			
+				dbg_msg("client_srvbrowse", "Count-Request sent to %d", i);
+			}	
+		}
+	}	
+	
+	//Check if all server counts arrived
+	if(m_MasterServerCount == -1)
+	{		
+		m_MasterServerCount = 0;
+		for(int i = 0; i < IMasterServer::MAX_MASTERSERVERS; i++)
+			{			
+				if(!m_pMasterServer->IsValid(i))
+					continue;
+				int Count = m_pMasterServer->GetCount(i);
+				if(Count == -1)
+				{
+				/* ignore Server
+					m_MasterServerCount = -1;
+					return;
+					// we don't have the required server information
+					*/
+				}
+				else
+					m_MasterServerCount += Count;
+			}
+		//request Server-List
+		NETADDR Addr;
+		CNetChunk Packet;
 		mem_zero(&Packet, sizeof(Packet));
 		Packet.m_ClientID = -1;
 		Packet.m_Flags = NETSENDFLAG_CONNLESS;
 		Packet.m_DataSize = sizeof(SERVERBROWSE_GETLIST);
 		Packet.m_pData = SERVERBROWSE_GETLIST;
 
-		for(i = 0; i < IMasterServer::MAX_MASTERSERVERS; i++)
+		for(int i = 0; i < IMasterServer::MAX_MASTERSERVERS; i++)
 		{
 			if(!m_pMasterServer->IsValid(i))
 				continue;
@@ -585,48 +665,98 @@ void CServerBrowser::Update(bool ForceResort)
 			Packet.m_Address = Addr;
 			m_pNetClient->Send(&Packet);
 		}
-
 		if(g_Config.m_Debug)
-			m_pConsole->Print(IConsole::OUTPUT_LEVEL_DEBUG, "client_srvbrowse", "requesting server list");
-	}
-
-	// do timeouts
-	pEntry = m_pFirstReqServer;
-	while(1)
-	{
-		if(!pEntry) // no more entries
-			break;
-
-		pNext = pEntry->m_pNextReq;
-
-		if(pEntry->m_RequestTime && pEntry->m_RequestTime+Timeout < Now)
 		{
-			// timeout
-			RemoveRequest(pEntry);
+			dbg_msg("client_srvbrowse", "ServerCount: %d, requesting server list", m_MasterServerCount);
 		}
-
-		pEntry = pNext;
+		m_LastPacketTick = 0;
 	}
-
-	// do timeouts
+	else if(m_MasterServerCount > -1)
+	{
+		m_MasterServerCount = 0;
+		for(int i = 0; i < IMasterServer::MAX_MASTERSERVERS; i++)
+			{			
+				if(!m_pMasterServer->IsValid(i))
+					continue;
+				int Count = m_pMasterServer->GetCount(i);
+				if(Count == -1)
+				{
+				/* ignore Server
+					m_MasterServerCount = -1;
+					return;
+					// we don't have the required server information
+					*/
+				}
+				else
+					m_MasterServerCount += Count;		
+			}
+			//if(g_Config.m_Debug)
+			//{
+			//	dbg_msg("client_srvbrowse", "ServerCount2: %d", m_MasterServerCount);
+			//}
+	}
+	if(m_MasterServerCount > m_NumRequests  + m_LastPacketTick)
+	{
+		++m_LastPacketTick;
+		return; //wait for more packets
+	}
 	pEntry = m_pFirstReqServer;
 	Count = 0;
 	while(1)
 	{
 		if(!pEntry) // no more entries
 			break;
-
+		if(pEntry->m_RequestTime && pEntry->m_RequestTime+Timeout < Now)
+		{
+			pEntry = pEntry->m_pNextReq;
+			continue;
+		}
 		// no more then 10 concurrent requests
-		if(Count == g_Config.m_BrMaxRequests)
+		if(Count == m_CurrentMaxRequests)
 			break;
 
 		if(pEntry->m_RequestTime == 0)
-			RequestImpl(pEntry->m_Addr, pEntry);
+		{
+			if (pEntry->m_Is64)
+				RequestImpl64(pEntry->m_Addr, pEntry);
+			else
+				RequestImpl(pEntry->m_Addr, pEntry);
+		}
 
 		Count++;
 		pEntry = pEntry->m_pNextReq;
 	}
-
+	
+	if(m_pFirstReqServer && Count == 0 && m_CurrentMaxRequests > 1) //NO More current Server Requests
+	{
+		//reset old ones
+		pEntry = m_pFirstReqServer;
+		while(1)
+		{
+			if(!pEntry) // no more entries
+				break;
+			pEntry->m_RequestTime = 0;			
+			pEntry = pEntry->m_pNextReq;		
+		}
+		
+		//update max-requests
+		m_CurrentMaxRequests = m_CurrentMaxRequests/2;
+		if(m_CurrentMaxRequests < 1)
+			m_CurrentMaxRequests = 1;
+	}
+	else if(Count == 0 && m_CurrentMaxRequests == 1) //we reached the limit, just release all left requests. IF a server sends us a packet, a new request will be added automatically, so we can delete all
+	{	
+		pEntry = m_pFirstReqServer;
+		while(1)
+		{
+			if(!pEntry) // no more entries
+				break;				
+			pNext = pEntry->m_pNextReq;				
+			RemoveRequest(pEntry);	//release request
+			pEntry = pNext;
+		}
+	}
+	
 	// check if we need to resort
 	if(m_Sorthash != SortHash() || ForceResort)
 		Sort();

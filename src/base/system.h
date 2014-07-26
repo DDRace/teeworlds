@@ -33,6 +33,13 @@ void dbg_assert(int test, const char *msg);
 #define dbg_assert(test,msg) dbg_assert_imp(__FILE__, __LINE__, test, msg)
 void dbg_assert_imp(const char *filename, int line, int test, const char *msg);
 
+
+#ifdef __clang_analyzer__
+#include <assert.h>
+#undef dbg_assert
+#define dbg_assert(test,msg) assert(test)
+#endif
+
 /*
 	Function: dbg_break
 		Breaks into the debugger.
@@ -403,19 +410,21 @@ void lock_release(LOCK lock);
 
 /* Group: Semaphores */
 
-#if defined(CONF_FAMILY_UNIX)
-	#include <semaphore.h>
-	typedef sem_t SEMAPHORE;
-#elif defined(CONF_FAMILY_WINDOWS)
-	typedef void* SEMAPHORE;
-#else
-	#error missing sempahore implementation
-#endif
+#if !defined(CONF_PLATFORM_MACOSX)
+	#if defined(CONF_FAMILY_UNIX)
+		#include <semaphore.h>
+		typedef sem_t SEMAPHORE;
+	#elif defined(CONF_FAMILY_WINDOWS)
+		typedef void* SEMAPHORE;
+	#else
+		#error missing sempahore implementation
+	#endif
 
-void semaphore_init(SEMAPHORE *sem);
-void semaphore_wait(SEMAPHORE *sem);
-void semaphore_signal(SEMAPHORE *sem);
-void semaphore_destroy(SEMAPHORE *sem);
+	void semaphore_init(SEMAPHORE *sem);
+	void semaphore_wait(SEMAPHORE *sem);
+	void semaphore_signal(SEMAPHORE *sem);
+	void semaphore_destroy(SEMAPHORE *sem);
+#endif
 
 /* Group: Timer */
 #ifdef __GNUC__
@@ -760,12 +769,15 @@ int str_length(const char *str);
 		format - printf formating string.
 		... - Parameters for the formating.
 
+	Returns:
+		Length of written string
+
 	Remarks:
 		- See the C manual for syntax for the printf formating string.
 		- The strings are treated as zero-termineted strings.
 		- Garantees that dst string will contain zero-termination.
 */
-void str_format(char *buffer, int buffer_size, const char *format, ...);
+int str_format(char *buffer, int buffer_size, const char *format, ...);
 
 /*
 	Function: str_sanitize_strong
@@ -1204,6 +1216,7 @@ unsigned str_quickhash(const char *str);
 */
 void gui_messagebox(const char *title, const char *message);
 
+const char *str_utf8_skip_whitespaces(const char *str);
 
 /*
 	Function: str_utf8_rewind

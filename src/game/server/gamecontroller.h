@@ -6,6 +6,14 @@
 #include <base/vmath.h>
 
 class CDoor;
+#ifdef _MSC_VER
+typedef __int32 int32_t;
+typedef unsigned __int32 uint32_t;
+typedef __int64 int64_t;
+typedef unsigned __int64 uint64_t;
+#else
+#include <stdint.h>
+#endif
 
 /*
 	Class: Game Controller
@@ -14,6 +22,8 @@ class CDoor;
 */
 class IGameController
 {
+	friend class CSaveTeam; // need acces to GameServer() and Server()
+	
 	vec2 m_aaSpawnPoints[3][64];
 	int m_aNumSpawnPoints[3];
 

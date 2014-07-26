@@ -1,6 +1,7 @@
 /* (c) Magnus Auvinen. See licence.txt in the root of the distribution for more information. */
 /* If you are missing that file, acquire a complete release at teeworlds.com.                */
 #include <engine/graphics.h>
+#include <engine/serverbrowser.h>
 #include <engine/textrender.h>
 #include <engine/shared/config.h>
 
@@ -10,6 +11,7 @@
 #include <game/client/gameclient.h>
 #include <game/client/animstate.h>
 #include <game/client/render.h>
+#include <game/client/components/scoreboard.h>
 
 #include "controls.h"
 #include "camera.h"
@@ -32,9 +34,9 @@ void CHud::OnReset()
 	m_CheckpointTick = 0;
 	m_DDRaceTick = 0;
 	m_FinishTime = false;
+	m_DDRaceTimeReceived = false;
 	m_ServerRecord = -1.0f;
 	m_PlayerRecord = -1.0f;
-	m_DDRaceTimeReceived = false;
 }
 
 void CHud::RenderGameTimer()
@@ -55,8 +57,15 @@ void CHud::RenderGameTimer()
 		else
 			Time = (Client()->GameTick()-m_pClient->m_Snap.m_pGameInfoObj->m_RoundStartTick)/Client()->GameTickSpeed();
 
+		CServerInfo Info;
+		Client()->GetServerInfo(&Info);
+		bool IsGameTypeRace = str_find_nocase(Info.m_aGameType, "race") || str_find_nocase(Info.m_aGameType, "fastcap");
+		bool IsGameTypeDDRace = str_find_nocase(Info.m_aGameType, "ddrace") || str_find_nocase(Info.m_aGameType, "mkrace");
+
 		if(Time <= 0)
 			str_format(Buf, sizeof(Buf), "00:00.0");
+		else if(IsGameTypeRace && !IsGameTypeDDRace && m_ServerRecord >= 0)
+			str_format(Buf, sizeof(Buf), "%02d:%02d", (int)(m_ServerRecord*100)/60, ((int)(m_ServerRecord*100)%60));
 		else
 			str_format(Buf, sizeof(Buf), "%02d:%02d.%d", Time/60, Time%60, m_DDRaceTick/10);
 		float FontSize = 10.0f;
@@ -200,7 +209,20 @@ void CHud::RenderScoreHud()
 			for(int t = 0; t < 2; ++t)
 			{
 				if(apPlayerInfo[t])
-					str_format(aScore[t], sizeof(aScore)/2, "%d", apPlayerInfo[t]->m_Score);
+				{
+					CServerInfo Info;
+					Client()->GetServerInfo(&Info);
+					bool IsGameTypeRace = str_find_nocase(Info.m_aGameType, "race") || str_find_nocase(Info.m_aGameType, "fastcap");
+					if(IsGameTypeRace && g_Config.m_ClDDRaceScoreBoard)
+					{
+						if (apPlayerInfo[t]->m_Score != -9999)
+							str_format(aScore[t], sizeof(aScore[t]), "%02d:%02d", abs(apPlayerInfo[t]->m_Score)/60, abs(apPlayerInfo[t]->m_Score)%60);
+						else
+							aScore[t][0] = 0;
+					}
+					else
+						str_format(aScore[t], sizeof(aScore)/2, "%d", apPlayerInfo[t]->m_Score);
+				}
 				else
 					aScore[t][0] = 0;
 			}
@@ -228,15 +250,18 @@ void CHud::RenderScoreHud()
  				{
 					// draw name
 					int ID = apPlayerInfo[t]->m_ClientID;
-					const char *pName = m_pClient->m_aClients[ID].m_aName;
-					float w = TextRender()->TextWidth(0, 8.0f, pName, -1);
-					TextRender()->Text(0, min(Whole-w-1.0f, Whole-ScoreWidthMax-ImageSize-2*Split-PosSize), StartY+(t+1)*20.0f-3.0f, 8.0f, pName, -1);
+					if(ID >= 0 && ID < MAX_CLIENTS)
+					{
+						const char *pName = m_pClient->m_aClients[ID].m_aName;
+						float w = TextRender()->TextWidth(0, 8.0f, pName, -1);
+						TextRender()->Text(0, min(Whole-w-1.0f, Whole-ScoreWidthMax-ImageSize-2*Split-PosSize), StartY+(t+1)*20.0f-3.0f, 8.0f, pName, -1);
 
-					// draw tee
-					CTeeRenderInfo Info = m_pClient->m_aClients[ID].m_RenderInfo;
- 					Info.m_Size = 18.0f;
- 					RenderTools()->RenderTee(CAnimState::GetIdle(), &Info, EMOTE_NORMAL, vec2(1,0),
- 						vec2(Whole-ScoreWidthMax-Info.m_Size/2-Split, StartY+1.0f+Info.m_Size/2+t*20));
+						// draw tee
+						CTeeRenderInfo Info = m_pClient->m_aClients[ID].m_RenderInfo;
+						Info.m_Size = 18.0f;
+						RenderTools()->RenderTee(CAnimState::GetIdle(), &Info, EMOTE_NORMAL, vec2(1,0),
+							vec2(Whole-ScoreWidthMax-Info.m_Size/2-Split, StartY+1.0f+Info.m_Size/2+t*20));
+					}
 				}
 
 				// draw position
@@ -324,13 +349,24 @@ void CHud::RenderTeambalanceWarning()
 
 void CHud::RenderVoting()
 {
-	if(!m_pClient->m_pVoting->IsVoting() || Client()->State() == IClient::STATE_DEMOPLAYBACK)
+	if((!g_Config.m_ClShowVotesAfterVoting && !m_pClient->m_pScoreboard->Active() && m_pClient->m_pVoting->TakenChoice()) || !m_pClient->m_pVoting->IsVoting() || Client()->State() == IClient::STATE_DEMOPLAYBACK)
 		return;
 
 	Graphics()->TextureSet(-1);
 	Graphics()->QuadsBegin();
 	Graphics()->SetColor(0,0,0,0.40f);
+
+#if defined(__ANDROID__)
+	static const float TextX = 265;
+	static const float TextY = 1;
+	static const float TextW = 200;
+	static const float TextH = 42;
+	RenderTools()->DrawRoundRect(TextX-5, TextY, TextW+15, TextH, 5.0f);
+	RenderTools()->DrawRoundRect(TextX-5, TextY+TextH+2, TextW/2-10, 20, 5.0f);
+	RenderTools()->DrawRoundRect(TextX+TextW/2+20, TextY+TextH+2, TextW/2-10, 20, 5.0f);
+#else
 	RenderTools()->DrawRoundRect(-10, 60-2, 100+10+4+5, 46, 5.0f);
+#endif
 	Graphics()->QuadsEnd();
 
 	TextRender()->TextColor(1,1,1,1);
@@ -338,24 +374,60 @@ void CHud::RenderVoting()
 	CTextCursor Cursor;
 	char aBuf[512];
 	str_format(aBuf, sizeof(aBuf), Localize("%ds left"), m_pClient->m_pVoting->SecondsLeft());
+#if defined(__ANDROID__)
+	float tw = TextRender()->TextWidth(0x0, 10, aBuf, -1);
+	TextRender()->SetCursor(&Cursor, TextX+TextW-tw, 0.0f, 10.0f, TEXTFLAG_RENDER);
+#else
 	float tw = TextRender()->TextWidth(0x0, 6, aBuf, -1);
 	TextRender()->SetCursor(&Cursor, 5.0f+100.0f-tw, 60.0f, 6.0f, TEXTFLAG_RENDER);
+#endif
 	TextRender()->TextEx(&Cursor, aBuf, -1);
 
+#if defined(__ANDROID__)
+	TextRender()->SetCursor(&Cursor, TextX, 0.0f, 10.0f, TEXTFLAG_RENDER);
+	Cursor.m_LineWidth = TextW-tw;
+#else
 	TextRender()->SetCursor(&Cursor, 5.0f, 60.0f, 6.0f, TEXTFLAG_RENDER);
 	Cursor.m_LineWidth = 100.0f-tw;
+#endif
 	Cursor.m_MaxLines = 3;
 	TextRender()->TextEx(&Cursor, m_pClient->m_pVoting->VoteDescription(), -1);
 
 	// reason
 	str_format(aBuf, sizeof(aBuf), "%s %s", Localize("Reason:"), m_pClient->m_pVoting->VoteReason());
+#if defined(__ANDROID__)
+	TextRender()->SetCursor(&Cursor, TextX, 23.0f, 10.0f, TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
+#else
 	TextRender()->SetCursor(&Cursor, 5.0f, 79.0f, 6.0f, TEXTFLAG_RENDER|TEXTFLAG_STOP_AT_END);
+#endif
 	Cursor.m_LineWidth = 100.0f;
 	TextRender()->TextEx(&Cursor, aBuf, -1);
 
+#if defined(__ANDROID__)
+	CUIRect Base = {TextX, TextH - 8, TextW, 4};
+#else
 	CUIRect Base = {5, 88, 100, 4};
+#endif
 	m_pClient->m_pVoting->RenderBars(Base, false);
 
+#if defined(__ANDROID__)
+	Base.y += Base.h+6;
+	UI()->DoLabel(&Base, Localize("Vote yes"), 16.0f, -1);
+	UI()->DoLabel(&Base, Localize("Vote no"), 16.0f, 1);
+	if( Input()->KeyDown(KEY_MOUSE_1) )
+	{
+		float mx, my;
+		Input()->MouseRelative(&mx, &my);
+		mx *= m_Width / Graphics()->ScreenWidth();
+		my *= m_Height / Graphics()->ScreenHeight();
+		if( my > TextY+TextH-40 && my < TextY+TextH+20 ) {
+			if( mx > TextX-5 && mx < TextX-5+TextW/2-10 )
+				m_pClient->m_pVoting->Vote(1);
+			if( mx > TextX+TextW/2+20 && mx < TextX+TextW/2+20+TextW/2-10 )
+				m_pClient->m_pVoting->Vote(-1);
+		}
+	}
+#else
 	const char *pYesKey = m_pClient->m_pBinds->GetKey("vote yes");
 	const char *pNoKey = m_pClient->m_pBinds->GetKey("vote no");
 	str_format(aBuf, sizeof(aBuf), "%s - %s", pYesKey, Localize("Vote yes"));
@@ -364,6 +436,7 @@ void CHud::RenderVoting()
 
 	str_format(aBuf, sizeof(aBuf), "%s - %s", Localize("Vote no"), pNoKey);
 	UI()->DoLabel(&Base, aBuf, 6.0f, 1);
+#endif
 }
 
 void CHud::RenderCursor()
@@ -378,7 +451,7 @@ void CHud::RenderCursor()
 	// render cursor
 	RenderTools()->SelectSprite(g_pData->m_Weapons.m_aId[m_pClient->m_Snap.m_pLocalCharacter->m_Weapon%NUM_WEAPONS].m_pSpriteCursor);
 	float CursorSize = 64;
-	RenderTools()->DrawSprite(m_pClient->m_pControls->m_TargetPos.x, m_pClient->m_pControls->m_TargetPos.y, CursorSize);
+	RenderTools()->DrawSprite(m_pClient->m_pControls->m_TargetPos[g_Config.m_ClDummy].x, m_pClient->m_pControls->m_TargetPos[g_Config.m_ClDummy].y, CursorSize);
 	Graphics()->QuadsEnd();
 }
 
@@ -467,12 +540,13 @@ void CHud::OnRender()
 	{
 		if(m_pClient->m_Snap.m_pLocalCharacter && !(m_pClient->m_Snap.m_pGameInfoObj->m_GameStateFlags&GAMESTATEFLAG_GAMEOVER))
 		{
-			RenderHealthAndAmmo(m_pClient->m_Snap.m_pLocalCharacter);
+			if (g_Config.m_ClShowhudHealthAmmo)
+				RenderHealthAndAmmo(m_pClient->m_Snap.m_pLocalCharacter);
 			RenderDDRaceEffects();
 		}
 		else if(m_pClient->m_Snap.m_SpecInfo.m_Active)
 		{
-			if(m_pClient->m_Snap.m_SpecInfo.m_SpectatorID != SPEC_FREEVIEW)
+			if(m_pClient->m_Snap.m_SpecInfo.m_SpectatorID != SPEC_FREEVIEW && g_Config.m_ClShowhudHealthAmmo)
 				RenderHealthAndAmmo(&m_pClient->m_Snap.m_aCharacters[m_pClient->m_Snap.m_SpecInfo.m_SpectatorID].m_Cur);
 			RenderSpectatorHud();
 		}
@@ -480,14 +554,16 @@ void CHud::OnRender()
 		RenderGameTimer();
 		RenderPauseNotification();
 		RenderSuddenDeath();
-		RenderScoreHud();
+		if (g_Config.m_ClShowhudScore)
+			RenderScoreHud();
 		RenderWarmupTimer();
 		RenderFps();
 		if(Client()->State() != IClient::STATE_DEMOPLAYBACK)
 			RenderConnectionWarning();
 		RenderTeambalanceWarning();
 		RenderVoting();
-		RenderRecord();
+		if (g_Config.m_ClShowRecord)
+			RenderRecord();
 	}
 	RenderCursor();
 }

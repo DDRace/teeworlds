@@ -4,6 +4,7 @@
 #define GAME_COLLISION_H
 
 #include <base/vmath.h>
+#include <engine/shared/protocol.h>
 
 #include <list>
 
@@ -25,17 +26,20 @@ public:
 		COLFLAG_NOHOOK=4,
 		// DDRace
 		COLFLAG_NOLASER=8,
-		COLFLAG_THROUGH=16
+		COLFLAG_THROUGH=16,
+		COLFLAG_TELE=32
 	};
 
 	CCollision();
 	void Init(class CLayers *pLayers);
-	bool CheckPoint(float x, float y) { return IsSolid(round(x), round(y)); }
+	bool CheckPoint(float x, float y) { return IsSolid(round_to_int(x), round_to_int(y)); }
 	bool CheckPoint(vec2 Pos) { return CheckPoint(Pos.x, Pos.y); }
-	int GetCollisionAt(float x, float y) { return GetTile(round(x), round(y)); }
+	int GetCollisionAt(float x, float y) { return GetTile(round_to_int(x), round_to_int(y)); }
 	int GetWidth() { return m_Width; };
 	int GetHeight() { return m_Height; };
 	int IntersectLine(vec2 Pos0, vec2 Pos1, vec2 *pOutCollision, vec2 *pOutBeforeCollision, bool AllowThrough);
+	int IntersectLineTeleWeapon(vec2 Pos0, vec2 Pos1, vec2 *pOutCollision, vec2 *pOutBeforeCollision, int *pTeleNr, bool AllowThrough);
+	int IntersectLineTeleHook(vec2 Pos0, vec2 Pos1, vec2 *pOutCollision, vec2 *pOutBeforeCollision, int *pTeleNr, bool AllowThrough);
 	void MovePoint(vec2 *pInoutPos, vec2 *pInoutVel, float Elasticity, int *pBounces);
 	void MoveBox(vec2 *pInoutPos, vec2 *pInoutVel, vec2 Size, float Elasticity);
 	bool TestBox(vec2 Pos, vec2 Size);
@@ -49,11 +53,13 @@ public:
 	int GetDTileIndex(int Index);
 	int GetDTileFlags(int Index);
 	int GetDTileNumber(int Index);
-	int GetFCollisionAt(float x, float y) { return GetFTile(round(x), round(y)); }
+	int GetFCollisionAt(float x, float y) { return GetFTile(round_to_int(x), round_to_int(y)); }
 	int IntersectNoLaser(vec2 Pos0, vec2 Pos1, vec2 *pOutCollision, vec2 *pOutBeforeCollision);
 	int IntersectNoLaserNW(vec2 Pos0, vec2 Pos1, vec2 *pOutCollision, vec2 *pOutBeforeCollision);
 	int IntersectAir(vec2 Pos0, vec2 Pos1, vec2 *pOutCollision, vec2 *pOutBeforeCollision);
 	int GetIndex(int x, int y);
+	int GetIndex(vec2 Pos);
+	int GetIndex(vec2 PrevPos, vec2 Pos);
 	int GetFIndex(int x, int y);
 
 	int GetTile(int x, int y);
@@ -72,9 +78,13 @@ public:
 	int IsTeleport(int Index);
 	int IsEvilTeleport(int Index);
 	int IsCheckTeleport(int Index);
+	int IsCheckEvilTeleport(int Index);
+	int IsTeleportWeapon(int Index);
+	int IsTeleportHook(int Index);
 	int IsTCheckpoint(int Index);
 	//int IsCheckpoint(int Index);
 	int IsSpeedup(int Index);
+	int IsTune(int Index);
 	void GetSpeedup(int Index, vec2 *Dir, int *Force, int *MaxSpeed);
 	int IsSwitch(int Index);
 	int GetSwitchNumber(int Index);
@@ -82,6 +92,7 @@ public:
 
 	int IsSolid(int x, int y);
 	int IsThrough(int x, int y);
+	int IsWallJump(int Index);
 	int IsNoLaser(int x, int y);
 	int IsFNoLaser(int x, int y);
 
@@ -94,6 +105,7 @@ public:
 
 	class CTeleTile *TeleLayer() { return m_pTele; }
 	class CSwitchTile *SwitchLayer() { return m_pSwitch; }
+	class CTuneTile *TuneLayer() { return m_pTune; }
 	class CLayers *Layers() { return m_pLayers; }
 	int m_NumSwitchers;
 
@@ -103,12 +115,13 @@ private:
 	class CSpeedupTile *m_pSpeedup;
 	class CTile *m_pFront;
 	class CSwitchTile *m_pSwitch;
+	class CTuneTile *m_pTune;
 	class CDoorTile *m_pDoor;
 	struct SSwitchers
 	{
-		bool m_Status[16];
-		int m_EndTick[16];
-		int m_Type[16];
+		bool m_Status[MAX_CLIENTS];
+		int m_EndTick[MAX_CLIENTS];
+		int m_Type[MAX_CLIENTS];
 	};
 
 public:

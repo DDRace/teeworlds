@@ -16,21 +16,21 @@
 
 const char *CConsole::CResult::GetString(unsigned Index)
 {
-	if (Index < 0 || Index >= m_NumArgs)
+	if (Index >= m_NumArgs)
 		return "";
 	return m_apArgs[Index];
 }
 
 int CConsole::CResult::GetInteger(unsigned Index)
 {
-	if (Index < 0 || Index >= m_NumArgs)
+	if (Index >= m_NumArgs)
 		return 0;
 	return str_toint(m_apArgs[Index]);
 }
 
 float CConsole::CResult::GetFloat(unsigned Index)
 {
-	if (Index < 0 || Index >= m_NumArgs)
+	if (Index >= m_NumArgs)
 		return 0.0f;
 	return str_tofloat(m_apArgs[Index]);
 }
@@ -68,7 +68,7 @@ int CConsole::ParseStart(CResult *pResult, const char *pString, int Length)
 	if(Length < Len)
 		Len = Length;
 
-	str_copy(pResult->m_aStringStorage, pString, Length);
+	str_copy(pResult->m_aStringStorage, pString, Len);
 	pStr = pResult->m_aStringStorage;
 
 	// get command
@@ -353,7 +353,7 @@ void CConsole::ExecuteLineStroked(int Stroke, const char *pStr, int ClientID)
 						if(Result.GetVictim() == CResult::VICTIM_ME)
 							Result.SetVictim(ClientID);
 
-						if(pCommand->m_Flags&CMDFLAG_TEST && (!g_Config.m_SvTestingCommands || g_Config.m_SvRegister))
+						if(pCommand->m_Flags&CMDFLAG_TEST && !g_Config.m_SvTestingCommands)
 							return;
 
 						if (Result.HasVictim())
@@ -458,7 +458,7 @@ void CConsole::ExecuteFile(const char *pFilename, int ClientID)
 	// exec the file
 	IOHANDLE File = m_pStorage->OpenFile(pFilename, IOFLAG_READ, IStorage::TYPE_ALL);
 
-	char aBuf[256];
+	char aBuf[8192];
 	if(File)
 	{
 		char *pLine;

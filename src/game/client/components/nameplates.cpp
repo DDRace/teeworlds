@@ -20,6 +20,14 @@ void CNamePlates::RenderNameplate(
 
 	vec2 Position = mix(vec2(pPrevChar->m_X, pPrevChar->m_Y), vec2(pPlayerChar->m_X, pPlayerChar->m_Y), IntraTick);
 
+	bool OtherTeam;
+
+	if (m_pClient->m_aClients[m_pClient->m_Snap.m_LocalClientID].m_Team == TEAM_SPECTATORS && m_pClient->m_Snap.m_SpecInfo.m_SpectatorID == SPEC_FREEVIEW)
+		OtherTeam = false;
+	else if (m_pClient->m_Snap.m_SpecInfo.m_Active && m_pClient->m_Snap.m_SpecInfo.m_SpectatorID != SPEC_FREEVIEW)
+		OtherTeam = m_pClient->m_Teams.Team(pPlayerInfo->m_ClientID) != m_pClient->m_Teams.Team(m_pClient->m_Snap.m_SpecInfo.m_SpectatorID);
+	else
+		OtherTeam = m_pClient->m_Teams.Team(pPlayerInfo->m_ClientID) != m_pClient->m_Teams.Team(m_pClient->m_Snap.m_LocalClientID);
 
 	float FontSize = 18.0f + 20.0f * g_Config.m_ClNameplatesSize / 100.0f;
 	// render name plate
@@ -27,13 +35,25 @@ void CNamePlates::RenderNameplate(
 	{
 		float a = 1;
 		if(g_Config.m_ClNameplatesAlways == 0)
-			a = clamp(1-powf(distance(m_pClient->m_pControls->m_TargetPos, Position)/200.0f,16.0f), 0.0f, 1.0f);
+			a = clamp(1-powf(distance(m_pClient->m_pControls->m_TargetPos[g_Config.m_ClDummy], Position)/200.0f,16.0f), 0.0f, 1.0f);
 
 		const char *pName = m_pClient->m_aClients[pPlayerInfo->m_ClientID].m_aName;
 		float tw = TextRender()->TextWidth(0, FontSize, pName, -1);
 
-		TextRender()->TextOutlineColor(0.0f, 0.0f, 0.0f, 0.5f*a);
-		TextRender()->TextColor(1.0f, 1.0f, 1.0f, a);
+		vec3 rgb = vec3(1.0f, 1.0f, 1.0f);
+		if(g_Config.m_ClNameplatesTeamcolors && m_pClient->m_Teams.Team(pPlayerInfo->m_ClientID))
+			rgb = HslToRgb(vec3(m_pClient->m_Teams.Team(pPlayerInfo->m_ClientID) / 64.0f, 1.0f, 0.75f));
+
+		if (OtherTeam)
+		{
+			TextRender()->TextOutlineColor(0.0f, 0.0f, 0.0f, 0.2f);
+			TextRender()->TextColor(rgb.r, rgb.g, rgb.b, g_Config.m_ClShowOthersAlpha / 100.0f);
+		}
+		else
+		{
+			TextRender()->TextOutlineColor(0.0f, 0.0f, 0.0f, 0.5f*a);
+			TextRender()->TextColor(rgb.r, rgb.g, rgb.b, a);
+		}
 		if(g_Config.m_ClNameplatesTeamcolors && m_pClient->m_Snap.m_pGameInfoObj && m_pClient->m_Snap.m_pGameInfoObj->m_GameFlags&GAMEFLAG_TEAMS)
 		{
 			if(pPlayerInfo->m_Team == TEAM_RED)
@@ -58,7 +78,7 @@ void CNamePlates::RenderNameplate(
 
 void CNamePlates::OnRender()
 {
-	if (!g_Config.m_ClNameplates)
+	if (!g_Config.m_ClNameplates || g_Config.m_ClAntiPing)
 		return;
 
 	for(int i = 0; i < MAX_CLIENTS; i++)

@@ -63,6 +63,9 @@ class CClient : public IClient, public CDemoPlayer::IListner
 	IEngineMap *m_pMap;
 	IConsole *m_pConsole;
 	IStorage *m_pStorage;
+#if !defined(CONF_PLATFORM_MACOSX) && !defined(__ANDROID__)
+	IAutoUpdate *m_pAutoUpdate;
+#endif
 	IEngineMasterServer *m_pMasterServer;
 
 	enum
@@ -71,10 +74,13 @@ class CClient : public IClient, public CDemoPlayer::IListner
 		PREDICTION_MARGIN=1000/50/2, // magic network prediction value
 	};
 
-	class CNetClient m_NetClient;
+	class CNetClient m_NetClient[2];
 	class CDemoPlayer m_DemoPlayer;
 	class CDemoRecorder m_DemoRecorder;
 	class CServerBrowser m_ServerBrowser;
+#if !defined(CONF_PLATFORM_MACOSX) && !defined(__ANDROID__)
+	class CAutoUpdate m_AutoUpdate;
+#endif
 	class CFriends m_Friends;
 	class CMapChecker m_MapChecker;
 
@@ -98,9 +104,9 @@ class CClient : public IClient, public CDemoPlayer::IListner
 	bool m_SoundInitFailed;
 	bool m_ResortServerBrowser;
 
-	int m_AckGameTick;
-	int m_CurrentRecvTick;
-	int m_RconAuthed;
+	int m_AckGameTick[2];
+	int m_CurrentRecvTick[2];
+	int m_RconAuthed[2];
 	int m_UseTempRconCommands;
 
 	// version-checking
@@ -126,7 +132,7 @@ class CClient : public IClient, public CDemoPlayer::IListner
 	int m_MapdownloadTotalsize;
 
 	// time
-	CSmoothTime m_GameTime;
+	CSmoothTime m_GameTime[2];
 	CSmoothTime m_PredictedTime;
 
 	// input
@@ -136,9 +142,13 @@ class CClient : public IClient, public CDemoPlayer::IListner
 		int m_Tick; // the tick that the input is for
 		int64 m_PredictedTime; // prediction latency when we sent this input
 		int64 m_Time;
-	} m_aInputs[200];
+	} m_aInputs[2][200];
 
-	int m_CurrentInput;
+	int m_CurrentInput[2];
+	bool m_LastDummy;
+	bool m_LastDummy2;
+	CNetObj_PlayerInput DummyInput;
+	CNetObj_PlayerInput HammerInput;
 
 	// graphs
 	CGraph m_InputtimeMarginGraph;
@@ -146,10 +156,10 @@ class CClient : public IClient, public CDemoPlayer::IListner
 	CGraph m_FpsGraph;
 
 	// the game snapshots are modifiable by the game
-	class CSnapshotStorage m_SnapshotStorage;
-	CSnapshotStorage::CHolder *m_aSnapshots[NUM_SNAPSHOT_TYPES];
+	class CSnapshotStorage m_SnapshotStorage[2];
+	CSnapshotStorage::CHolder *m_aSnapshots[2][NUM_SNAPSHOT_TYPES];
 
-	int m_RecivedSnapshots;
+	int m_RecivedSnapshots[2];
 	char m_aSnapshotIncommingData[CSnapshot::MAX_SIZE];
 
 	class CSnapshotStorage::CHolder m_aDemorecSnapshotHolders[NUM_SNAPSHOT_TYPES];
@@ -175,11 +185,10 @@ class CClient : public IClient, public CDemoPlayer::IListner
 		class CHostLookup m_VersionServeraddr;
 	} m_VersionInfo;
 
-	semaphore m_GfxRenderSemaphore;
-	semaphore m_GfxStateSemaphore;
 	volatile int m_GfxState;
 	static void GraphicsThreadProxy(void *pThis) { ((CClient*)pThis)->GraphicsThread(); }
 	void GraphicsThread();
+  vec3 GetColorV3(int v);
 
 public:
 	IEngine *Engine() { return m_pEngine; }
@@ -189,18 +198,22 @@ public:
 	IGameClient *GameClient() { return m_pGameClient; }
 	IEngineMasterServer *MasterServer() { return m_pMasterServer; }
 	IStorage *Storage() { return m_pStorage; }
+#if !defined(CONF_PLATFORM_MACOSX) && !defined(__ANDROID__)
+	IAutoUpdate *AutoUpdate() { return m_pAutoUpdate; }
+#endif
 
 	CClient();
 
 	// ----- send functions -----
 	virtual int SendMsg(CMsgPacker *pMsg, int Flags);
+	virtual int SendMsgExY(CMsgPacker *pMsg, int Flags, bool System=true, int NetClient=1);
 
 	int SendMsgEx(CMsgPacker *pMsg, int Flags, bool System=true);
 	void SendInfo();
 	void SendEnterGame();
 	void SendReady();
 
-	virtual bool RconAuthed() { return m_RconAuthed != 0; }
+	virtual bool RconAuthed() { return m_RconAuthed[g_Config.m_ClDummy] != 0; }
 	virtual bool UseTempRconCommands() { return m_UseTempRconCommands != 0; }
 	void RconAuth(const char *pName, const char *pPassword);
 	virtual void Rcon(const char *pCmd);
@@ -231,6 +244,13 @@ public:
 	void DisconnectWithReason(const char *pReason);
 	virtual void Disconnect();
 
+	virtual void DummyDisconnect(const char *pReason);
+	virtual void DummyConnect();
+	virtual bool DummyConnected();
+	void DummyInfo();
+	int m_DummyConnected;
+	int m_LastDummyConnectTime;
+	int m_Fire;
 
 	virtual void GetServerInfo(CServerInfo *pServerInfo);
 	void ServerInfoRequest();
@@ -259,6 +279,7 @@ public:
 
 	void ProcessConnlessPacket(CNetChunk *pPacket);
 	void ProcessServerPacket(CNetChunk *pPacket);
+	void ProcessServerPacketDummy(CNetChunk *pPacket);
 
 	virtual int MapDownloadAmount() { return m_MapdownloadAmount; }
 	virtual int MapDownloadTotalsize() { return m_MapdownloadTotalsize; }
@@ -275,9 +296,14 @@ public:
 
 	void Run();
 
+	bool CtrlShiftKey(int Key, bool &Last);
 
 	static void Con_Connect(IConsole::IResult *pResult, void *pUserData);
 	static void Con_Disconnect(IConsole::IResult *pResult, void *pUserData);
+
+	static void Con_DummyConnect(IConsole::IResult *pResult, void *pUserData);
+	static void Con_DummyDisconnect(IConsole::IResult *pResult, void *pUserData);
+
 	static void Con_Quit(IConsole::IResult *pResult, void *pUserData);
 	static void Con_Minimize(IConsole::IResult *pResult, void *pUserData);
 	static void Con_Ping(IConsole::IResult *pResult, void *pUserData);

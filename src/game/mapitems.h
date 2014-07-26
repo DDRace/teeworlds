@@ -17,6 +17,7 @@ enum
 	LAYERTYPE_TELE,
 	LAYERTYPE_SPEEDUP,
 	LAYERTYPE_SWITCH,
+	LAYERTYPE_TUNE,
 
 	MAPITEMTYPE_VERSION=0,
 	MAPITEMTYPE_INFO,
@@ -35,6 +36,7 @@ enum
 	NUM_CURVETYPES,
 
 	// game layer tiles
+	// TODO define which Layer uses which tiles (needed for mapeditor)
 	ENTITY_NULL=0,
 	ENTITY_SPAWN,
 	ENTITY_SPAWN_RED,
@@ -93,12 +95,16 @@ enum
 	TILE_NOHOOK,
 	TILE_NOLASER,
 	TILE_THROUGH = 6,
+	TILE_JUMP,
 	TILE_FREEZE = 9,
 	TILE_TELEINEVIL,
 	TILE_UNFREEZE,
 	TILE_DFREEZE,
 	TILE_DUNFREEZE,
-	TILE_EHOOK_START = 17,
+	TILE_TELEINWEAPON,
+	TILE_TELEINHOOK,
+	TILE_WALLJUMP = 16,
+	TILE_EHOOK_START,
 	TILE_EHOOK_END,
 	TILE_HIT_START,
 	TILE_HIT_END,
@@ -120,13 +126,24 @@ enum
 	TILE_STOP = 60,
 	TILE_STOPS,
 	TILE_STOPA,
+	TILE_TELECHECKINEVIL = 63,
 	TILE_CP = 64,
 	TILE_CP_F,
+	TILE_TUNE1 = 68,
 	TILE_OLDLASER = 71,
 	TILE_NPC,
 	TILE_EHOOK,
 	TILE_NOHIT,
-	TILE_NPH,//Remember to change this in collision.cpp if you add anymore tiles
+	TILE_NPH,
+	TILE_PENALTY = 79,
+	TILE_NPC_END = 88,
+	TILE_SUPER_END,
+	TILE_JETPACK_END,
+	TILE_NPH_END,
+	TILE_NPC_START = 104,
+	TILE_SUPER_START,
+	TILE_JETPACK_START,
+	TILE_NPH_START,//Remember to change this in collision.cpp if you add anymore tiles
 	//End of higher tiles
 	//Layers
 	LAYER_GAME=0,
@@ -134,6 +151,7 @@ enum
 	LAYER_TELE,
 	LAYER_SPEEDUP,
 	LAYER_SWITCH,
+	LAYER_TUNE,
 	NUM_LAYERS,
 	//Flags
 	TILEFLAG_VFLIP=1,
@@ -152,6 +170,7 @@ enum
 	TILESLAYERFLAG_SPEEDUP=4,
 	TILESLAYERFLAG_FRONT=8,
 	TILESLAYERFLAG_SWITCH=16,
+	TILESLAYERFLAG_TUNE=32,
 
 	ENTITY_OFFSET=255-16*4,
 };
@@ -264,6 +283,7 @@ struct CMapItemLayerTilemap
 	int m_Speedup;
 	int m_Front;
 	int m_Switch;
+	int m_Tune;
 } ;
 
 struct CMapItemLayerQuads
@@ -341,6 +361,13 @@ public:
 	unsigned char m_Index;
 	unsigned char m_Flags;
 	int m_Number;
+};
+
+class CTuneTile
+{
+public:
+	unsigned char m_Number;
+	unsigned char m_Type;
 };
 
 #endif

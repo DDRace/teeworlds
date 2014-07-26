@@ -207,8 +207,43 @@ public:
 
 	bool IsEmpty() const
 	{
-		return m_lLayers.size() == 0;
+		return m_lLayers.size() == 0; // stupid function, since its bad for Fillselection: TODO add a function for Fillselection that returns whether a specific tile is used in the given layer
 	}
+	
+	/*bool IsUsedInThisLayer(int Layer, int Index) // <--------- this is what i meant but cause i dont know which Indexes belongs to which layers i cant finish yet
+	{
+		switch Layer
+		{
+			case LAYERTYPE_GAME: // security
+				return true;
+			case LAYERTYPE_FRONT:
+				return true;
+			case LAYERTYPE_TELE:
+			{
+				if (Index ==) // you could add an 2D array into mapitems.h which defines which Indexes belong to which layer(s)
+			}
+			case LAYERTYPE_SPEEDUP:
+			{
+				if (Index == TILE_BOOST)
+					return true;
+				else
+					return false;
+			}
+			case LAYERTYPE_SWITCH:
+			{
+				
+			}
+			case LAYERTYPE_TUNE:
+			{
+				if (Index == TILE_TUNE1)
+					return true;
+				else
+					return false;
+			}
+			default:
+				return false;
+		}
+	}*/
 
 	void Clear()
 	{
@@ -266,6 +301,7 @@ class CEditorMap
 public:
 	CEditor *m_pEditor;
 	bool m_Modified;
+	int m_UndoModified;
 
 	CEditorMap()
 	{
@@ -310,6 +346,7 @@ public:
 	CEnvelope *NewEnvelope(int Channels)
 	{
 		m_Modified = true;
+		m_UndoModified++;
 		CEnvelope *e = new CEnvelope(Channels);
 		m_lEnvelopes.add(e);
 		return e;
@@ -320,6 +357,7 @@ public:
 	CLayerGroup *NewGroup()
 	{
 		m_Modified = true;
+		m_UndoModified++;
 		CLayerGroup *g = new CLayerGroup;
 		g->m_pMap = this;
 		m_lGroups.add(g);
@@ -332,6 +370,7 @@ public:
 		if(Index1 < 0 || Index1 >= m_lGroups.size()) return Index0;
 		if(Index0 == Index1) return Index0;
 		m_Modified = true;
+		m_UndoModified++;
 		swap(m_lGroups[Index0], m_lGroups[Index1]);
 		return Index1;
 	}
@@ -340,6 +379,7 @@ public:
 	{
 		if(Index < 0 || Index >= m_lGroups.size()) return;
 		m_Modified = true;
+		m_UndoModified++;
 		delete m_lGroups[Index];
 		m_lGroups.remove_index(Index);
 	}
@@ -347,6 +387,7 @@ public:
 	void ModifyImageIndex(INDEX_MODIFY_FUNC pfnFunc)
 	{
 		m_Modified = true;
+		m_UndoModified++;
 		for(int i = 0; i < m_lGroups.size(); i++)
 			m_lGroups[i]->ModifyImageIndex(pfnFunc);
 	}
@@ -354,6 +395,7 @@ public:
 	void ModifyEnvelopeIndex(INDEX_MODIFY_FUNC pfnFunc)
 	{
 		m_Modified = true;
+		m_UndoModified++;
 		for(int i = 0; i < m_lGroups.size(); i++)
 			m_lGroups[i]->ModifyEnvelopeIndex(pfnFunc);
 	}
@@ -371,10 +413,12 @@ public:
 	class CLayerSpeedup *m_pSpeedupLayer;
 	class CLayerFront *m_pFrontLayer;
 	class CLayerSwitch *m_pSwitchLayer;
+	class CLayerTune *m_pTuneLayer;
 	void MakeTeleLayer(CLayer *pLayer);
 	void MakeSpeedupLayer(CLayer *pLayer);
 	void MakeFrontLayer(CLayer *pLayer);
 	void MakeSwitchLayer(CLayer *pLayer);
+	void MakeTuneLayer(CLayer *pLayer);
 };
 
 
@@ -457,6 +501,7 @@ public:
 	int m_Speedup;
 	int m_Front;
 	int m_Switch;
+	int m_Tune;
 	char m_aFileName[512];
 };
 
@@ -578,6 +623,8 @@ public:
 		m_AnimateSpeed = 1;
 
 		m_ShowEnvelopeEditor = 0;
+		m_ShowUndo = 0;
+		m_UndoScrollValue = 0.0f;
 
 		m_ShowEnvelopePreview = 0;
 		m_SelectedQuadEnvelope = -1;
@@ -596,8 +643,10 @@ public:
 		ms_TeleTexture = 0;
 		ms_SpeedupTexture = 0;
 		ms_SwitchTexture = 0;
+		ms_TuneTexture = 0;
 		m_TeleNumber = 1;
 		m_SwitchNum = 1;
+		m_TuningNum = 1;
 		m_SwitchDelay = 0;
 		m_SpeedupForce = 50;
 		m_SpeedupMaxSpeed = 0;
@@ -608,6 +657,22 @@ public:
 	virtual void UpdateAndRender();
 	virtual bool HasUnsavedData() { return m_Map.m_Modified; }
 
+	int64 m_LastUndoUpdateTime;
+	bool m_UndoRunning;
+	void CreateUndoStep();
+	static void CreateUndoStepThread(void *pUser);
+	int UndoStep();
+	struct CUndo
+	{
+		int m_FileNum;
+		int m_ButtonId;
+		char m_aName[128];
+		int m_PreviewImage;
+	};
+	array<CUndo> m_lUndoSteps;
+	bool m_Undo;
+	int m_ShowUndo;
+	float m_UndoScrollValue;
 	void FilelistPopulate(int StorageType);
 	void InvokeFileDialog(int StorageType, int FileType, const char *pTitle, const char *pButtonText,
 		const char *pBasepath, const char *pDefaultName,
@@ -624,7 +689,7 @@ public:
 	CLayer *GetSelectedLayer(int Index);
 	CLayerGroup *GetSelectedGroup();
 
-	int DoProperties(CUIRect *pToolbox, CProperty *pProps, int *pIDs, int *pNewVal);
+	int DoProperties(CUIRect *pToolbox, CProperty *pProps, int *pIDs, int *pNewVal, vec4 color = vec4(1,1,1,0.5f));
 
 	int m_Mode;
 	int m_Dialog;
@@ -673,6 +738,9 @@ public:
 	int m_FilesSelectedIndex;
 	char m_FileDialogNewFolderName[64];
 	char m_FileDialogErrString[64];
+	int m_FilePreviewImage;
+	CImageInfo m_FilePreviewImageInfo;
+
 
 	struct CFilelistItem
 	{
@@ -737,6 +805,7 @@ public:
 	static const void *ms_pUiGotContext;
 
 	CEditorMap m_Map;
+	int m_ShiftBy;
 
 	static void EnvelopeEval(float TimeOffset, int Env, float *pChannels, void *pUser);
 
@@ -793,8 +862,8 @@ public:
 
 	vec4 ButtonColorMul(const void *pID);
 
-	void DoQuadEnvelopes(CQuad *pQuad, int Index, int TexID = -1);
-	void DoQuadEnvPoint(CQuad *pQuad, int QIndex, int pIndex);
+	void DoQuadEnvelopes(const array<CQuad> &m_lQuads, int TexID = -1);
+	void DoQuadEnvPoint(const CQuad *pQuad, int QIndex, int pIndex);
 	void DoQuadPoint(CQuad *pQuad, int QuadIndex, int v);
 
 	void DoMapEditor(CUIRect View, CUIRect Toolbar);
@@ -811,6 +880,7 @@ public:
 	void RenderModebar(CUIRect View);
 	void RenderStatusbar(CUIRect View);
 	void RenderEnvelopeEditor(CUIRect View);
+	void RenderUndoList(CUIRect View);
 
 	void RenderMenubar(CUIRect Menubar);
 	void RenderFileDialog();
@@ -841,10 +911,14 @@ public:
 	static int ms_TeleTexture;
 	static int ms_SpeedupTexture;
 	static int ms_SwitchTexture;
+	static int ms_TuneTexture;
 	static int PopupTele(CEditor *pEditor, CUIRect View);
 	static int PopupSpeedup(CEditor *pEditor, CUIRect View);
 	static int PopupSwitch(CEditor *pEditor, CUIRect View);
+	static int PopupTune(CEditor *pEditor, CUIRect View);
 	unsigned char m_TeleNumber;
+	
+	unsigned char m_TuningNum;
 
 	unsigned char m_SpeedupForce;
 	unsigned char m_SpeedupMaxSpeed;
@@ -923,5 +997,24 @@ public:
 	virtual void BrushDraw(CLayer *pBrush, float wx, float wy);
 	virtual void FillSelection(bool Empty, CLayer *pBrush, CUIRect Rect);
 };
+
+class CLayerTune : public CLayerTiles
+{
+public:
+	CLayerTune(int w, int h);
+	~CLayerTune();
+
+	CTuneTile *m_pTuneTile;
+	unsigned char m_TuningNumber;
+
+	virtual void Resize(int NewW, int NewH);
+	virtual void Shift(int Direction);
+	virtual void BrushDraw(CLayer *pBrush, float wx, float wy);
+	virtual void BrushFlipX();
+	virtual void BrushFlipY();
+	virtual void BrushRotate(float Amount);
+	virtual void FillSelection(bool Empty, CLayer *pBrush, CUIRect Rect);
+};
+
 
 #endif

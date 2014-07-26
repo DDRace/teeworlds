@@ -39,10 +39,16 @@ MACRO_TUNING_PARAM(GrenadeLifetime, grenade_lifetime, 2.0f)
 
 MACRO_TUNING_PARAM(LaserReach, laser_reach, 800.0f)
 MACRO_TUNING_PARAM(LaserBounceDelay, laser_bounce_delay, 150)
-MACRO_TUNING_PARAM(LaserBounceNum, laser_bounce_num, 1)
+MACRO_TUNING_PARAM(LaserBounceNum, laser_bounce_num, 1000)
 MACRO_TUNING_PARAM(LaserBounceCost, laser_bounce_cost, 0)
 MACRO_TUNING_PARAM(LaserDamage, laser_damage, 5)
 
 MACRO_TUNING_PARAM(PlayerCollision, player_collision, 1)
 MACRO_TUNING_PARAM(PlayerHooking, player_hooking, 1)
+
+//ddnet tuning
+MACRO_TUNING_PARAM(JetpackStrength, jetpack_strength, 400.0f)
+MACRO_TUNING_PARAM(ShotgunStrength, shotgun_strength, 10.0f)
+MACRO_TUNING_PARAM(ExplosionStrength, explosion_strength, 6.0f)
+MACRO_TUNING_PARAM(HammerStrength, hammer_strength, 1.0f)
 #endif
